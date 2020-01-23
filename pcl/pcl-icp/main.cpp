@@ -30,14 +30,13 @@ void keyboardEventOccurred (const pcl::visualization::KeyboardEvent& event, void
 
 int main (int argc, char* argv[])
 {
-  // The point clouds we will be using
-  PointCloudT::Ptr cloud_in (new PointCloudT);  // Original point cloud
-  PointCloudT::Ptr cloud_tr (new PointCloudT);  // Transformed point cloud
-  PointCloudT::Ptr cloud_icp (new PointCloudT);  // ICP output point cloud
-
+	// The point clouds we will be using
+	PointCloudT::Ptr cloud_in (new PointCloudT);  // Original point cloud
+	PointCloudT::Ptr cloud_tr (new PointCloudT);  // Transformed point cloud
+	PointCloudT::Ptr cloud_icp (new PointCloudT);  // ICP output point cloud
+	
   // Checking program arguments
-  if (argc < 2)
-  {
+  if (argc < 2) {
     printf ("Usage :\n");
     printf ("\t\t%s file.ply number_of_ICP_iterations\n", argv[0]);
     PCL_ERROR ("Provide one ply file.\n");
@@ -45,12 +44,10 @@ int main (int argc, char* argv[])
   }
 
   int iterations = 1;  // Default number of ICP iterations
-  if (argc > 2)
-  {
+  if (argc > 2){
     // If the user passed the number of iteration as an argument
     iterations = atoi (argv[2]);
-    if (iterations < 1)
-    {
+    if (iterations < 1) {
       PCL_ERROR ("Number of initial iterations must be >= 1\n");
       return (-1);
     }
@@ -58,8 +55,7 @@ int main (int argc, char* argv[])
 
   pcl::console::TicToc time;
   time.tic ();
-  if (pcl::io::loadPLYFile (argv[1], *cloud_in) < 0)
-  {
+  if (pcl::io::loadPLYFile (argv[1], *cloud_in) < 0) {
     PCL_ERROR ("Error loading cloud %s.\n", argv[1]);
     return (-1);
   }
@@ -96,15 +92,12 @@ int main (int argc, char* argv[])
   icp.setMaximumIterations (1);  // We set this variable to 1 for the next time we will call .align () function
   std::cout << "Applied " << iterations << " ICP iteration(s) in " << time.toc () << " ms" << std::endl;
 
-  if (icp.hasConverged ())
-  {
-    std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
+  if (icp.hasConverged ()) {
+	std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
     std::cout << "\nICP transformation " << iterations << " : cloud_icp -> cloud_in" << std::endl;
     transformation_matrix = icp.getFinalTransformation ().cast<double>();
     print4x4Matrix (transformation_matrix);
-  }
-  else
-  {
+  } else {
     PCL_ERROR ("\nICP has not converged.\n");
     return (-1);
   }
@@ -118,7 +111,7 @@ int main (int argc, char* argv[])
   viewer.createViewPort (0.5, 0.0, 1.0, 1.0, v2);
 
   // The color we will be using
-  float bckgr_gray_level = 0.0;  // Black
+  float bckgr_gray_level = 1.0;  // Black:=0.0
   float txt_gray_lvl = 1.0 - bckgr_gray_level;
 
   // Original point cloud is white

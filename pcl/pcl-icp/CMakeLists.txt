@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 
-project(pcl-main)
+project(pcl-icp)
 
 find_package(PCL 1.5 REQUIRED)
 
