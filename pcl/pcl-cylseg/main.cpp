@@ -1,5 +1,5 @@
 #include <pcl/ModelCoefficients.h>
-#include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
@@ -8,17 +8,18 @@
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/console/time.h>
 
 typedef pcl::PointXYZ PointT;
 
 int main (int argc, char** argv)
 {
 	// All the objects needed
-	pcl::PCDReader reader;
+	////pcl::PCDReader reader;
 	pcl::PassThrough<PointT> pass;
 	pcl::NormalEstimation<PointT, pcl::Normal> ne;
 	pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg; 
-	pcl::PCDWriter writer;
+	////pcl::PCDWriter writer;
 	pcl::ExtractIndices<PointT> extract;
 	pcl::ExtractIndices<pcl::Normal> extract_normals;
 	pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
@@ -32,14 +33,27 @@ int main (int argc, char** argv)
 	pcl::ModelCoefficients::Ptr coefficients_plane (new pcl::ModelCoefficients), coefficients_cylinder (new pcl::ModelCoefficients);
 	pcl::PointIndices::Ptr inliers_plane (new pcl::PointIndices), inliers_cylinder (new pcl::PointIndices);
 
+	// Checking program arguments
+	if (argc < 1) {
+		printf("Usage :\n");
+		printf("\t\tfile.ply\n");
+		PCL_ERROR("Provide one ply file.\n");
+		return (-1);
+	}
+
 	// Read in the cloud data
-	reader.read ("table_scene_mug_stereo_textured.pcd", *cloud);
-	std::cerr << "PointCloud has: " << cloud->points.size () << " data points." << std::endl;
+	pcl::console::TicToc time;
+	time.tic();
+	if (pcl::io::loadPLYFile(argv[1], *cloud) < 0) {
+		PCL_ERROR("Error loading cloud %s.\n", argv[1]);
+		return (-1);
+	}
+	std::cout << "\nLoaded file " << argv[1] << " (" << cloud->size() << " points) in " << time.toc() << " ms\n" << std::endl;
 
 	// Build a passthrough filter to remove spurious NaNs
 	pass.setInputCloud (cloud);
 	pass.setFilterFieldName ("z");
-	pass.setFilterLimits (0, 1.5);
+	pass.setFilterLimits (-0.35, 0.0); // realsense has a neg z-axis
 	pass.filter (*cloud_filtered);
 	std::cerr << "PointCloud after filtering has: " << cloud_filtered->points.size () << " data points." << std::endl;
 
@@ -71,7 +85,6 @@ int main (int argc, char** argv)
 	pcl::PointCloud<PointT>::Ptr cloud_plane (new pcl::PointCloud<PointT> ());
 	extract.filter (*cloud_plane);
 	std::cerr << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
-	//writer.write ("table_scene_mug_stereo_textured_plane.pcd", *cloud_plane, false);
 
 	// Remove the planar inliers, extract the rest
 	extract.setNegative (true);
@@ -106,7 +119,6 @@ int main (int argc, char** argv)
 	std::cerr << "Can't find the cylindrical component." << std::endl;
 	else {
 		std::cerr << "PointCloud representing the cylindrical component: " << cloud_cylinder->points.size () << " data points." << std::endl;
-		writer.write ("table_scene_mug_stereo_textured_cylinder.pcd", *cloud_cylinder, false);
 	}
 
 	// Visualization
