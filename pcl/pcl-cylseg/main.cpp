@@ -122,7 +122,7 @@ int main (int argc, char** argv)
 	}
 
 	// Visualization
-	pcl::visualization::PCLVisualizer viewer("Viewer Window");
+	pcl::visualization::PCLVisualizer viewer("3D Viewer");
 	// Create viewport
 	int vp(0);
 	viewer.createViewPort(0.0, 0.0, 1.0, 1.0, vp);
@@ -149,6 +149,20 @@ int main (int argc, char** argv)
 
 	// Set background color
 	viewer.setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
+
+	// Add global reference frame (on-camera)
+	viewer.addCoordinateSystem(0.25);
+
+	// Plot cylinder shape
+	viewer.addCylinder(*coefficients_cylinder, "cylinder");
+
+	// Plot cylinder longitudinal axis //PointT	
+	PointT point_on_axis( (*coefficients_cylinder).values[0], (*coefficients_cylinder).values[1], (*coefficients_cylinder).values[2] );
+	PointT axis_direction( point_on_axis.x + (*coefficients_cylinder).values[3], point_on_axis.y + (*coefficients_cylinder).values[4], point_on_axis.z + (*coefficients_cylinder).values[5] );
+	//viewer.addLine(point_on_axis, axis_direction, "line"); //addLine<pcl::PointXYZRGB> 
+	PointT cam_origin(0.0, 0.0, 0.0);
+	PointT axis_projection((*coefficients_cylinder).values[3], (*coefficients_cylinder).values[4], 0.0);
+	viewer.addLine(cam_origin, axis_projection, "line");
 
 	// Set camera position and orientation
 	viewer.setCameraPosition(-3.68332, 2.94092, 5.71266, 0.289847, 0.921947, -0.256907, 0);
