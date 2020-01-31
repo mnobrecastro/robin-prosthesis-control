@@ -10,6 +10,8 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/console/time.h>
 
+#define PLANE_MODEL 1
+
 typedef pcl::PointXYZ PointT;
 
 int main (int argc, char** argv)
@@ -63,6 +65,8 @@ int main (int argc, char** argv)
 	ne.setKSearch (50);
 	ne.compute (*cloud_normals);
 
+#if PLANE_MODEL
+
 	// Create the segmentation object for the planar model and set all the parameters
 	seg.setOptimizeCoefficients (true);
 	seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
@@ -94,6 +98,13 @@ int main (int argc, char** argv)
 	extract_normals.setIndices (inliers_plane);
 	extract_normals.filter (*cloud_normals2);
 
+#else
+
+	cloud_filtered2 = cloud_filtered;
+	cloud_normals2 = cloud_normals;
+
+#endif
+
 	// Create the segmentation object for cylinder segmentation and set all the parameters
 	seg.setOptimizeCoefficients (true);
 	seg.setModelType (pcl::SACMODEL_CYLINDER);
@@ -101,7 +112,7 @@ int main (int argc, char** argv)
 	seg.setNormalDistanceWeight (0.1);
 	seg.setMaxIterations (10000);
 	seg.setDistanceThreshold (0.05);
-	seg.setRadiusLimits (0, 0.1);
+	seg.setRadiusLimits (0, 0.1/2);
 	seg.setInputCloud (cloud_filtered2);
 	seg.setInputNormals (cloud_normals2);
 
@@ -115,8 +126,8 @@ int main (int argc, char** argv)
 	extract.setNegative (false);
 	pcl::PointCloud<PointT>::Ptr cloud_cylinder (new pcl::PointCloud<PointT> ());
 	extract.filter (*cloud_cylinder);
-	if (cloud_cylinder->points.empty ()) 
-	std::cerr << "Can't find the cylindrical component." << std::endl;
+	if (cloud_cylinder->points.empty ())
+		std::cerr << "Can't find the cylindrical component." << std::endl;
 	else {
 		std::cerr << "PointCloud representing the cylindrical component: " << cloud_cylinder->points.size () << " data points." << std::endl;
 	}
@@ -136,16 +147,17 @@ int main (int argc, char** argv)
 		(int)255 * txt_gray_lvl);
 	viewer.addPointCloud(cloud, cloud_in_color_h, "cloud_in", vp);
 
+#if PLANE_MODEL
+
 	// Transformed point cloud is green
 	pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_plane_color_h(cloud_plane, 20, 180, 20);
 	viewer.addPointCloud(cloud_plane, cloud_plane_color_h, "cloud_plane", vp);
 
+#endif
+
 	// ICP aligned point cloud is red
 	pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_cylinder_color_h(cloud_cylinder, 180, 20, 20);
 	viewer.addPointCloud(cloud_cylinder, cloud_cylinder_color_h, "cloud_cylinder", vp);
-
-	// Adding text descriptions in each viewport
-	viewer.addText("White: Original point cloud\nGreen: Matrix transformed point cloud", 10, 15, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "icp_info_1", vp);
 
 	// Set background color
 	viewer.setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
@@ -159,10 +171,23 @@ int main (int argc, char** argv)
 	// Plot cylinder longitudinal axis //PointT	
 	PointT point_on_axis( (*coefficients_cylinder).values[0], (*coefficients_cylinder).values[1], (*coefficients_cylinder).values[2] );
 	PointT axis_direction( point_on_axis.x + (*coefficients_cylinder).values[3], point_on_axis.y + (*coefficients_cylinder).values[4], point_on_axis.z + (*coefficients_cylinder).values[5] );
-	//viewer.addLine(point_on_axis, axis_direction, "line"); //addLine<pcl::PointXYZRGB> 
 	PointT cam_origin(0.0, 0.0, 0.0);
 	PointT axis_projection((*coefficients_cylinder).values[3], (*coefficients_cylinder).values[4], 0.0);
 	viewer.addLine(cam_origin, axis_projection, "line");
+
+	// Calculate the angular difference
+	float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
+	std::string action;
+	if (std::abs(dTheta) < 5 * M_PI/ 180)
+		action = "grab";
+	else if(dTheta > 0)
+		action = "rotate_right";
+	else
+		action = "rotate_left";
+	std::cout << "\nCurrent angle: " << dTheta * 180/M_PI << "\tAction: " << action;
+
+	// Adding text descriptions in each viewport
+	viewer.addText("White: Original point cloud\nRed: RANSAC point cloud", 10, 15, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "icp_info_1", vp);
 
 	// Set camera position and orientation
 	viewer.setCameraPosition(-3.68332, 2.94092, 5.71266, 0.289847, 0.921947, -0.256907, 0);
