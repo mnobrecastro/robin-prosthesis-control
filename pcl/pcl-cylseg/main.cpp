@@ -13,6 +13,13 @@
 #define PLANE_MODEL 1
 
 typedef pcl::PointXYZ PointT;
+//typedef pcl::PointCloud<PointT> PointCloud;
+
+float dotProduct(pcl::PointXYZ, pcl::PointXYZ);
+float normPointT(pcl::PointXYZ);
+std::array<float, 2> getPointCloudExtremes (const pcl::PointCloud<PointT>&, pcl::PointXYZ, pcl::PointXYZ);
+void correctCylShape(pcl::ModelCoefficients&, const pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
+
 
 int main (int argc, char** argv)
 {
@@ -20,7 +27,7 @@ int main (int argc, char** argv)
 	////pcl::PCDReader reader;
 	pcl::PassThrough<PointT> pass;
 	pcl::NormalEstimation<PointT, pcl::Normal> ne;
-	pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg; 
+	pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
 	////pcl::PCDWriter writer;
 	pcl::ExtractIndices<PointT> extract;
 	pcl::ExtractIndices<pcl::Normal> extract_normals;
@@ -110,7 +117,7 @@ int main (int argc, char** argv)
 	seg.setModelType (pcl::SACMODEL_CYLINDER);
 	seg.setMethodType (pcl::SAC_RANSAC);
 	seg.setNormalDistanceWeight (0.1);
-	seg.setMaxIterations (10000);
+	seg.setMaxIterations (100); //10000
 	seg.setDistanceThreshold (0.05);
 	seg.setRadiusLimits (0, 0.1/2);
 	seg.setInputCloud (cloud_filtered2);
@@ -166,7 +173,9 @@ int main (int argc, char** argv)
 	viewer.addCoordinateSystem(0.25);
 
 	// Plot cylinder shape
-	viewer.addCylinder(*coefficients_cylinder, "cylinder");
+	pcl::ModelCoefficients::Ptr corrected_coefs_cylinder(new pcl::ModelCoefficients);
+	correctCylShape(*corrected_coefs_cylinder, *coefficients_cylinder, *cloud_cylinder);
+	viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
 
 	// Plot cylinder longitudinal axis //PointT	
 	PointT point_on_axis( (*coefficients_cylinder).values[0], (*coefficients_cylinder).values[1], (*coefficients_cylinder).values[2] );
@@ -198,4 +207,68 @@ int main (int argc, char** argv)
 	}
 
 	return (0);
+}
+
+
+////////////////////////////////////////
+
+
+float dotProduct(pcl::PointXYZ a, pcl::PointXYZ b)
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+float normPointT(pcl::PointXYZ c)
+{
+	return std::sqrt(c.x * c.x + c.y * c.y + c.z * c.z);
+}
+
+std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<PointT>& cloud, pcl::PointXYZ center, pcl::PointXYZ direction)
+{
+	std::array<float, 2> arr = {1000.0, -1000.0};
+	pcl::PointXYZ vec;
+	float scalar_proj;
+	for (size_t k = 0; k < cloud.points.size(); ++k) { 
+		vec.x = cloud.points[k].x - center.x;
+		vec.y = cloud.points[k].y - center.y;
+		vec.z = cloud.points[k].z - center.z;
+		scalar_proj = dotProduct(direction, vec) / normPointT(direction);
+		std::cout << "Scalar[" << k << "]: " << scalar_proj << std::endl;
+		if (scalar_proj < arr[0])
+			arr[0] = scalar_proj;
+		if (scalar_proj > arr[1])
+			arr[1] = scalar_proj;
+	}
+	return arr;
+}
+
+void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& coefficients, const pcl::PointCloud<PointT>& cloud)
+{
+	pcl::PointXYZ point_on_axis(coefficients.values[0], coefficients.values[1], coefficients.values[2]);
+	pcl::PointXYZ axis_direction(coefficients.values[3], coefficients.values[4], coefficients.values[5]);	
+	std::array<float, 2> arr(getPointCloudExtremes(cloud, point_on_axis, axis_direction));
+
+	pcl::PointXYZ point_bottom;
+	point_bottom.x = point_on_axis.x + arr[0] * axis_direction.x / normPointT(axis_direction);
+	point_bottom.y = point_on_axis.y + arr[0] * axis_direction.y / normPointT(axis_direction);
+	point_bottom.z = point_on_axis.z + arr[0] * axis_direction.z / normPointT(axis_direction);
+	pcl::PointXYZ bottom_top_direction;
+	bottom_top_direction.x = arr[1] * axis_direction.x / normPointT(axis_direction);
+	bottom_top_direction.y = arr[1] * axis_direction.y / normPointT(axis_direction);
+	bottom_top_direction.z = arr[1] * axis_direction.z / normPointT(axis_direction);
+
+	/*target.values.push_back(coefficients.values[0]);
+	target.values.push_back(coefficients.values[1]);
+	target.values.push_back(coefficients.values[2]);
+	target.values.push_back(coefficients.values[3]);
+	target.values.push_back(coefficients.values[4]);
+	target.values.push_back(coefficients.values[5]);
+	target.values.push_back(coefficients.values[6]);*/
+	cyl.values.push_back(point_bottom.x);
+	cyl.values.push_back(point_bottom.y);
+	cyl.values.push_back(point_bottom.z);
+	cyl.values.push_back(bottom_top_direction.x);
+	cyl.values.push_back(bottom_top_direction.y);
+	cyl.values.push_back(bottom_top_direction.z);
+	cyl.values.push_back(coefficients.values[6]);
 }
