@@ -12,8 +12,15 @@
 
 #define PLANE_MODEL 0
 
+// Define the input camera: REALSENSE_D435 / PICO_FLEXX
+#define INPUT_CAMERA REALSENSE_D435
+enum cameras {
+	REALSENSE_D435,
+	PICO_FLEXX
+};
+
 typedef pcl::PointXYZ PointT;
-//typedef pcl::PointCloud<PointT> PointCloud;
+typedef pcl::PointCloud<PointT> PointCloud;
 
 float dotProduct(pcl::PointXYZ, pcl::PointXYZ);
 float normPointT(pcl::PointXYZ);
@@ -63,20 +70,36 @@ int main (int argc, char** argv)
 	std::cout << "\nLoaded file " << argv[1] << " (" << cloud->size() << " points) in " << time.toc() << " ms\n" << std::endl;
 
 	// Build a passthrough filter to remove unwated points
-	pass.setInputCloud (cloud);
-	pass.setFilterFieldName ("z");
-	pass.setFilterLimits (-0.300, -0.110); // realsense neg z-axis (MinZ 0.11m)
-	pass.filter (*cloud_filtered);
-	//
-	pass.setInputCloud(cloud_filtered);
+#ifdef INPUT_CAMERA
+	std::array<float, 6> filter_lims;
+	switch (INPUT_CAMERA) {
+		case REALSENSE_D435:
+			filter_lims = { -0.075, 0.075, -0.100, 0.100, -0.300, -0.110 }; // realsense depth neg z-axis (MinZ 0.110m)
+		case PICO_FLEXX:
+			filter_lims = { -0.075, 0.075, -0.100, 0.100, -0.300, -0.110 }; // picoflexx depth ?-axis (Min ? m)
+		default:
+			std::cout << "Only REALSENSE_D435 or PICO_FLEXX can be defined as INPUT_CAMERA." << std::endl;
+			return 1;
+	}
+#else
+	std::cout << "Please define an INPUT_CAMERA (REALSENSE_D435 or PICO_FLEXX)." << std::endl;
+	return 1;
+#endif
+
+	pass.setInputCloud(cloud);
 	pass.setFilterFieldName("x");
-	pass.setFilterLimits(-0.075, 0.075);
+	pass.setFilterLimits(filter_lims[0], filter_lims[1]);
 	pass.filter(*cloud_filtered);
 	//
 	pass.setInputCloud(cloud_filtered);
 	pass.setFilterFieldName("y");
-	pass.setFilterLimits(-0.150, 0.150);
+	pass.setFilterLimits(filter_lims[2], filter_lims[3]);
 	pass.filter(*cloud_filtered);
+	//
+	pass.setInputCloud (cloud_filtered);
+	pass.setFilterFieldName ("z");
+	pass.setFilterLimits (filter_lims[4], filter_lims[5]);
+	pass.filter (*cloud_filtered);
 	std::cerr << "PointCloud after filtering has: " << cloud_filtered->points.size () << " data points." << std::endl;
 
 	// Estimate point normals
@@ -214,7 +237,7 @@ int main (int argc, char** argv)
 	correctCylShape(*corrected_coefs_cylinder, *coefficients_cylinder, *cloud_cylinder);
 	viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
 
-	// Plot cylinder longitudinal axis //PointT	
+	// Plot cylinder longitudinal axis //PointT
 	PointT point_on_axis( (*coefficients_cylinder).values[0], (*coefficients_cylinder).values[1], (*coefficients_cylinder).values[2] );
 	PointT axis_direction( point_on_axis.x + (*coefficients_cylinder).values[3], point_on_axis.y + (*coefficients_cylinder).values[4], point_on_axis.z + (*coefficients_cylinder).values[5] );
 	PointT cam_origin(0.0, 0.0, 0.0);
