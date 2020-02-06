@@ -10,15 +10,18 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/console/time.h>
 
-#define PLANE_MODEL 1
+#define PLANE_MODEL 0
 
 typedef pcl::PointXYZ PointT;
 //typedef pcl::PointCloud<PointT> PointCloud;
 
 float dotProduct(pcl::PointXYZ, pcl::PointXYZ);
 float normPointT(pcl::PointXYZ);
-std::array<float, 2> getPointCloudExtremes (const pcl::PointCloud<PointT>&, pcl::PointXYZ, pcl::PointXYZ);
+std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<PointT>&, pcl::PointXYZ, pcl::PointXYZ);
+std::array<float, 6> getPointCloudBoundaries(const pcl::PointCloud<PointT>&);
 void correctCylShape(pcl::ModelCoefficients&, const pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
+
+void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 
 
 int main (int argc, char** argv)
@@ -59,11 +62,21 @@ int main (int argc, char** argv)
 	}
 	std::cout << "\nLoaded file " << argv[1] << " (" << cloud->size() << " points) in " << time.toc() << " ms\n" << std::endl;
 
-	// Build a passthrough filter to remove spurious NaNs
+	// Build a passthrough filter to remove unwated points
 	pass.setInputCloud (cloud);
 	pass.setFilterFieldName ("z");
-	pass.setFilterLimits (-0.35, 0.0); // realsense has a neg z-axis
+	pass.setFilterLimits (-0.300, -0.110); // realsense neg z-axis (MinZ 0.11m)
 	pass.filter (*cloud_filtered);
+	//
+	pass.setInputCloud(cloud_filtered);
+	pass.setFilterFieldName("x");
+	pass.setFilterLimits(-0.075, 0.075);
+	pass.filter(*cloud_filtered);
+	//
+	pass.setInputCloud(cloud_filtered);
+	pass.setFilterFieldName("y");
+	pass.setFilterLimits(-0.150, 0.150);
+	pass.filter(*cloud_filtered);
 	std::cerr << "PointCloud after filtering has: " << cloud_filtered->points.size () << " data points." << std::endl;
 
 	// Estimate point normals
@@ -74,6 +87,7 @@ int main (int argc, char** argv)
 
 #if PLANE_MODEL
 
+	time.tic();
 	// Create the segmentation object for the planar model and set all the parameters
 	seg.setOptimizeCoefficients (true);
 	seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
@@ -95,7 +109,15 @@ int main (int argc, char** argv)
 	// Write the planar inliers to disk
 	pcl::PointCloud<PointT>::Ptr cloud_plane (new pcl::PointCloud<PointT> ());
 	extract.filter (*cloud_plane);
-	std::cerr << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
+	std::cerr << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points (in " << time.toc() << " ms)." << std::endl;
+
+	// Obtain the plane cloud boundaries
+	std::array<float, 6> bounds_plane(getPointCloudBoundaries(*cloud_plane));
+	std::cerr << "\nPlane boundaries: "
+		<< "\n\tx: " << "[" << bounds_plane[0] << "," << bounds_plane[1] << "]"
+		<< "\n\ty: " << "[" << bounds_plane[2] << "," << bounds_plane[3] << "]"
+		<< "\n\tz: " << "[" << bounds_plane[4] << "," << bounds_plane[5] << "]"
+		<< std::endl;
 
 	// Remove the planar inliers, extract the rest
 	extract.setNegative (true);
@@ -112,6 +134,7 @@ int main (int argc, char** argv)
 
 #endif
 
+	time.tic();
 	// Create the segmentation object for cylinder segmentation and set all the parameters
 	seg.setOptimizeCoefficients (true);
 	seg.setModelType (pcl::SACMODEL_CYLINDER);
@@ -119,7 +142,7 @@ int main (int argc, char** argv)
 	seg.setNormalDistanceWeight (0.1);
 	seg.setMaxIterations (100); //10000
 	seg.setDistanceThreshold (0.05);
-	seg.setRadiusLimits (0, 0.1/2);
+	seg.setRadiusLimits (0, 0.040);
 	seg.setInputCloud (cloud_filtered2);
 	seg.setInputNormals (cloud_normals2);
 
@@ -136,8 +159,16 @@ int main (int argc, char** argv)
 	if (cloud_cylinder->points.empty ())
 		std::cerr << "Can't find the cylindrical component." << std::endl;
 	else {
-		std::cerr << "PointCloud representing the cylindrical component: " << cloud_cylinder->points.size () << " data points." << std::endl;
+		std::cerr << "PointCloud representing the cylindrical component: " << cloud_cylinder->points.size () << " data points (in " << time.toc() << " ms)." << std::endl;
 	}
+
+	// Obtain the cylinder cloud boundaries
+	std::array<float, 6> bounds_cylinder(getPointCloudBoundaries(*cloud_cylinder));
+	std::cerr << "\nCylinder boundaries: "
+		<< "\n\tx: " << "[" << bounds_cylinder[0] << "," << bounds_cylinder[1] << "]"
+		<< "\n\ty: " << "[" << bounds_cylinder[2] << "," << bounds_cylinder[3] << "]"
+		<< "\n\tz: " << "[" << bounds_cylinder[4] << "," << bounds_cylinder[5] << "]"
+		<< std::endl;
 
 	// Visualization
 	pcl::visualization::PCLVisualizer viewer("3D Viewer");
@@ -159,6 +190,12 @@ int main (int argc, char** argv)
 	// Transformed point cloud is green
 	pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_plane_color_h(cloud_plane, 20, 180, 20);
 	viewer.addPointCloud(cloud_plane, cloud_plane_color_h, "cloud_plane", vp);
+
+#else
+
+	// Transformed point cloud is green
+	pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_filtered2_color_h(cloud_filtered2, 20, 180, 20);
+	viewer.addPointCloud(cloud_filtered2, cloud_filtered2_color_h, "cloud_filtered2", vp);
 
 #endif
 
@@ -202,6 +239,8 @@ int main (int argc, char** argv)
 	viewer.setCameraPosition(-3.68332, 2.94092, 5.71266, 0.289847, 0.921947, -0.256907, 0);
 	viewer.setSize(1280, 1024);  // Visualiser window size
 
+	viewer.registerPointPickingCallback(pp_callback, (void*)& viewer);
+
 	while (!viewer.wasStopped()) {
 		viewer.spinOnce();
 	}
@@ -210,8 +249,9 @@ int main (int argc, char** argv)
 }
 
 
-////////////////////////////////////////
 
+
+////////////////////////////////////////
 
 float dotProduct(pcl::PointXYZ a, pcl::PointXYZ b)
 {
@@ -228,16 +268,35 @@ std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<PointT>& cloud,
 	std::array<float, 2> arr = {1000.0, -1000.0};
 	pcl::PointXYZ vec;
 	float scalar_proj;
-	for (size_t k = 0; k < cloud.points.size(); ++k) { 
-		vec.x = cloud.points[k].x - center.x;
-		vec.y = cloud.points[k].y - center.y;
-		vec.z = cloud.points[k].z - center.z;
+	for (size_t i = 0; i < cloud.points.size(); ++i) { 
+		vec.x = cloud.points[i].x - center.x;
+		vec.y = cloud.points[i].y - center.y;
+		vec.z = cloud.points[i].z - center.z;
 		scalar_proj = dotProduct(direction, vec) / normPointT(direction);
-		std::cout << "Scalar[" << k << "]: " << scalar_proj << std::endl;
 		if (scalar_proj < arr[0])
 			arr[0] = scalar_proj;
 		if (scalar_proj > arr[1])
 			arr[1] = scalar_proj;
+	}
+	return arr;
+}
+
+std::array<float, 6> getPointCloudBoundaries(const pcl::PointCloud<PointT>& cloud)
+{
+	std::array<float, 6> arr = { 1000.0, -1000.0, 1000.0, -1000.0, 1000.0, -1000.0};
+	for (auto point : cloud.points) {
+		if (point.x < arr[0])
+			arr[0] = point.x;
+		if (point.x > arr[1])
+			arr[1] = point.x;
+		if (point.y < arr[2])
+			arr[2] = point.y;
+		if (point.y > arr[3])
+			arr[3] = point.y;
+		if (point.z < arr[4])
+			arr[4] = point.z;
+		if (point.z > arr[5])
+			arr[5] = point.z;
 	}
 	return arr;
 }
@@ -257,13 +316,6 @@ void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& 
 	bottom_top_direction.y = arr[1] * axis_direction.y / normPointT(axis_direction);
 	bottom_top_direction.z = arr[1] * axis_direction.z / normPointT(axis_direction);
 
-	/*target.values.push_back(coefficients.values[0]);
-	target.values.push_back(coefficients.values[1]);
-	target.values.push_back(coefficients.values[2]);
-	target.values.push_back(coefficients.values[3]);
-	target.values.push_back(coefficients.values[4]);
-	target.values.push_back(coefficients.values[5]);
-	target.values.push_back(coefficients.values[6]);*/
 	cyl.values.push_back(point_bottom.x);
 	cyl.values.push_back(point_bottom.y);
 	cyl.values.push_back(point_bottom.z);
@@ -271,4 +323,17 @@ void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& 
 	cyl.values.push_back(bottom_top_direction.y);
 	cyl.values.push_back(bottom_top_direction.z);
 	cyl.values.push_back(coefficients.values[6]);
+}
+
+
+////////////////////////////////////////
+
+void pp_callback(const pcl::visualization::PointPickingEvent& event, void* viewer_void)
+{
+	std::cout << "Picking event active" << std::endl;
+	if (event.getPointIndex() != -1) {
+		float x, y, z;
+		event.getPoint(x, y, z);
+		std::cout << x << ";" << y << ";" << z << std::endl;
+	}
 }
