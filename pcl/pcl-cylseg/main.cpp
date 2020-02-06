@@ -312,9 +312,9 @@ void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& 
 	point_bottom.y = point_on_axis.y + arr[0] * axis_direction.y / normPointT(axis_direction);
 	point_bottom.z = point_on_axis.z + arr[0] * axis_direction.z / normPointT(axis_direction);
 	pcl::PointXYZ bottom_top_direction;
-	bottom_top_direction.x = arr[1] * axis_direction.x / normPointT(axis_direction);
-	bottom_top_direction.y = arr[1] * axis_direction.y / normPointT(axis_direction);
-	bottom_top_direction.z = arr[1] * axis_direction.z / normPointT(axis_direction);
+	bottom_top_direction.x = (-arr[0] + arr[1]) * axis_direction.x / normPointT(axis_direction);
+	bottom_top_direction.y = (-arr[0] + arr[1]) * axis_direction.y / normPointT(axis_direction);
+	bottom_top_direction.z = (-arr[0] + arr[1]) * axis_direction.z / normPointT(axis_direction);
 
 	cyl.values.push_back(point_bottom.x);
 	cyl.values.push_back(point_bottom.y);
