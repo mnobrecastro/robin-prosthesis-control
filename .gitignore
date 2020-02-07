@@ -1,6 +1,7 @@
-**/build/
+build/
 py/
 realsense/
+pcl/
 
 *.zip
 *.tar.gz
