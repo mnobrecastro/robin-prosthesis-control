@@ -10,14 +10,16 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/console/time.h>
 
-#define PLANE_MODEL 0
 
 // Define the input camera: REALSENSE_D435 / PICO_FLEXX
-#define INPUT_CAMERA REALSENSE_D435
 enum cameras {
 	REALSENSE_D435,
 	PICO_FLEXX
 };
+#define INPUT_CAMERA PICO_FLEXX
+
+// Include PLANE_MODEL in the RANSAC pipeline.
+#define PLANE_MODEL 0
 
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
@@ -73,17 +75,21 @@ int main (int argc, char** argv)
 #ifdef INPUT_CAMERA
 	std::array<float, 6> filter_lims;
 	switch (INPUT_CAMERA) {
-		case REALSENSE_D435:
-			filter_lims = { -0.075, 0.075, -0.100, 0.100, -0.300, -0.110 }; // realsense depth neg z-axis (MinZ 0.110m)
-		case PICO_FLEXX:
-			filter_lims = { -0.075, 0.075, -0.100, 0.100, -0.300, -0.110 }; // picoflexx depth ?-axis (Min ? m)
-		default:
-			std::cout << "Only REALSENSE_D435 or PICO_FLEXX can be defined as INPUT_CAMERA." << std::endl;
-			return 1;
+	case REALSENSE_D435:
+		filter_lims = { -0.075, 0.075, -0.100, 0.100, -0.300, -0.110 }; // realsense depth neg z-axis (MinZ 0.110m)
+		std::cout << "Using the input camera REALSENSE_D435...\n" << std::endl;
+		break;
+	case PICO_FLEXX:
+		filter_lims = { -0.075, 0.075, -0.100, 0.100, -0.300, -0.110 }; // picoflexx depth ?-axis (Min ? m)
+		std::cout << "Using the input camera PICO_FLEXX...\n" << std::endl;
+		break;
+	default:
+		std::cout << "Only REALSENSE_D435 or PICO_FLEXX can be defined as INPUT_CAMERA.\n" << std::endl;
+		return -1;
 	}
 #else
-	std::cout << "Please define an INPUT_CAMERA (REALSENSE_D435 or PICO_FLEXX)." << std::endl;
-	return 1;
+	std::cout << "Please define an INPUT_CAMERA (REALSENSE_D435 or PICO_FLEXX).\n" << std::endl;
+	return -1;
 #endif
 
 	pass.setInputCloud(cloud);
