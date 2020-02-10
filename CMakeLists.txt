@@ -1,12 +1,21 @@
-cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.6)
 
 project(michelangelo-depth)
 
-find_package(PCL 1.5 REQUIRED)
+set(CMAKE_PREFIX_PATH "C:/Program Files/royale/3.20.0.62/share")
+find_package(royale REQUIRED)
+set(royale_LIB_DIR "C:/Program Files/royale/3.20.0.62/lib") #
+link_directories(${royale_LIB_DIR})
 
-include_directories(${PCL_INCLUDE_DIRS})
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
+find_package(PCL REQUIRED)
+if(PCL_FOUND)
+  include_directories(${PCL_INCLUDE_DIRS})
+  add_definitions(${PCL_DEFINITIONS})
+  link_directories(${PCL_LIBRARY_DIRS})
+endif()
 
-add_executable (main src/main.cpp)
-target_link_libraries (main ${PCL_LIBRARIES})
+set(DEPENDENCIES royale ${PCL_LIBRARIES})
+
+add_executable(main src/main.cpp)
+set_property(TARGET main PROPERTY CXX_STANDARD 11)
+target_link_libraries(main ${DEPENDENCIES})

@@ -10,6 +10,8 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/console/time.h>
 
+#include <royale.hpp>
+
 
 // Define the input camera: REALSENSE_D435 / PICO_FLEXX
 enum cameras {
