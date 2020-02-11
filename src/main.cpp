@@ -10,20 +10,23 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/console/time.h>
 
+#include <librealsense2/rs.hpp>
+
 
 // Define the input camera: REALSENSE_D435 / PICO_FLEXX
 enum cameras {
 	REALSENSE_D435,
 	PICO_FLEXX
 };
-#define INPUT_CAMERA PICO_FLEXX
+#define INPUT_CAMERA REALSENSE_D435
 
 // Include PLANE_MODEL in the RANSAC pipeline.
-#define PLANE_MODEL 0
+#define PLANE_MODEL 1
 
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 
+pcl::PointCloud<pcl::PointXYZ>::Ptr points_to_pcl(const rs2::points&);
 float dotProduct(pcl::PointXYZ, pcl::PointXYZ);
 float normPointT(pcl::PointXYZ);
 std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<PointT>&, pcl::PointXYZ, pcl::PointXYZ);
@@ -54,6 +57,7 @@ int main (int argc, char** argv)
 	pcl::ModelCoefficients::Ptr coefficients_plane (new pcl::ModelCoefficients), coefficients_cylinder (new pcl::ModelCoefficients);
 	pcl::PointIndices::Ptr inliers_plane (new pcl::PointIndices), inliers_cylinder (new pcl::PointIndices);
 
+	/*
 	// Checking program arguments
 	if (argc < 1) {
 		printf("Usage :\n");
@@ -70,13 +74,15 @@ int main (int argc, char** argv)
 		return (-1);
 	}
 	std::cout << "\nLoaded file " << argv[1] << " (" << cloud->size() << " points) in " << time.toc() << " ms\n" << std::endl;
+	*/
 
 	// Build a passthrough filter to remove unwated points
 #ifdef INPUT_CAMERA
 	std::array<float, 6> filter_lims;
 	switch (INPUT_CAMERA) {
 	case REALSENSE_D435:
-		filter_lims = { -0.075, 0.075, -0.100, 0.100, -0.300, -0.110 }; // realsense depth neg z-axis (MinZ 0.110m)
+		//filter_lims = { -0.075, 0.075, -0.100, 0.100, -0.300, -0.110 }; // realsense depth neg z-axis (MinZ 0.110m)
+		filter_lims = { -0.100, 0.100, -0.100, 0.100, -0.300, 0.000 }; // realsense depth neg z-axis (MinZ 0.110m)
 		std::cout << "Using the input camera REALSENSE_D435...\n" << std::endl;
 		break;
 	case PICO_FLEXX:
@@ -91,6 +97,29 @@ int main (int argc, char** argv)
 	std::cout << "Please define an INPUT_CAMERA (REALSENSE_D435 or PICO_FLEXX).\n" << std::endl;
 	return -1;
 #endif
+
+	pcl::console::TicToc time;
+	time.tic();
+	// Declare pointcloud object, for calculating pointclouds and texture mappings
+	rs2::pointcloud pc;
+	// We want the points object to be persistent so we can display the last cloud when a frame drops
+	rs2::points points;
+
+	// Declare RealSense pipeline, encapsulating the actual device and sensors
+	rs2::pipeline pipe;
+	// Start streaming with default recommended configuration
+	pipe.start();
+
+	// Wait for the next set of frames from the camera
+	auto frames = pipe.wait_for_frames();
+	auto depth = frames.get_depth_frame();
+
+	// Generate the pointcloud and texture mappings
+	points = pc.calculate(depth);
+
+	// Transform rs2::pointcloud into pcl::PointCloud<PointT>::Ptr
+	cloud = points_to_pcl(points);
+	std::cout << "\nRead pointcloud from (" << cloud->size() << " points) in " << time.toc() << " ms\n" << std::endl;
 
 	pass.setInputCloud(cloud);
 	pass.setFilterFieldName("x");
@@ -281,6 +310,27 @@ int main (int argc, char** argv)
 
 
 ////////////////////////////////////////
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr points_to_pcl(const rs2::points& points)
+{
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+	auto sp = points.get_profile().as<rs2::video_stream_profile>();
+	cloud->width = sp.width();
+	cloud->height = sp.height();
+	cloud->is_dense = false;
+	cloud->points.resize(points.size());
+	auto ptr = points.get_vertices();
+	for (auto& p : cloud->points)
+	{
+		p.x = ptr->x;
+		p.y = ptr->y;
+		p.z = ptr->z;
+		ptr++;
+	}
+
+	return cloud;
+}
 
 float dotProduct(pcl::PointXYZ a, pcl::PointXYZ b)
 {
