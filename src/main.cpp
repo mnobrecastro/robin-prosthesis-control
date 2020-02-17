@@ -1,3 +1,5 @@
+#include <ctime>
+
 #include <pcl/ModelCoefficients.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
@@ -34,17 +36,22 @@ std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<PointT>&, pcl::
 std::array<float, 6> getPointCloudBoundaries(const pcl::PointCloud<PointT>&);
 void correctCylShape(pcl::ModelCoefficients&, const pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
 
+namespace michelangelo {
+	float readAngle(pcl::PointXYZ);
+	std::string setAction(float);
+}
+
 void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 
 
 int main (int argc, char** argv)
 {	
 	//  Visualiser initiallization
-	pcl::visualization::PCLVisualizer viewer("3D Viewer");	
+	pcl::visualization::PCLVisualizer viewer("3D Viewer");
 	int vp(0); // Default viewport
 	viewer.createViewPort(0.0, 0.0, 1.0, 1.0, vp);
-	viewer.setCameraPosition(0.10, 0.3, -0.5, 0.0, 0.921947, -0.256907, vp);
-	viewer.setSize(800, 600);  // Visualiser window size
+	viewer.setCameraPosition(0.0, 0.0, -0.5, 0.0, -1.0, 0.0, vp);
+	viewer.setSize(800, 600); 
 	float bckgr_gray_level = 1.0;  // Black:=0.0
 	float txt_gray_lvl = 1.0 - bckgr_gray_level;
 	viewer.setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
@@ -58,42 +65,63 @@ int main (int argc, char** argv)
 
 #if INPUT_CAMERA == REALSENSE_D435
 
-	rs2::pipeline pipe;
-	pipe.start();	
+	rs2::pipeline pipe;	
+	pipe.start();
+	/*if (!pipe.start()) {
+		std::cout << "ERROR: While starting camera REALSENSE_D435...\n" << std::endl;
+		return -1;
+	}*/
 
-	filter_lims = { -0.100, 0.100, -0.100, 0.100, 0.100, 0.300}; // realsense depth neg z-axis (MinZ 0.110m)
-	std::cout << "Using the input camera REALSENSE_D435...\n" << std::endl;		
-
+	filter_lims = {-0.100, 0.100, -0.100, 0.100, 0.100, 0.300}; // realsense depth neg z-axis (MinZ 0.110m)
+	std::cout << "Using the input camera REALSENSE_D435...\n" << std::endl;
 #endif
 #if INPUT_CAMERA == PICO_FLEXX
-		filter_lims = { -0.075, 0.075, -0.100, 0.100, -0.300, -0.110 }; // picoflexx depth ?-axis (Min ? m)
-		std::cout << "Using the input camera PICO_FLEXX...\n" << std::endl;
-		break;
-	default:
-		std::cout << "Only REALSENSE_D435 or PICO_FLEXX can be defined as INPUT_CAMERA.\n" << std::endl;
-		return -1;
-	}
-	std::cout << "Please define an INPUT_CAMERA (REALSENSE_D435 or PICO_FLEXX).\n" << std::endl;
+	filter_lims = {-0.075, 0.075, -0.100, 0.100, -0.300, -0.110 }; // picoflexx depth ?-axis (Min ? m)
+	std::cout << "Using the input camera PICO_FLEXX...\n" << std::endl;		
+#endif
+#if INPUT_CAMERA != REALSENSE_D435 && INPUT_CAMERA != PICO_FLEXX
+	std::cout << "ERROR: Only REALSENSE_D435 or PICO_FLEXX can be defined as INPUT_CAMERA.\n" << std::endl;
 	return -1;
 #endif
-#endif
+#else
+	std::cout << "ERROR: Please define an INPUT_CAMERA (REALSENSE_D435 or PICO_FLEXX).\n" << std::endl;
+	return -1;
+#endif // INPUT_CAMERA
 		
+	// Pointcloud objects
+	pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
+	pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
+	pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
+	pcl::PointCloud<PointT>::Ptr cloud_filtered2(new pcl::PointCloud<PointT>);
+	pcl::PointCloud<pcl::Normal>::Ptr cloud_normals2(new pcl::PointCloud<pcl::Normal>);
+
+	// PCL objects
+	pcl::PassThrough<PointT> pass(true);
+	pcl::NormalEstimation<PointT, pcl::Normal> ne;
+	pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
+	pcl::ExtractIndices<PointT> extract;
+	pcl::ExtractIndices<pcl::Normal> extract_normals;
+	pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>());
+	
+	pcl::ModelCoefficients::Ptr coefficients_plane(new pcl::ModelCoefficients), coefficients_cylinder(new pcl::ModelCoefficients);
+	pcl::PointIndices::Ptr inliers_plane(new pcl::PointIndices), inliers_cylinder(new pcl::PointIndices);
+		
+	pcl::console::TicToc time;
+	pcl::console::TicToc tloop;
+
 	while (!viewer.wasStopped()) {
+
+		tloop.tic();
 
 #ifndef DEBUG
 		viewer.removeAllShapes();
 		viewer.removeAllPointClouds();
 #endif
-
-		// Pointcloud objects
-		pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
-		pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
-		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
-		pcl::PointCloud<PointT>::Ptr cloud_filtered2(new pcl::PointCloud<PointT>);
-		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals2(new pcl::PointCloud<pcl::Normal>);
+		
 	
 #if INPUT_CAMERA == REALSENSE_D435
-		pcl::console::TicToc time;
+
+		time.tic();
 		// RealSense2 pointcloud, points and pipeline objects
 		rs2::pointcloud pc;
 		rs2::points points;
@@ -107,22 +135,15 @@ int main (int argc, char** argv)
 
 		// Transform rs2::pointcloud into pcl::PointCloud<PointT>::Ptr
 		cloud = points_to_pcl(points);
-		std::cout << "\nRead pointcloud from (" << cloud->size() << " points) in " << time.toc() << " ms\n" << std::endl;
+		std::cout << "\nRead pointcloud from " << cloud->size() << " data points (in " << time.toc() << " ms).\n" << std::endl;
 #endif
 #if INPUT_CAMERA == PICO_FLEXX
 
 		// Transform rs2::pointcloud into pcl::PointCloud<PointT>::Ptr
 		cloud = points_to_pcl(points);
-		std::cout << "\nRead pointcloud from (" << cloud->size() << " points) in " << time.toc() << " ms\n" << std::endl;
+		std::cout << "\nRead pointcloud from (" << cloud->size() << " data points (in " << time.toc() << " ms).\n" << std::endl;
 #endif
-		
-		/*
-		// Draw raw pointcloud
-		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_in_color_h(cloud, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl,
-			(int)255 * txt_gray_lvl);
-		viewer.addPointCloud(cloud, cloud_in_color_h, "cloud_in", vp);
-		*/
-
+			
 		// PCL objects
 		pcl::PassThrough<PointT> pass(true);
 		pcl::NormalEstimation<PointT, pcl::Normal> ne;
@@ -130,7 +151,7 @@ int main (int argc, char** argv)
 		pcl::ExtractIndices<PointT> extract;
 		pcl::ExtractIndices<pcl::Normal> extract_normals;
 		pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>());
-
+		
 		pcl::ModelCoefficients::Ptr coefficients_plane(new pcl::ModelCoefficients), coefficients_cylinder(new pcl::ModelCoefficients);
 		pcl::PointIndices::Ptr inliers_plane(new pcl::PointIndices), inliers_cylinder(new pcl::PointIndices);
 
@@ -150,15 +171,22 @@ int main (int argc, char** argv)
 		pass.setFilterFieldName ("z");
 		pass.setFilterLimits (filter_lims[4], filter_lims[5]);
 		pass.filter (*cloud_filtered);
-		std::cerr << "PointCloud after filtering has: " << cloud_filtered->points.size () << " data points." << std::endl;
+		std::cerr << "PointCloud after filtering: " << cloud_filtered->points.size () << " data points." << std::endl;
+
+		/*
+		// Draw trimmed pointcloud
+		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_in_color_h(cloud, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl,
+			(int)255 * txt_gray_lvl);
+		viewer.addPointCloud(cloud, cloud_in_color_h, "cloud_in", vp);
+		*/
 
 		// Downsampling the filtered point cloud		
 		pcl::VoxelGrid<pcl::PointXYZ> dsfilt;
 		dsfilt.setInputCloud(cloud_filtered);
-		dsfilt.setLeafSize(0.01f, 0.01f, 0.01f);
+		dsfilt.setLeafSize(0.005f, 0.005f, 0.005f); //0.01f
 		dsfilt.filter(*cloud_filtered);
-		std::cerr << "PointCloud after filtering: " << cloud_filtered->width * cloud_filtered->height
-			<< " data points (" << pcl::getFieldsList(*cloud_filtered) << ").";
+		std::cerr << "PointCloud after downsampling: " << cloud_filtered->width * cloud_filtered->height
+			<< " data points." << std::endl; //pcl::getFieldsList(*cloud_filtered)
 
 #ifndef DEBUG
 		// Draw filtered PointCloud
@@ -238,9 +266,9 @@ int main (int argc, char** argv)
 		seg.setModelType (pcl::SACMODEL_CYLINDER);
 		seg.setMethodType (pcl::SAC_RANSAC);
 		seg.setNormalDistanceWeight (0.1);
-		seg.setMaxIterations (100); //10000
+		seg.setMaxIterations (10000);
 		seg.setDistanceThreshold (0.05);
-		seg.setRadiusLimits (0, 0.040);
+		seg.setRadiusLimits (0.005, 0.040);
 #if PLANE_MODEL
 		seg.setInputCloud (cloud_filtered2);
 		seg.setInputNormals (cloud_normals2);
@@ -251,7 +279,8 @@ int main (int argc, char** argv)
 
 		// Obtain the cylinder inliers and coefficients
 		seg.segment (*inliers_cylinder, *coefficients_cylinder);
-		std::cerr << "Cylinder coefficients: " << *coefficients_cylinder << std::endl;
+		//std::cerr << "Cylinder inliers: " << *inliers_cylinder << std::endl;
+		//std::cerr << "Cylinder coefficients: " << *coefficients_cylinder << std::endl;
 
 		// Save the cylinder inliers
 #if PLANE_MODEL
@@ -265,17 +294,16 @@ int main (int argc, char** argv)
 		extract.filter (*cloud_cylinder);
 		if (cloud_cylinder->points.empty()) {
 			std::cerr << "Can't find the cylindrical component." << std::endl;
-		}
-		else {
-			std::cerr << "PointCloud representing the cylindrical component: " << cloud_cylinder->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
+		}else {
+			std::cerr << "PointCloud CYLINDER: " << cloud_cylinder->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 
 			// Obtain the cylinder cloud boundaries
 			std::array<float, 6> bounds_cylinder(getPointCloudBoundaries(*cloud_cylinder));
-			std::cerr << "\nCylinder boundaries: "
+			/*std::cerr << "\nCylinder boundaries: "
 				<< "\n\tx: " << "[" << bounds_cylinder[0] << "," << bounds_cylinder[1] << "]"
 				<< "\n\ty: " << "[" << bounds_cylinder[2] << "," << bounds_cylinder[3] << "]"
 				<< "\n\tz: " << "[" << bounds_cylinder[4] << "," << bounds_cylinder[5] << "]"
-				<< std::endl;
+				<< std::endl;*/
 
 #ifndef DEBUG
 			// ICP aligned point cloud is red
@@ -297,22 +325,19 @@ int main (int argc, char** argv)
 			viewer.addLine(cam_origin, axis_projection, "line");
 #endif //DEBUG
 
-			// Calculate the angular difference
-			float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
-			std::string action;
-			if (std::abs(dTheta) < 5 * M_PI / 180)
-				action = "grab";
-			else if (dTheta > 0)
-				action = "rotate_right";
-			else
-				action = "rotate_left";
-			std::cout << "\nCurrent angle: " << dTheta * 180 / M_PI << "\tAction: " << action;
+			// Calculate the angular difference			
+			//float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
+			float dTheta(michelangelo::readAngle(axis_projection));
+			std::string action(michelangelo::setAction(dTheta));
+			std::cout << "\nCurrent angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
 
 #endif	// CYLINDER_MODEL
 
+#ifndef DEBUG
 			viewer.spinOnce(1, true);
-			//viewer.resetCamera();
+#endif //DEBUG			
 		}
+		std::cout << "\n********** Total loop time: " << tloop.toc() << " ms **********\n" << std::endl;
 	}
 
 	pipe.stop();
@@ -417,6 +442,26 @@ void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& 
 	cyl.values.push_back(coefficients.values[6]);
 }
 
+float michelangelo::readAngle(pcl::PointXYZ axis_projection)
+{
+	float angle(std::atan2(axis_projection.y, axis_projection.x));
+	if (angle > M_PI/2)
+		angle -= M_PI;
+	return angle;
+}
+
+
+std::string michelangelo::setAction(float angle)
+{
+	std::string action;
+	if (std::abs(angle) < 5*M_PI/180)
+		action = "grab";
+	else if (angle > 0)
+		action = "rotate_right";
+	else
+		action = "rotate_left";
+	return action;
+}
 
 ////////////////////////////////////////
 
