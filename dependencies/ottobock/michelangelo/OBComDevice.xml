@@ -1,0 +1,732 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OBComDevice</name>
+    </assembly>
+    <members>
+        <member name="T:OBDevices.Michelangelo">
+            <summary>
+            Represents a class that handles bi-directional communication to a Michelangelo hand + controller (biointerface or Axon Master)
+            </summary>
+        </member>
+        <member name="P:OBDevices.Michelangelo.SelectedDumpMode">
+            <summary>
+            Selected Dump Mode
+            Set via Function "setDumpMode"
+            </summary>
+        </member>
+        <member name="P:OBDevices.Michelangelo.CocoConversionOffset">
+            <summary>
+            Offset Conversion for CoContraction
+            </summary>
+        </member>
+        <member name="P:OBDevices.Michelangelo.Status1">
+            <summary>
+            Status1 of the Michaelangelo Hand (Only available if corresponding Dump is active)
+                        0 ... kein Event
+                        1 ... 4CH
+                        2 ... kurze Kokontraktion
+                        3 ... lange Kokontraktion
+                        4 ... Impuls blau
+                        5 ... Impuls rot
+                        6 ... Langes Auf
+                        7 ... Timeout
+            </summary>
+        </member>
+        <member name="P:OBDevices.Michelangelo.Status2">
+            <summary>
+            Status 2 of the Michelangelo Hand (Only available if corresponding Dump is active)
+                        0 = fine Pinch
+                        1 = Key Grip
+                        4 = Rotation   
+            </summary>
+        </member>
+        <member name="P:OBDevices.Michelangelo.CocoConversionSlope">
+            <summary>
+            Concontraction Conversion Slope
+            </summary>
+        </member>
+        <member name="P:OBDevices.Michelangelo.BIFVersion">
+            <summary>
+            Firmware version
+            </summary>
+        </member>
+        <member name="P:OBDevices.Michelangelo.SwitchMatrix">
+            <summary>
+            Switchmatrix for the hand
+            </summary>
+        </member>
+        <member name="T:OBDevices.Michelangelo.DumpMode">
+            <summary>
+            Available Dump Modes for Michelangelo Hand
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.DumpMode.EMG">
+            <summary>
+             Configures the Michelangelo to retrieve only the EMG data at 100 Hz
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.DumpMode.Sensors">
+            <summary>
+            Configures the Michelangelo to retrieve only the Sensor data at 100 Hz
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.DumpMode.EMGandSensors">
+            <summary>
+            Configures the Michelangelo to retrieve the EMG and Sensor data at 100 Hz
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.DumpMode.EMGAndStates">
+            <summary>
+            Configures the Michelangelo to retrieve 2 channels EMG data at 100 Hz and internal states (switch state, etc)
+            </summary>
+        </member>
+        <member name="T:OBDevices.Michelangelo.SwitchEvent">
+            <summary>
+            Switch Events for the Michelango Hand
+            Fixed by Axon Master/Com-Protocol
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.SwitchEvent.FourChannel">
+            <summary>
+            Four Channel Control Signal
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.SwitchEvent.ShortCoCo">
+            <summary>
+            Short Cocontraction
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.SwitchEvent.LongCoCo">
+            <summary>
+            Long Cocontraction
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.SwitchEvent.ImpulseBlue">
+            <summary>
+            impluse on Electrode 1
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.SwitchEvent.ImpulseRed">
+            <summary>
+            impluse on Electrode 2
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.SwitchEvent.LongOpen">
+            <summary>
+            Long open Signal
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.SwitchEvent.NeutralTimer">
+            <summary>
+            Michelangelo Moving to neureal position after preset time
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.emgData">
+            <summary>
+            Field containing the current (most actual) EMG data
+            EMGdata of the 8 electrodes + count. count is increased with each data set arriving. check continuity for data loss
+            </summary>
+        </member>
+        <member name="T:OBDevices.Michelangelo.MichelangeloEMGDataArrivedEventHandler">
+            <summary>
+            Delegate Event containing the current (most actual) EMG data
+            </summary>
+            <param name="EMGData"></param>
+        </member>
+        <member name="E:OBDevices.Michelangelo.Michelangelo_EMG_Arrived">
+            <summary>
+            Event containing the current (most actual) EMG data
+            </summary>
+        </member>
+        <member name="T:OBDevices.Michelangelo.MichelangeloSensorDataArrivedEventHandler">
+            <summary>
+            Delegate Event containing the current (most actual) Sensor data
+            Stores the scaled (SI units) internal sensory information
+            Default: main drive angle, thumb angle, force, main drive current, thumb drive current. 
+            </summary>
+        </member>
+        <member name="E:OBDevices.Michelangelo.Michelangelo_SensorData_Arrived">
+            <summary>
+            Event containing the current (most actual) Sensor data
+            Stores the scaled (SI units) internal sensory information
+            Default: main drive angle, thumb angle, force, main drive current, thumb drive current. 
+            </summary>
+        </member>
+        <member name="T:OBDevices.Michelangelo.MichelangeloBatteryLevelUpdatedEventHandler">
+            <summary>
+            Delegate Event containing the current (most actual) BatteryLevel
+            </summary>
+        </member>
+        <member name="E:OBDevices.Michelangelo.MichelangeloBatteryLevelUpdated">
+            <summary>
+            Event containing the current (most actual) BatteryLevel
+            </summary>
+        </member>
+        <member name="T:OBDevices.Michelangelo.MichelangeloSwitchOccurredEventHandler">
+             <summary>
+             Deligate Event indicating an occurring switch
+             </summary>
+             <param name="type"> 
+            0 ... no Event
+            1 ... 4CH
+            2 ... short Cocontraction
+            3 ... long Cocontraction
+            4 ... Impuls blue
+            5 ... Impuls red
+            6 ... long open
+            7 ... Timeout
+             </param>
+        </member>
+        <member name="E:OBDevices.Michelangelo.MichelangeloSwitchOccurred">
+            <summary>
+            Event indicating an occurring switch
+            </summary>
+        </member>
+        <member name="T:OBDevices.Michelangelo.MichelangeloWriteSettingEventHandler">
+            <summary>
+            Triggered when Write Event is Finished
+            </summary>
+            <param name="Code"></param>
+        </member>
+        <member name="E:OBDevices.Michelangelo.MichelangeloWriteSettingFinished">
+            <summary>
+            Triggered when Write Event is Finished
+            </summary>
+        </member>
+        <member name="P:OBDevices.Michelangelo.s7DOFControlCommands.HandSpeed">
+            <summary>
+            get and set the Hand-speed
+            when hand speed is changed, all commands are automatically re-iterated
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.nSensors">
+            <summary>
+            Number of sensors
+            Main drive angle, thumb angle, grip force, Main drive current, thumb current, rotation angle, extension angle, rotation current, flexion current
+            </summary>
+        </member>
+        <member name="F:OBDevices.Michelangelo.setStartStopDump">
+            <summary>
+            Flag gets set whenever Dump is stopped or started
+            --> Event only triggered once, when dump is stopped or started
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.#ctor">
+            <summary>
+            Returns coeffA new instance of the Michelangelo class that handles bidirectional communication with an Otto Bock Michelangelo hand + Biointerface
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.updateBatteryLevel">
+            <summary>
+            Ask hand for its battery level. attach to the .MichelangeloBatteryLevelUpdated event
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.setNeutralPositionTimer(System.Single)">
+            <summary>
+            Sets time until "neutral position" timer event is set. 
+            The Timer event triggers a movement to neutral position.
+            Interval 0s - 31s
+            Values > 32 deactivate the timer
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.Connect">
+            <summary>
+            Connect to the Michelangelo hand
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.setDumpMode(OBDevices.Michelangelo.DumpMode)">
+            <summary>
+            Configures the Michelangelo DumpMode
+            DumpMode.EMG:           Configures the Michelangelo to retrieve only the EMG data at 100 Hz
+            DumpMode.EMGAndStates:      Configures the Michelangelo to retrieve 2 channels EMG data at 100 Hz and internal states (switch state, etc)
+            DumpMode.Sensors            Configures the Michelangelo to retrieve only the Sensor data at 100 Hz
+            DumpMode.EMGandSensors  Configures the Michelangelo to retrieve the EMG and Sensor data at 100 Hz
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.setDumpMode(System.Int32)">
+            <summary>
+            Configures the Michelangelo DumpMode using integer
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.StartDump">
+            <summary>
+            Starts the transmission of the selected data
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.StopDump">
+            <summary>
+            Stops the transmission of the data
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.ConstOpenHand">
+            <summary>
+            Opens the hand to full open at coeffA medium level speed
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.ConstCloseHandOpposition">
+            <summary>
+            Closes the hand to opposition grip at medium level speed
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.ConstCloseHandLater">
+            <summary>
+            Closes the hand to lateral grip at medium level speed
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.ConstFlexion">
+            <summary>
+            Flexes the wrist at medium level speed
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.ConstExtension">
+            <summary>
+            Extends the wrist at medium level speed
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.ConstSupination">
+            <summary>
+            Rotates the hand counter-clockwise at medium level speed
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.ConstPronation">
+            <summary>
+            Rotates the hand counteclockwise at medium level speed
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.varOpenHand(System.Byte)">
+            <summary>
+            Opens the hand to full open at given speed
+            </summary>
+            <param name="speed">speed between 0 and 255</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.varCloseHandOpposition(System.Byte)">
+            <summary>
+            Closes the hand to opposition grip at givenspeed
+            </summary>
+            <param name="speed">speed between 0 and 255</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.varCloseHandLater(System.Byte)">
+            <summary>
+            Closes the hand to lateral grip at given speed
+            </summary>
+            <param name="speed">speed between 0 and 255</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.varFlexion(System.Byte)">
+            <summary>
+            Flexes the wrist at given speed
+            </summary>
+            <param name="speed">speed between 0 and 255</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.varExtension(System.Byte)">
+            <summary>
+            Extends the wrist at given speed
+            </summary>
+            <param name="speed">speed between 0 and 255</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.varSupination(System.Byte)">
+            <summary>
+            Rotates the hand counter-clockwise at given speed
+            </summary>
+            <param name="speed">speed between 0 and 255</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.varPronation(System.Byte)">
+            <summary>
+            Rotates the hand counteclockwise at given speed
+            </summary>
+            <param name="speed">speed between 0 and 255</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.StopHand">
+            <summary>
+            Stops the Hand from moving
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.simultaneousMovement(System.Byte[])">
+            <summary>
+            Performs a simultaneous movement of all movements at the given speeds. speeds may be 0...255
+            Order: 0: Hand Open, 1: Opposition Grip, 2: MLateral Grip, 3: Pronation speed, 4: Supination speed, 5: Flexion speed, 6: Extension speed
+            The other part of the DOF HAS to be 0, e.g. if Supination != 0, Pronation HAS to be 0.
+            </summary>
+            <param name="moveSpeeds">Movement speeds 0...255 each</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.simultaneousMovement(System.Byte,System.Byte,System.Byte,System.Byte,System.Byte,System.Byte,System.Byte)">
+            <summary>
+            Performs coeffA simultaneous movement of all movements at the given speeds.
+            Order: 0: Hand Open, 1: Opposition Grip, 2: MLateral Grip, 3: Pronation speed, 4: Supination speed, 5: Flexion speed, 6: Extension speed
+            The other part of the DOF HAS to be 0, e.g. if Supination != 0, Pronation HAS to be 0.
+            </summary>
+            <param name="HandOpenSpeed"></param>
+            <param name="FinePinchSpeed"></param>
+            <param name="KeyGripSpeed"></param>
+            <param name="PronationSpeed"></param>
+            <param name="SupinationSpeed"></param>
+            <param name="FlexionSpeed"></param>
+            <param name="ExtensionSpeed"></param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.setCoCoThreshold(System.Byte,System.Int16)">
+            <summary>
+            Adjust the Coco threshold. Voltage is calculated from ((HB LB)/1024)*5V
+            Assignment of the Coco channels 1 and 2 to the physical Myo ports #0..#7
+            </summary>
+            <param name="channel">0 or 1</param>
+            <param name="value">0-100</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.setCoCoImpulse4ChanTime(System.Double)">
+            <summary>
+            Sets the time the user has to relax and go under OFF threshold
+            
+            </summary>
+            <param name="value"></param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.setImpulse4ChanThreshold(System.Byte,System.Int16)">
+            <summary>
+            Set the threshold (after boost) for the threshold to surpass in order to get into an Impulse or 4 Channel control (same value used)
+            </summary>
+            <param name="channel"></param>
+            <param name="value">0 to 100</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.setBoost(System.Byte,System.Double)">
+            <summary>
+            Multiplier for each channel
+            </summary>
+            <param name="channel">Channel to boost</param>
+            <param name="value">Factor by which to boost, e.g. 1.5</param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.enableHand(System.Boolean)">
+            <summary>
+            Enables or disables hand movent. If disabled will not move although EMG is present
+            </summary>
+            <param name="isEnabled"></param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.initNeutralSwitchMatrix">
+            <summary>
+            Resets the switch Matrix to a matrix where no switches are assigned
+            </summary>
+        </member>
+        <member name="M:OBDevices.Michelangelo.setSwitchMatrixRow(OBDevices.Michelangelo.SwitchEvent,System.Byte[])">
+            <summary>
+            Sets one row in the switch matrix (assigns switch to target)
+            </summary>
+            <param name="swEvent"></param>
+            <param name="row"></param>
+            <returns></returns>
+        </member>
+        <member name="M:OBDevices.Michelangelo.sendSwitchMatrixToHand">
+            <summary>
+            sends the Switch Matrix to the Hand
+            </summary>
+            <returns>-3 if matrix is null, -2 or -1 if n_rows or n_cols was not 7 or 5, respectively. 0 if success </returns>
+        </member>
+        <member name="M:OBDevices.Michelangelo.sendSwitchMatrixToHand(System.Byte[][])">
+            <summary>
+            sends the Switch Matrix to the Hand
+            </summary>
+            <returns>-3 if matrix is null, -2 or -1 if n_rows or n_cols was not 7 or 5, respectively. 0 if success </returns>
+        </member>
+        <member name="M:OBDevices.Michelangelo.setEMGDataFromExternal(System.UInt16[])">
+            <summary>
+            EMG Data can be set from external
+            </summary>
+            <param name="EMGData"></param>
+        </member>
+        <member name="M:OBDevices.Michelangelo.setDongleSpeed(System.String)">
+            <summary>
+            Set the dongle speed for the Bluetooth dongle. 
+            </summary>
+            <param name="speed">"slow" for 115200 Baud, "fast" for 460800 Baud</param>
+        </member>
+        <member name="T:OBDevices.MyoPlusTR">
+            <summary>
+            Represents a class that handles bi-directional communication to a Myobock UART compatible hand + controller (Myo Plus TR)
+            </summary>
+        </member>
+        <member name="T:OBDevices.MyoPlusTR.Movements">
+            <summary>
+            BeBionic Movement Modes
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.Movements.GloveMode">
+            <summary>
+            Glove Mode
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.Movements.HandOpen">
+            <summary>
+            Open HAnd
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.Movements.TripodColumn">
+            <summary>
+            Tripod or Column Grip
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.Movements.PowerKey">
+            <summary>
+            Power or Key Grip
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.Movements.ActiveIndexFingerPoint">
+            <summary>
+            Active Index or Finger Point
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.Movements.PrecisionOpenMouse">
+            <summary>
+            Precision Open or Mouse Grip
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.Movements.PrecisionCloseRelaxed">
+            <summary>
+            Precision Close Grip or Relaxed (Mouse Grip)
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.Movements.Supination">
+            <summary>
+            Supination
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.Movements.Pronation">
+            <summary>
+            Pronation
+            </summary>
+        </member>
+        <member name="T:OBDevices.MyoPlusTR.SwitchModes">
+            <summary>
+            BeBionic Switch Modes
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.SwitchModes.unknown">
+            <summary>
+            unknown shwitch Mode
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.SwitchModes.dedicatedGrip">
+            <summary>
+            Dedicated Grip Pattern switch
+            </summary>
+        </member>
+        <member name="F:OBDevices.MyoPlusTR.SwitchModes.byOpenOpen">
+            <summary>
+            Switch by double open Impulse
+            </summary>
+        </member>
+        <member name="P:OBDevices.MyoPlusTR.CurrSwitchMode">
+            <summary>
+            Currently Used Switch Mode
+            </summary>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.#ctor">
+            <summary>
+            Create an Instance
+            </summary>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.movePronate(System.Int32)">
+            <summary>
+            Perform Pronation
+            </summary>
+            <param name="speed"> Movement Speed</param>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.moveSupinate(System.Int32)">
+            <summary>
+            Perform Supination
+            </summary>
+            <param name="speed"> Movement Speed</param>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.moveHandOpen(System.Int32)">
+            <summary>
+            Open Hand
+            </summary>
+            <param name="speed"> Movement Speed</param>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.moveTripodColumn(System.Int32)">
+            <summary>
+            Perform Tripod  or Column Grip (depending on Finger Position)
+            </summary>
+            <param name="speed"> Movement Speed</param>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.movePowerKey(System.Int32)">
+            <summary>
+            Perform Power or Key Grip (depending on Finger Position)
+            </summary>
+            <param name="speed"> Movement Speed</param>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.moveActiveIndexFingerPoint(System.Int32)">
+            <summary>
+            Perform Active Index or Finger Point (depending on Finger Position)
+            </summary>
+            <param name="speed"> Movement Speed</param>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.movePrecisionOpenMouse(System.Int32)">
+            <summary>
+            Perform Precision Open or Mouse Grip (depending on Finger Position)
+            </summary>
+            <param name="speed"> Movement Speed</param>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.movePrecisionCloseRelaxed(System.Int32)">
+            <summary>
+            Perform Precision Close or Relaxe Mouse Grip (depending on Finger Position)
+            </summary>
+            <param name="speed"> Movement Speed</param>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.moveStop">
+            <summary>
+            Stop Movement
+            </summary>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.ConfigDump">
+            <summary>
+            Configure Dump Mode
+            </summary>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.StartDump">
+            <summary>
+            Start Dump
+            </summary>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.StopDump">
+            <summary>
+            Stop Dump
+            </summary>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.queryDeviceVersion">
+            <summary>
+            Get Device Version
+            </summary>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.setSwitchMode(OBDevices.MyoPlusTR.SwitchModes)">
+            <summary>
+            Set switch Mode
+            </summary>
+            <param name="s"> </param>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.readBebionicSwitchMode">
+            <summary>
+            Get switchmode from bebionic
+            </summary>
+        </member>
+        <member name="M:OBDevices.MyoPlusTR.Connect">
+            <summary>
+            Connect to Device
+            </summary>
+        </member>
+        <member name="T:OBDevices.OBComDevice">
+            <summary>
+            An abstract class the suits as base for devices (Prostheses, etc.) that are supported by the OBComLib
+            </summary>
+        </member>
+        <member name="P:OBDevices.OBComDevice.Bluetooth_Pin">
+            <summary>
+            Bluetooth-Pin needed to connect to Myoplus
+            </summary>
+        </member>
+        <member name="P:OBDevices.OBComDevice.Portname">
+            <summary>
+            Set the port name to be used.
+            Use if multiple devices are used.
+            Set before connecting to device.
+            If not set, connection will use first feasible port found
+            </summary>
+        </member>
+        <member name="P:OBDevices.OBComDevice.AutoReconnect">
+            <summary>
+            Flag to determine if connection to device should automatically re-established
+            Default: false
+            </summary>
+        </member>
+        <member name="P:OBDevices.OBComDevice.DumpConfigFailed">
+            <summary>
+            True if configuration of the data dump failed or not set .
+            </summary>
+        </member>
+        <member name="P:OBDevices.OBComDevice.DumpStarted">
+            <summary>
+            True if the dump of data has started. 
+            </summary>
+        </member>
+        <member name="P:OBDevices.OBComDevice.ActionFinished">
+            <summary>
+            indicates when the robot hand has stopped an action. 
+            </summary>
+        </member>
+        <member name="P:OBDevices.OBComDevice.ErrorMessage">
+            <summary>
+            Most error messages are forwarded to this variable. Soon all? :)
+            </summary>
+        </member>
+        <member name="T:OBDevices.OBComDevice.DumpStates">
+             <summary>
+            Possible DumpStates
+             </summary>
+        </member>
+        <member name="F:OBDevices.OBComDevice.DumpStates.DumpConfigured">
+            <summary>
+            Dump is Configured
+            </summary>
+        </member>
+        <member name="F:OBDevices.OBComDevice.DumpStates.DumpStarted">
+            <summary>
+            Dump Started
+            </summary>
+        </member>
+        <member name="F:OBDevices.OBComDevice.DumpStates.DumpStopped">
+            <summary>
+            Dump Stopped
+            </summary>
+        </member>
+        <member name="T:OBDevices.OBComDevice.ConnectionStates">
+             <summary>
+            Possible Connection States
+             </summary>
+        </member>
+        <member name="F:OBDevices.OBComDevice.ConnectionStates.Connecting">
+            <summary>
+            Trying to Connect with Device
+            </summary>
+        </member>
+        <member name="F:OBDevices.OBComDevice.ConnectionStates.Connected">
+            <summary>
+            Device is Connected
+            </summary>
+        </member>
+        <member name="F:OBDevices.OBComDevice.ConnectionStates.Disconnecting">
+            <summary>
+            Device is getting disconneted
+            </summary>
+        </member>
+        <member name="F:OBDevices.OBComDevice.ConnectionStates.Disconnected">
+            <summary>
+            Device is not Connected
+            </summary>
+        </member>
+        <member name="M:OBDevices.OBComDevice.OnDumpStatusChanged(OBDevices.OBComDevice.DumpStates)">
+            <summary>
+            Trigger DumpStatus Change Event
+            </summary>
+        </member>
+        <member name="E:OBDevices.OBComDevice.DumpStatusChanged">
+            <summary>
+            Event indicating a change in Dump Status
+            </summary>
+        </member>
+        <member name="M:OBDevices.OBComDevice.OnConnectionStatusChanged(OBDevices.OBComDevice.ConnectionStates)">
+            <summary>
+            Trigger Connection Change Event
+            </summary>
+        </member>
+        <member name="E:OBDevices.OBComDevice.ConnectionStatusChanged">
+            <summary>
+            Event indicating a change in Connection Status
+            </summary>
+        </member>
+        <member name="M:OBDevices.OBComDevice.BluetoothConnect">
+            <summary>
+            Establish Bluetooth Connection
+            </summary>
+        </member>
+        <member name="M:OBDevices.OBComDevice.Disconnect">
+            <summary>
+            Disconnect Bluetooth Connection to Device
+            </summary>
+        </member>
+    </members>
+</doc>

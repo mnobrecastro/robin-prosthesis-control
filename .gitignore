@@ -2,6 +2,7 @@ build/
 py/
 realsense/
 pcl/
+dependencies/
 
 *.zip
 *.tar.gz
