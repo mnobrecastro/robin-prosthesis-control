@@ -3,6 +3,8 @@ py/
 realsense/
 pcl/
 dependencies/
+dlls/
+shapes/
 
 *.zip
 *.tar.gz

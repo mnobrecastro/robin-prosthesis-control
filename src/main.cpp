@@ -1,4 +1,5 @@
 #include <ctime>
+#include <thread>
 
 #include <pcl/ModelCoefficients.h>
 #include <pcl/io/ply_io.h>
@@ -14,6 +15,7 @@
 #include <pcl/console/time.h>
 
 #include <librealsense2/rs.hpp>
+#include <librealsense2/rs_advanced_mode.hpp>
 
 //#define DEBUG
 
@@ -37,8 +39,14 @@ std::array<float, 6> getPointCloudBoundaries(const pcl::PointCloud<PointT>&);
 void correctCylShape(pcl::ModelCoefficients&, const pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
 
 namespace michelangelo {
+	enum Camera {
+		_REALSENSE_D435,
+		_PICO_FLEXX
+	};
+	void printCamInfo(rs2::device& dev);
+	
 	float readAngle(pcl::PointXYZ);
-	std::string setAction(float);
+	std::string setAction(float);	
 }
 
 void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
@@ -65,12 +73,33 @@ int main (int argc, char** argv)
 
 #if INPUT_CAMERA == REALSENSE_D435
 
-	rs2::pipeline pipe;	
-	pipe.start();
-	/*if (!pipe.start()) {
-		std::cout << "ERROR: While starting camera REALSENSE_D435...\n" << std::endl;
-		return -1;
-	}*/
+	rs2::device dev = [] {
+		rs2::context ctx;
+		std::cout << "Waiting for device..." << std::endl;
+		while (true) {
+			for (auto&& dev : ctx.query_devices())
+				return dev;
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		}
+	}();
+	michelangelo::printCamInfo(dev);
+
+	rs2::pipeline pipe;
+	rs2::config cfg;
+	std::string serial_number(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
+	std::cout << "Opening pipeline for " << serial_number << std::endl;
+	cfg.enable_device(serial_number);
+	cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 60); // 640x480, 848x100, 848x480
+	//cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_BGR8, 60);
+
+	auto advanced_dev = dev.as<rs400::advanced_mode>();
+	STDepthTableControl depth_table = advanced_dev.get_depth_table();
+	depth_table.depthClampMin = 0;
+	depth_table.depthClampMax = 200; // m30 if depth unit at 0.001
+	depth_table.depthUnits = 1000;
+	advanced_dev.set_depth_table(depth_table);
+
+	rs2::pipeline_profile profile = pipe.start(cfg);
 
 	filter_lims = {-0.100, 0.100, -0.100, 0.100, 0.100, 0.300}; // realsense depth neg z-axis (MinZ 0.110m)
 	std::cout << "Using the input camera REALSENSE_D435...\n" << std::endl;
@@ -113,10 +142,8 @@ int main (int argc, char** argv)
 
 		tloop.tic();
 
-#ifndef DEBUG
 		viewer.removeAllShapes();
 		viewer.removeAllPointClouds();
-#endif
 		
 	
 #if INPUT_CAMERA == REALSENSE_D435
@@ -157,7 +184,7 @@ int main (int argc, char** argv)
 
 		// Build a passthrough filter to remove unwated points
 		time.tic();
-		pass.setInputCloud(cloud);
+		/*pass.setInputCloud(cloud);
 		pass.setFilterFieldName("x");
 		pass.setFilterLimits(filter_lims[0], filter_lims[1]);
 		pass.filter(*cloud_filtered);
@@ -170,15 +197,16 @@ int main (int argc, char** argv)
 		pass.setInputCloud (cloud_filtered);
 		pass.setFilterFieldName ("z");
 		pass.setFilterLimits (filter_lims[4], filter_lims[5]);
-		pass.filter (*cloud_filtered);
+		pass.filter (*cloud_filtered);*/
+		cloud_filtered = cloud;
 		std::cerr << "PointCloud after filtering: " << cloud_filtered->points.size () << " data points." << std::endl;
 
-		/*
+#ifdef DEBUG
 		// Draw trimmed pointcloud
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_in_color_h(cloud, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl,
 			(int)255 * txt_gray_lvl);
 		viewer.addPointCloud(cloud, cloud_in_color_h, "cloud_in", vp);
-		*/
+#endif
 
 		// Downsampling the filtered point cloud		
 		pcl::VoxelGrid<pcl::PointXYZ> dsfilt;
@@ -333,9 +361,7 @@ int main (int argc, char** argv)
 
 #endif	// CYLINDER_MODEL
 
-#ifndef DEBUG
-			viewer.spinOnce(1, true);
-#endif //DEBUG			
+			viewer.spinOnce(1, true);			
 		}
 		std::cout << "\n********** Total loop time: " << tloop.toc() << " ms **********\n" << std::endl;
 	}
@@ -461,6 +487,26 @@ std::string michelangelo::setAction(float angle)
 	else
 		action = "rotate_left";
 	return action;
+}
+
+void michelangelo::printCamInfo(rs2::device& dev) {
+	std::cout << "Device found:" << std::endl;
+	std::cout << dev.get_info(RS2_CAMERA_INFO_NAME) << " "
+		<< dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) << " "
+		<< dev.get_info(RS2_CAMERA_INFO_PRODUCT_ID) << std::endl;
+
+	auto sensors = dev.query_sensors();
+	for (rs2::sensor& sensor : sensors) {
+		std::cout << "Sensor " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+		for (rs2::stream_profile& profile : sensor.get_stream_profiles()) {
+			if (profile.is<rs2::video_stream_profile>() && profile.stream_name() == "Depth") {
+				rs2::video_stream_profile video_stream_profile = profile.as<rs2::video_stream_profile>();
+				std::cout << " Video stream: " << video_stream_profile.format() << " " <<
+					video_stream_profile.width() << "x" << video_stream_profile.height() << " @" << video_stream_profile.fps() << "Hz" << std::endl;
+			}
+				//std::cout << "  stream " << profile.stream_name() << " " << profile.stream_type() << " " << profile.format() << " " << " " << profile.fps() << std::endl;
+		}
+	}
 }
 
 ////////////////////////////////////////
