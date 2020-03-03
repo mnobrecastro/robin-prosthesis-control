@@ -84,24 +84,44 @@ int main (int argc, char** argv)
 	}();
 	michelangelo::printCamInfo(dev);
 
+	bool disparity(true);
+
 	rs2::pipeline pipe;
 	rs2::config cfg;
 	std::string serial_number(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
 	std::cout << "Opening pipeline for " << serial_number << std::endl;
 	cfg.enable_device(serial_number);
-	cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 60); // 640x480, 848x100, 848x480
-	//cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_BGR8, 60);
+	if (!disparity) {
+		cfg.enable_stream(RS2_STREAM_DEPTH, 424, 240, RS2_FORMAT_Z16, 90);
+		//cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 60);		
+		////cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_BGR8, 60);
+	} else {
+		////cfg.enable_stream(RS2_STREAM_DEPTH, 848, 480, RS2_FORMAT_Z16, 30);
+		cfg.enable_stream(RS2_STREAM_DEPTH, 848, 100, RS2_FORMAT_Z16, 100); // USB3.0 only!
+	}
 
 	auto advanced_dev = dev.as<rs400::advanced_mode>();
-	STDepthTableControl depth_table = advanced_dev.get_depth_table();
-	depth_table.depthClampMin = 0;
-	depth_table.depthClampMax = 200; // m30 if depth unit at 0.001
-	depth_table.depthUnits = 1000;
+	STDepthTableControl depth_table = advanced_dev.get_depth_table();	
+	if (!disparity) {
+		depth_table.depthUnits = 1000; // 0.001m
+		depth_table.depthClampMin = 0;
+		depth_table.depthClampMax = 200; // mm
+		depth_table.disparityShift = 0;		
+	} else {
+		depth_table.depthUnits = 1000;  // 0.001m
+		depth_table.depthClampMin = 0;
+		depth_table.depthClampMax = 200; // mm
+		depth_table.disparityShift = 145; // 145@30 or [125-175]@100
+	}
 	advanced_dev.set_depth_table(depth_table);
 
 	rs2::pipeline_profile profile = pipe.start(cfg);
 
-	filter_lims = {-0.100, 0.100, -0.100, 0.100, 0.100, 0.300}; // realsense depth neg z-axis (MinZ 0.110m)
+	if (!disparity) {
+		filter_lims = { -0.100, 0.100, -0.100, 0.100, 0.000, 0.300 }; // realsense depth neg z-axis (MinZ 0.110m)
+	} else {
+		filter_lims = { -0.050, 0.050, -0.100, 0.100, 0.050, 0.200 }; // realsense depth neg z-axis (MinZ 0.110m)
+	}
 	std::cout << "Using the input camera REALSENSE_D435...\n" << std::endl;
 #endif
 #if INPUT_CAMERA == PICO_FLEXX
@@ -144,8 +164,8 @@ int main (int argc, char** argv)
 
 		viewer.removeAllShapes();
 		viewer.removeAllPointClouds();
-		
-	
+
+
 #if INPUT_CAMERA == REALSENSE_D435
 
 		time.tic();
@@ -162,15 +182,22 @@ int main (int argc, char** argv)
 
 		// Transform rs2::pointcloud into pcl::PointCloud<PointT>::Ptr
 		cloud = points_to_pcl(points);
-		std::cout << "\nRead pointcloud from " << cloud->size() << " data points (in " << time.toc() << " ms).\n" << std::endl;
+		std::cout << "\nRead pointcloud from " << cloud->size() << " data points (in " << time.toc() << " ms)." << std::endl;
 #endif
 #if INPUT_CAMERA == PICO_FLEXX
 
 		// Transform rs2::pointcloud into pcl::PointCloud<PointT>::Ptr
 		cloud = points_to_pcl(points);
-		std::cout << "\nRead pointcloud from (" << cloud->size() << " data points (in " << time.toc() << " ms).\n" << std::endl;
+		std::cout << "\nRead pointcloud from (" << cloud->size() << " data points (in " << time.toc() << " ms)." << std::endl;
 #endif
-			
+
+#ifdef DEBUG
+		// Draw raw pointcloud
+		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_in_color_h(cloud, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl,
+			(int)255 * txt_gray_lvl);
+		viewer.addPointCloud(cloud, cloud_in_color_h, "cloud_in", vp);
+#endif //DEBUG
+
 		// PCL objects
 		pcl::PassThrough<PointT> pass(true);
 		pcl::NormalEstimation<PointT, pcl::Normal> ne;
@@ -178,13 +205,14 @@ int main (int argc, char** argv)
 		pcl::ExtractIndices<PointT> extract;
 		pcl::ExtractIndices<pcl::Normal> extract_normals;
 		pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>());
-		
+
 		pcl::ModelCoefficients::Ptr coefficients_plane(new pcl::ModelCoefficients), coefficients_cylinder(new pcl::ModelCoefficients);
 		pcl::PointIndices::Ptr inliers_plane(new pcl::PointIndices), inliers_cylinder(new pcl::PointIndices);
 
-		// Build a passthrough filter to remove unwated points
+
 		time.tic();
-		/*pass.setInputCloud(cloud);
+		// Build a passthrough filter to remove unwated points
+		pass.setInputCloud(cloud);
 		pass.setFilterFieldName("x");
 		pass.setFilterLimits(filter_lims[0], filter_lims[1]);
 		pass.filter(*cloud_filtered);
@@ -194,27 +222,24 @@ int main (int argc, char** argv)
 		pass.setFilterLimits(filter_lims[2], filter_lims[3]);
 		pass.filter(*cloud_filtered);
 		//
-		pass.setInputCloud (cloud_filtered);
-		pass.setFilterFieldName ("z");
-		pass.setFilterLimits (filter_lims[4], filter_lims[5]);
-		pass.filter (*cloud_filtered);*/
-		cloud_filtered = cloud;
-		std::cerr << "PointCloud after filtering: " << cloud_filtered->points.size () << " data points." << std::endl;
+		pass.setInputCloud(cloud_filtered);
+		pass.setFilterFieldName("z");
+		pass.setFilterLimits(filter_lims[4], filter_lims[5]);
+		pass.filter(*cloud_filtered);
+		std::cerr << "PointCloud after filtering: " << cloud_filtered->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 
-#ifdef DEBUG
-		// Draw trimmed pointcloud
-		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_in_color_h(cloud, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl,
-			(int)255 * txt_gray_lvl);
-		viewer.addPointCloud(cloud, cloud_in_color_h, "cloud_in", vp);
-#endif
-
+		time.tic();
 		// Downsampling the filtered point cloud		
 		pcl::VoxelGrid<pcl::PointXYZ> dsfilt;
 		dsfilt.setInputCloud(cloud_filtered);
-		dsfilt.setLeafSize(0.005f, 0.005f, 0.005f); //0.01f
+		if (!disparity) {
+			dsfilt.setLeafSize(0.005f, 0.005f, 0.005f); //0.01f
+		} else {
+			dsfilt.setLeafSize(0.002f, 0.002f, 0.002f); //0.01f
+		}
 		dsfilt.filter(*cloud_filtered);
 		std::cerr << "PointCloud after downsampling: " << cloud_filtered->width * cloud_filtered->height
-			<< " data points." << std::endl; //pcl::getFieldsList(*cloud_filtered)
+			<< " data points (in " << time.toc() << " ms)." << std::endl; //pcl::getFieldsList(*cloud_filtered)
 
 #ifndef DEBUG
 		// Draw filtered PointCloud
@@ -321,7 +346,7 @@ int main (int argc, char** argv)
 		pcl::PointCloud<PointT>::Ptr cloud_cylinder (new pcl::PointCloud<PointT> ());
 		extract.filter (*cloud_cylinder);
 		if (cloud_cylinder->points.empty()) {
-			std::cerr << "Can't find the cylindrical component." << std::endl;
+			std::cerr << "\tCan't find the cylindrical component." << std::endl;
 		}else {
 			std::cerr << "PointCloud CYLINDER: " << cloud_cylinder->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 
@@ -357,13 +382,13 @@ int main (int argc, char** argv)
 			//float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
 			float dTheta(michelangelo::readAngle(axis_projection));
 			std::string action(michelangelo::setAction(dTheta));
-			std::cout << "\nCurrent angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
+			std::cout << "* Current angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
 
 #endif	// CYLINDER_MODEL
 
 			viewer.spinOnce(1, true);			
 		}
-		std::cout << "\n********** Total loop time: " << tloop.toc() << " ms **********\n" << std::endl;
+		std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 	}
 
 	pipe.stop();
