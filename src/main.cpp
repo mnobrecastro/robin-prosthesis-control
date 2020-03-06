@@ -44,7 +44,9 @@ namespace michelangelo {
 		_PICO_FLEXX
 	};
 	void printCamInfo(rs2::device& dev);
-	
+
+	void correctAngle(pcl::PointXYZ&, float);
+	pcl::PointXYZ otherAngle(const pcl::PointXYZ&, float);
 	float readAngle(pcl::PointXYZ);
 	std::string setAction(float);	
 }
@@ -90,15 +92,16 @@ int main (int argc, char** argv)
 	rs2::config cfg;
 	std::string serial_number(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
 	std::cout << "Opening pipeline for " << serial_number << std::endl;
-	cfg.enable_device(serial_number);
+	cfg.enable_device(serial_number);	
 	if (!disparity) {
 		cfg.enable_stream(RS2_STREAM_DEPTH, 424, 240, RS2_FORMAT_Z16, 90);
-		//cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 60);		
+		//cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 60);
 		////cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_BGR8, 60);
 	} else {
-		////cfg.enable_stream(RS2_STREAM_DEPTH, 848, 480, RS2_FORMAT_Z16, 30);
+		//cfg.enable_stream(RS2_STREAM_DEPTH, 848, 480, RS2_FORMAT_Z16, 30);
 		cfg.enable_stream(RS2_STREAM_DEPTH, 848, 100, RS2_FORMAT_Z16, 100); // USB3.0 only!
 	}
+	cfg.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
 
 	auto advanced_dev = dev.as<rs400::advanced_mode>();
 	STDepthTableControl depth_table = advanced_dev.get_depth_table();	
@@ -120,7 +123,7 @@ int main (int argc, char** argv)
 	if (!disparity) {
 		filter_lims = { -0.100, 0.100, -0.100, 0.100, 0.000, 0.300 }; // realsense depth neg z-axis (MinZ 0.110m)
 	} else {
-		filter_lims = { -0.050, 0.050, -0.100, 0.100, 0.050, 0.200 }; // realsense depth neg z-axis (MinZ 0.110m)
+		filter_lims = { -0.050, 0.050, -0.050, 0.050, 0.050, 0.200 }; // realsense depth neg z-axis (MinZ 0.110m)
 	}
 	std::cout << "Using the input camera REALSENSE_D435...\n" << std::endl;
 #endif
@@ -238,7 +241,7 @@ int main (int argc, char** argv)
 			dsfilt.setLeafSize(0.002f, 0.002f, 0.002f); //0.01f
 		}
 		dsfilt.filter(*cloud_filtered);
-		std::cerr << "PointCloud after downsampling: " << cloud_filtered->width * cloud_filtered->height
+		std::cerr << "PointCloud after downsampling: " << cloud_filtered->width * cloud_filtered->height << "=" << cloud_filtered->points.size()
 			<< " data points (in " << time.toc() << " ms)." << std::endl; //pcl::getFieldsList(*cloud_filtered)
 
 #ifndef DEBUG
@@ -248,37 +251,43 @@ int main (int argc, char** argv)
 		viewer.addPointCloud(cloud_filtered, cloud_filtered_in_color_h, "cloud_filtered_in", vp);
 #endif //DEBUG
 
+		if (cloud_filtered->points.size() < 100) {
+			std::cerr << "* Not enough points to perform segmentation." << std::endl;
+			std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
+			continue;
+		}
+
 		// Estimate point normals
-		ne.setSearchMethod (tree);
-		ne.setInputCloud (cloud_filtered);
-		ne.setKSearch (50);
-		ne.compute (*cloud_normals);
+		ne.setSearchMethod(tree);
+		ne.setInputCloud(cloud_filtered);
+		ne.setKSearch(50);
+		ne.compute(*cloud_normals);
 
 #if PLANE_MODEL
 
 		time.tic();
 		// Create the segmentation object for the planar model and set all the parameters
-		seg.setOptimizeCoefficients (true);
-		seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
-		seg.setNormalDistanceWeight (0.1);
-		seg.setMethodType (pcl::SAC_RANSAC);
-		seg.setMaxIterations (100);
-		seg.setDistanceThreshold (0.03);
-		seg.setInputCloud (cloud_filtered);
-		seg.setInputNormals (cloud_normals);
+		seg.setOptimizeCoefficients(true);
+		seg.setModelType(pcl::SACMODEL_NORMAL_PLANE);
+		seg.setNormalDistanceWeight(0.1);
+		seg.setMethodType(pcl::SAC_RANSAC);
+		seg.setMaxIterations(100);
+		seg.setDistanceThreshold(0.03);
+		seg.setInputCloud(cloud_filtered);
+		seg.setInputNormals(cloud_normals);
 		// Obtain the plane inliers and coefficients
-		seg.segment (*inliers_plane, *coefficients_plane);
+		seg.segment(*inliers_plane, *coefficients_plane);
 		std::cerr << "Plane coefficients: " << *coefficients_plane << std::endl;
 
 		// Extract the planar inliers from the input cloud
-		extract.setInputCloud (cloud_filtered);
-		extract.setIndices (inliers_plane);
-		extract.setNegative (false);
+		extract.setInputCloud(cloud_filtered);
+		extract.setIndices(inliers_plane);
+		extract.setNegative(false);
 
 		// Write the planar inliers to disk
-		pcl::PointCloud<PointT>::Ptr cloud_plane (new pcl::PointCloud<PointT> ());
-		extract.filter (*cloud_plane);
-		std::cerr << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points (in " << time.toc() << " ms)." << std::endl;
+		pcl::PointCloud<PointT>::Ptr cloud_plane(new pcl::PointCloud<PointT>());
+		extract.filter(*cloud_plane);
+		std::cerr << "PointCloud representing the planar component: " << cloud_plane->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 
 		// Obtain the plane cloud boundaries
 		std::array<float, 6> bounds_plane(getPointCloudBoundaries(*cloud_plane));
@@ -289,12 +298,12 @@ int main (int argc, char** argv)
 			<< std::endl;
 
 		// Remove the planar inliers, extract the rest
-		extract.setNegative (true);
-		extract.filter (*cloud_filtered2);
-		extract_normals.setNegative (true);
-		extract_normals.setInputCloud (cloud_normals);
-		extract_normals.setIndices (inliers_plane);
-		extract_normals.filter (*cloud_normals2);
+		extract.setNegative(true);
+		extract.filter(*cloud_filtered2);
+		extract_normals.setNegative(true);
+		extract_normals.setInputCloud(cloud_normals);
+		extract_normals.setIndices(inliers_plane);
+		extract_normals.filter(*cloud_normals2);
 
 #ifndef DEBUG
 		// Transformed point cloud is green
@@ -315,79 +324,85 @@ int main (int argc, char** argv)
 
 		time.tic();
 		// Create the segmentation object for cylinder segmentation and set all the parameters
-		seg.setOptimizeCoefficients (true);
-		seg.setModelType (pcl::SACMODEL_CYLINDER);
-		seg.setMethodType (pcl::SAC_RANSAC);
-		seg.setNormalDistanceWeight (0.1);
-		seg.setMaxIterations (10000);
-		seg.setDistanceThreshold (0.05);
-		seg.setRadiusLimits (0.005, 0.040);
+		seg.setOptimizeCoefficients(true);
+		seg.setModelType(pcl::SACMODEL_CYLINDER);
+		seg.setMethodType(pcl::SAC_RANSAC);
+		seg.setNormalDistanceWeight(0.1);
+		seg.setMaxIterations(10000);
+		seg.setDistanceThreshold(0.05);
+		seg.setRadiusLimits(0.005, 0.040);
 #if PLANE_MODEL
-		seg.setInputCloud (cloud_filtered2);
-		seg.setInputNormals (cloud_normals2);
+		seg.setInputCloud(cloud_filtered2);
+		seg.setInputNormals(cloud_normals2);
 #else	
-		seg.setInputCloud (cloud_filtered);
+		seg.setInputCloud(cloud_filtered);
 		seg.setInputNormals(cloud_normals);
 #endif //PLANE_MODEL
 
 		// Obtain the cylinder inliers and coefficients
-		seg.segment (*inliers_cylinder, *coefficients_cylinder);
+		seg.segment(*inliers_cylinder, *coefficients_cylinder);
 		//std::cerr << "Cylinder inliers: " << *inliers_cylinder << std::endl;
 		//std::cerr << "Cylinder coefficients: " << *coefficients_cylinder << std::endl;
 
 		// Save the cylinder inliers
 #if PLANE_MODEL
-		extract.setInputCloud (cloud_filtered2);
+		extract.setInputCloud(cloud_filtered2);
 #else
 		extract.setInputCloud(cloud_filtered);
 #endif //PLANE_MODEL
-		extract.setIndices (inliers_cylinder);
-		extract.setNegative (false);
-		pcl::PointCloud<PointT>::Ptr cloud_cylinder (new pcl::PointCloud<PointT> ());
-		extract.filter (*cloud_cylinder);
+		extract.setIndices(inliers_cylinder);
+		extract.setNegative(false);
+		pcl::PointCloud<PointT>::Ptr cloud_cylinder(new pcl::PointCloud<PointT>());
+		extract.filter(*cloud_cylinder);
+
 		if (cloud_cylinder->points.empty()) {
 			std::cerr << "\tCan't find the cylindrical component." << std::endl;
-		}else {
+			std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
+			continue;
+		} else {
 			std::cerr << "PointCloud CYLINDER: " << cloud_cylinder->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
+		}
 
-			// Obtain the cylinder cloud boundaries
-			std::array<float, 6> bounds_cylinder(getPointCloudBoundaries(*cloud_cylinder));
-			/*std::cerr << "\nCylinder boundaries: "
-				<< "\n\tx: " << "[" << bounds_cylinder[0] << "," << bounds_cylinder[1] << "]"
-				<< "\n\ty: " << "[" << bounds_cylinder[2] << "," << bounds_cylinder[3] << "]"
-				<< "\n\tz: " << "[" << bounds_cylinder[4] << "," << bounds_cylinder[5] << "]"
-				<< std::endl;*/
+		// Obtain the cylinder cloud boundaries
+		std::array<float, 6> bounds_cylinder(getPointCloudBoundaries(*cloud_cylinder));
+		/*std::cerr << "\nCylinder boundaries: "
+			<< "\n\tx: " << "[" << bounds_cylinder[0] << "," << bounds_cylinder[1] << "]"
+			<< "\n\ty: " << "[" << bounds_cylinder[2] << "," << bounds_cylinder[3] << "]"
+			<< "\n\tz: " << "[" << bounds_cylinder[4] << "," << bounds_cylinder[5] << "]"
+			<< std::endl;*/
 
 #ifndef DEBUG
-			// ICP aligned point cloud is red
-			pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_cylinder_color_h(cloud_cylinder, 180, 20, 20);
-			viewer.addPointCloud(cloud_cylinder, cloud_cylinder_color_h, "cloud_cylinder", vp);
+		// ICP aligned point cloud is red
+		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_cylinder_color_h(cloud_cylinder, 180, 20, 20);
+		viewer.addPointCloud(cloud_cylinder, cloud_cylinder_color_h, "cloud_cylinder", vp);
 
-			// Plot cylinder shape
-			pcl::ModelCoefficients::Ptr corrected_coefs_cylinder(new pcl::ModelCoefficients);
-			correctCylShape(*corrected_coefs_cylinder, *coefficients_cylinder, *cloud_cylinder);
-			viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
+		// Plot cylinder shape
+		pcl::ModelCoefficients::Ptr corrected_coefs_cylinder(new pcl::ModelCoefficients);
+		correctCylShape(*corrected_coefs_cylinder, *coefficients_cylinder, *cloud_cylinder);
+		viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
 #endif //DEBUG
 
-			// Plot cylinder longitudinal axis //PointT
-			PointT point_on_axis((*coefficients_cylinder).values[0], (*coefficients_cylinder).values[1], (*coefficients_cylinder).values[2]);
-			PointT axis_direction(point_on_axis.x + (*coefficients_cylinder).values[3], point_on_axis.y + (*coefficients_cylinder).values[4], point_on_axis.z + (*coefficients_cylinder).values[5]);
-			PointT cam_origin(0.0, 0.0, 0.0);
-			PointT axis_projection((*coefficients_cylinder).values[3], (*coefficients_cylinder).values[4], 0.0);
+		// Plot cylinder longitudinal axis //PointT
+		PointT point_on_axis((*coefficients_cylinder).values[0], (*coefficients_cylinder).values[1], (*coefficients_cylinder).values[2]);
+		PointT axis_direction(point_on_axis.x + (*coefficients_cylinder).values[3], point_on_axis.y + (*coefficients_cylinder).values[4], point_on_axis.z + (*coefficients_cylinder).values[5]);
+		PointT cam_origin(0.0, 0.0, 0.0);
+		PointT axis_projection((*coefficients_cylinder).values[3], (*coefficients_cylinder).values[4], 0.0);
+
+		float camAngle(90.0 * M_PI / 180);
+		michelangelo::correctAngle(axis_projection, camAngle);
 #ifndef DEBUG
-			viewer.addLine(cam_origin, axis_projection, "line");
+		viewer.addLine(cam_origin, axis_projection, "line");
 #endif //DEBUG
 
-			// Calculate the angular difference			
-			//float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
-			float dTheta(michelangelo::readAngle(axis_projection));
-			std::string action(michelangelo::setAction(dTheta));
-			std::cout << "* Current angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
+		// Calculate the angular difference			
+		//float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
+		float dTheta(michelangelo::readAngle(axis_projection));
+		std::string action(michelangelo::setAction(dTheta));
+		std::cout << "* Current angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
 
 #endif	// CYLINDER_MODEL
 
-			viewer.spinOnce(1, true);			
-		}
+		viewer.spinOnce(1, true);
 		std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 	}
 
@@ -493,14 +508,38 @@ void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& 
 	cyl.values.push_back(coefficients.values[6]);
 }
 
+void michelangelo::correctAngle(pcl::PointXYZ& axis_projection, float camAngle)
+{
+	float ang(michelangelo::readAngle(axis_projection) + camAngle);
+	if (ang > M_PI) {
+		ang -= 2 * M_PI;
+	}
+
+	if (ang < 0.0) {
+		axis_projection.x = -axis_projection.x;
+		axis_projection.y = -axis_projection.y;
+	}
+	
+	pcl::PointXYZ proj1(axis_projection);
+	pcl::PointXYZ proj2(proj1);
+	proj2.x = -proj2.x;
+	proj2.y = -proj2.y;
+}
+
+pcl::PointXYZ michelangelo::otherAngle(const pcl::PointXYZ& axis_projection, float camAngle)
+{
+	pcl::PointXYZ other(axis_projection);
+	other.x = -other.x;
+	other.y = -other.y;
+	return other;
+}
+
+
 float michelangelo::readAngle(pcl::PointXYZ axis_projection)
 {
 	float angle(std::atan2(axis_projection.y, axis_projection.x));
-	if (angle > M_PI/2)
-		angle -= M_PI;
 	return angle;
 }
-
 
 std::string michelangelo::setAction(float angle)
 {
@@ -529,7 +568,17 @@ void michelangelo::printCamInfo(rs2::device& dev) {
 				std::cout << " Video stream: " << video_stream_profile.format() << " " <<
 					video_stream_profile.width() << "x" << video_stream_profile.height() << " @" << video_stream_profile.fps() << "Hz" << std::endl;
 			}
-				//std::cout << "  stream " << profile.stream_name() << " " << profile.stream_type() << " " << profile.format() << " " << " " << profile.fps() << std::endl;
+			if (profile.is<rs2::motion_stream_profile>() && profile.stream_name() == "Accel") {
+				rs2::motion_stream_profile motion_stream_profile = profile.as<rs2::motion_stream_profile>();
+				std::cout << " Motion stream: " << motion_stream_profile.format() << " " <<
+					motion_stream_profile.stream_type() << " @" << motion_stream_profile.fps() << "Hz" << std::endl;
+			}
+			if (profile.is<rs2::pose_stream_profile>() && profile.stream_name() == "Gyro") {
+				rs2::pose_stream_profile pose_stream_profile = profile.as<rs2::pose_stream_profile>();
+				std::cout << " Pose stream: " << pose_stream_profile.format() << " " <<
+					pose_stream_profile.stream_type() << " @" << pose_stream_profile.fps() << "Hz" << std::endl;
+			}
+			¨//std::cout << "  stream " << profile.stream_name() << " " << profile.stream_type() << " " << profile.format() << " " << " " << profile.fps() << std::endl;
 		}
 	}
 }
