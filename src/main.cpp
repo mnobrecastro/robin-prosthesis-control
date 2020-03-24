@@ -123,7 +123,7 @@ int main (int argc, char** argv)
 	viewer.createViewPort(0.0, 0.0, 1.0, 1.0, vp);
 	viewer.setCameraPosition(0.0, 0.0, -0.5, 0.0, -1.0, 0.0, vp);
 	viewer.setSize(800, 600);
-	float bckgr_gray_level = 1.0;  // Black:=0.0
+	float bckgr_gray_level = 0.0;  // Black:=0.0
 	float txt_gray_lvl = 1.0 - bckgr_gray_level;
 	viewer.setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
 	viewer.addCoordinateSystem(0.25); // Global reference frame (on-camera)
@@ -228,7 +228,41 @@ int main (int argc, char** argv)
 	// PCL Primitive
 	std::array<michelangelo::Primitive, 3> primitives = { michelangelo::PRIMITIVE_PLANE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER };
 	michelangelo::Primitive prim(primitives[2]);	
-		
+
+	// LCCP objects
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_filtered_rgba(new pcl::PointCloud<pcl::PointXYZRGBA>);
+	pcl::PointCloud<pcl::PointXYZL>::Ptr sv_labeled_cloud;
+	pcl::PointCloud<pcl::PointNormal>::Ptr sv_centroid_normal_cloud;
+	pcl::PointCloud<pcl::PointXYZL>::Ptr lccp_labeled_cloud;
+	pcl::LCCPSegmentation<pcl::PointXYZRGBA> lccp;
+	
+	///  Default values of parameters before parsing
+	// Supervoxel Parameters
+	float voxel_resolution = 0.0075f;
+	float seed_resolution = 0.03f;
+	float color_importance = 0.0f;
+	float spatial_importance = 1.0f;
+	float normal_importance = 4.0f;
+	bool use_single_cam_transform = false;
+	bool use_supervoxel_refinement = false;
+
+	// LCCPSegmentation Parameters
+	float concavity_tolerance_threshold = 10;
+	float smoothness_threshold = 0.1;
+	std::uint32_t min_segment_size = 0;
+	bool use_extended_convexity = false;
+	bool use_sanity_criterion = false;
+	
+	float normals_scale;
+	normals_scale = seed_resolution / 2.0;
+	unsigned int k_factor = 0;
+	if (use_extended_convexity)
+		k_factor = 1;
+	pcl::SupervoxelClustering<pcl::PointXYZRGBA> supervox(voxel_resolution, seed_resolution);
+	
+
+	michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
+
 	pcl::console::TicToc time;
 	pcl::console::TicToc tloop;
 
@@ -270,38 +304,46 @@ int main (int argc, char** argv)
 		viewer.addPointCloud(cloud, cloud_in_color_h, "cloud_in", vp);
 #endif //DEBUG
 
-		time.tic();
-		// Build a passthrough filter to remove unwated points
-		pass.setInputCloud(cloud);
-		pass.setFilterFieldName("x");
-		pass.setFilterLimits(filter_lims[0], filter_lims[1]);
-		pass.filter(*cloud_filtered);
-		//
-		if (!disparity) {
-			pass.setInputCloud(cloud_filtered);
-			pass.setFilterFieldName("y");
-			pass.setFilterLimits(filter_lims[2], filter_lims[3]);
+		bool FILTER(true);
+		if (FILTER) {
+			time.tic();
+			// Build a passthrough filter to remove unwated points
+			pass.setInputCloud(cloud);
+			pass.setFilterFieldName("x");
+			pass.setFilterLimits(filter_lims[0], filter_lims[1]);
 			pass.filter(*cloud_filtered);
 			//
-			pass.setInputCloud(cloud_filtered);
-			pass.setFilterFieldName("z");
-			pass.setFilterLimits(filter_lims[4], filter_lims[5]);
-			pass.filter(*cloud_filtered);
-		}
-		std::cerr << "PointCloud after filtering: " << cloud_filtered->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
-
-		time.tic();
-		// Downsampling the filtered point cloud		
-		pcl::VoxelGrid<pcl::PointXYZ> dsfilt;
-		dsfilt.setInputCloud(cloud_filtered);
-		if (!disparity) {
-			dsfilt.setLeafSize(0.005f, 0.005f, 0.005f); //0.01f
+			if (!disparity) {
+				pass.setInputCloud(cloud_filtered);
+				pass.setFilterFieldName("y");
+				pass.setFilterLimits(filter_lims[2], filter_lims[3]);
+				pass.filter(*cloud_filtered);
+				//
+				pass.setInputCloud(cloud_filtered);
+				pass.setFilterFieldName("z");
+				pass.setFilterLimits(filter_lims[4], filter_lims[5]);
+				pass.filter(*cloud_filtered);
+			}
+			std::cerr << "PointCloud after filtering: " << cloud_filtered->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 		} else {
-			dsfilt.setLeafSize(0.002f, 0.002f, 0.002f); //0.01f
+			pcl::copyPointCloud(*cloud, *cloud_filtered);
 		}
-		dsfilt.filter(*cloud_filtered);
-		std::cerr << "PointCloud after downsampling: " << cloud_filtered->width * cloud_filtered->height << "=" << cloud_filtered->points.size()
-			<< " data points (in " << time.toc() << " ms)." << std::endl; //pcl::getFieldsList(*cloud_filtered)
+
+		bool DOWNSAMPLING(true);
+		if (DOWNSAMPLING) {
+			time.tic();
+			// Downsampling the filtered point cloud		
+			pcl::VoxelGrid<pcl::PointXYZ> dsfilt;
+			dsfilt.setInputCloud(cloud_filtered);
+			if (!disparity) {
+				dsfilt.setLeafSize(0.002f, 0.002f, 0.002f); //0.005f //0.01f
+			} else {
+				dsfilt.setLeafSize(0.002f, 0.002f, 0.002f); //0.01f
+			}
+			dsfilt.filter(*cloud_filtered);
+			std::cerr << "PointCloud after downsampling: " << cloud_filtered->width * cloud_filtered->height << "=" << cloud_filtered->points.size()
+				<< " data points (in " << time.toc() << " ms)." << std::endl; //pcl::getFieldsList(*cloud_filtered)
+		}
 
 #ifndef DEBUG
 		// Draw filtered PointCloud
@@ -314,16 +356,17 @@ int main (int argc, char** argv)
 			std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 			continue;
 		}
-		
-		// Estimate point normals
-		ne.setSearchMethod(tree);
-		ne.setInputCloud(cloud_filtered);
-		ne.setKSearch(50);
-		ne.compute(*cloud_normals);
 
-		michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
 		switch (segmethod) {
 			case michelangelo::SEG_RANSAC:
+
+				// Estimate point normals
+				std::cout << "Computing normals...";
+				ne.setSearchMethod(tree);
+				ne.setInputCloud(cloud_filtered);
+				ne.setKSearch(50);
+				ne.compute(*cloud_normals);
+				std::cout << " done." << std::endl;
 
 #if PLANE_SEGMENTATION
 
@@ -383,7 +426,7 @@ int main (int argc, char** argv)
 	#endif //PLANE_SEGMENTATION
 
 	#if PRIMITIVE_MODEL
-
+							   
 				//std::array<michelangelo::Primitive, 3> prims = { michelangelo::PRIMITIVE_PLANE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER };
 				//std::array<michelangelo::PrimitiveModel, 3> prim_models();
 
@@ -498,7 +541,58 @@ int main (int argc, char** argv)
 					break;
 				}
 				break;
+
 			case michelangelo::SEG_LCCP:
+
+				// Convert the filtered cloud XYZ to XYZRGBA
+				pcl::copyPointCloud(*cloud_filtered, *cloud_filtered_rgba);				
+
+				/// Preparation of Input: Supervoxel Oversegmentation
+				pcl::SupervoxelClustering<pcl::PointXYZRGBA> supervox(voxel_resolution, seed_resolution);
+				supervox.setUseSingleCameraTransform(use_single_cam_transform);
+				supervox.setInputCloud(cloud_filtered_rgba);
+				if (false)
+					supervox.setNormalCloud(cloud_normals);
+				supervox.setColorImportance(color_importance);
+				supervox.setSpatialImportance(spatial_importance);
+				supervox.setNormalImportance(normal_importance);
+				std::map<std::uint32_t, pcl::Supervoxel<pcl::PointXYZRGBA>::Ptr> supervoxel_clusters;
+
+				PCL_INFO("Extracting supervoxels\n");
+				supervox.extract(supervoxel_clusters);
+				PCL_INFO("FLAG");
+
+				if (use_supervoxel_refinement){
+					PCL_INFO("Refining supervoxels\n");
+					supervox.refineSupervoxels(2, supervoxel_clusters);
+				}
+				std::stringstream temp;
+				temp << "  Nr. Supervoxels: " << supervoxel_clusters.size() << "\n";
+				PCL_INFO(temp.str().c_str());
+
+				PCL_INFO("Getting supervoxel adjacency\n");
+				std::multimap<std::uint32_t, std::uint32_t> supervoxel_adjacency;
+				supervox.getSupervoxelAdjacency(supervoxel_adjacency);
+
+				/// Get the cloud of supervoxel centroid with normals and the colored cloud with supervoxel coloring (this is used for visulization)
+				sv_centroid_normal_cloud = pcl::SupervoxelClustering<pcl::PointXYZRGBA>::makeSupervoxelNormalCloud(supervoxel_clusters);
+
+				/// The Main Step: Perform LCCPSegmentation
+				PCL_INFO("Starting Segmentation\n");
+				lccp.setConcavityToleranceThreshold(concavity_tolerance_threshold);
+				lccp.setSanityCheck(use_sanity_criterion);
+				lccp.setSmoothnessCheck(true, voxel_resolution, seed_resolution, smoothness_threshold);
+				lccp.setKFactor(k_factor);
+				lccp.setInputSupervoxels(supervoxel_clusters, supervoxel_adjacency);
+				lccp.setMinSegmentSize(min_segment_size);
+				lccp.segment();
+
+				PCL_INFO("Interpolation voxel cloud -> input cloud and relabeling\n");
+				sv_labeled_cloud = supervox.getLabeledCloud();
+				lccp_labeled_cloud = sv_labeled_cloud->makeShared();
+				lccp.relabelCloud(*lccp_labeled_cloud);
+
+				viewer.addPointCloud(lccp_labeled_cloud, "maincloud");
 				break;
 		}
 		viewer.spinOnce(1, true);
