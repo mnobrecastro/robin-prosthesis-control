@@ -65,6 +65,9 @@ namespace michelangelo {
 	float readAngle(pcl::PointXYZ);
 	std::string setAction(float);
 
+	std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>&, std::vector<uint32_t>&, std::vector<std::array<double, 3>>&);
+	void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>&, pcl::PointCloud<pcl::PointXYZ>&, uint32_t);
+
 	class PrimitiveModel
 	{
 	private:
@@ -575,7 +578,7 @@ int main (int argc, char** argv)
 				supervox.getSupervoxelAdjacency(supervoxel_adjacency);
 
 				/// Get the cloud of supervoxel centroid with normals and the colored cloud with supervoxel coloring (this is used for visulization)
-				sv_centroid_normal_cloud = pcl::SupervoxelClustering<pcl::PointXYZRGBA>::makeSupervoxelNormalCloud(supervoxel_clusters);
+				//sv_centroid_normal_cloud = pcl::SupervoxelClustering<pcl::PointXYZRGBA>::makeSupervoxelNormalCloud(supervoxel_clusters);
 
 				/// The Main Step: Perform LCCPSegmentation
 				PCL_INFO("Starting Segmentation\n");
@@ -771,6 +774,44 @@ void michelangelo::printCamInfo(rs2::device& dev) {
 			}
 			//std::cout << "  stream " << profile.stream_name() << " " << profile.stream_type() << " " << profile.format() << " " << " " << profile.fps() << std::endl;
 		}
+	}
+}
+
+std::vector<int> michelangelo::getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<double, 3>>& centroids)
+{
+	std::vector<int> counts;
+	for (auto point : cloud) {
+		bool is_in(false);
+		size_t i(0);
+		while (!is_in && i < labels.size()) {
+			if (labels[i] == point.label)
+				is_in = true;
+			else
+				++i;
+		}
+		if (!is_in) {
+			labels.push_back(point.label);
+			counts.push_back(0);
+			centroids.push_back({ 0.0, 0.0, 0.0 });
+		}
+		counts[i] += 1;
+		centroids[i][0] += point.x;
+		centroids[i][1] += point.y;
+		centroids[i][2] += point.z;
+	}
+	for (size_t i(0); i < labels.size(); ++i) {
+		centroids[i][0] /= counts[i];
+		centroids[i][1] /= counts[i];
+		centroids[i][2] /= counts[i];
+	}
+	return counts;
+}
+
+void michelangelo::getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl::PointCloud<pcl::PointXYZ>& cloud_seg, uint32_t label)
+{
+	for (auto point : cloud_lccp) {
+		if (point.label)
+			cloud_seg.push_back(pcl::PointXYZ(point.x, point.y, point.z));
 	}
 }
 
