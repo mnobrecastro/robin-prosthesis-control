@@ -38,8 +38,12 @@ typedef pcl::PointCloud<PointT> PointCloud;
 pcl::PointCloud<pcl::PointXYZ>::Ptr points_to_pcl(const rs2::points&);
 float dotProduct(pcl::PointXYZ, pcl::PointXYZ);
 float normPointT(pcl::PointXYZ);
+int trimPointCloud(const pcl::PointCloud<pcl::PointXYZ>&, pcl::PointCloud<pcl::PointXYZ>&, const std::array<std::array<float, 2>, 3>);
 std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<PointT>&, pcl::PointXYZ, pcl::PointXYZ);
 std::array<float, 6> getPointCloudBoundaries(const pcl::PointCloud<PointT>&);
+std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>&, std::vector<uint32_t>&, std::vector<std::array<float, 3>>&);
+uint32_t selCentroidLCCP(const std::vector<uint32_t>&, const std::vector<std::array<float, 3>>&);
+void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>&, pcl::PointCloud<pcl::PointXYZ>&, uint32_t);
 void correctCylShape(pcl::ModelCoefficients&, const pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
 
 namespace michelangelo {
@@ -50,6 +54,7 @@ namespace michelangelo {
 	};
 
 	enum Segmentation {
+		SEG_NONE,
 		SEG_RANSAC,
 		SEG_LCCP
 	};
@@ -64,10 +69,6 @@ namespace michelangelo {
 	pcl::PointXYZ otherAngle(const pcl::PointXYZ&, float);
 	float readAngle(pcl::PointXYZ);
 	std::string setAction(float);
-
-	std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>&, std::vector<uint32_t>&, std::vector<std::array<float, 3>>&);
-	uint32_t selCentroidLCCP(const std::vector<uint32_t>&, const std::vector<std::array<float, 3>>&);
-	void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>&, pcl::PointCloud<pcl::PointXYZ>&, uint32_t);
 
 	class PrimitiveModel
 	{
@@ -136,7 +137,7 @@ int main (int argc, char** argv)
 	//viewer.registerPointPickingCallback(pp_callback, (void*)&viewer);
 	
 #ifdef INPUT_CAMERA
-	std::array<float, 6> filter_lims;
+	std::array<std::array<float, 2>, 3> filter_lims;
 
 #if INPUT_CAMERA == REALSENSE_D435
 
@@ -186,9 +187,13 @@ int main (int argc, char** argv)
 	rs2::pipeline_profile profile = pipe.start(cfg);
 
 	if (!disparity) {
-		filter_lims = { -0.100, 0.100, -0.100, 0.100, 0.000, 0.300 }; // realsense depth neg z-axis (MinZ 0.110m)
+		filter_lims[0] = { -0.100, 0.100 };
+		filter_lims[1] = { -0.100, 0.100 };
+		filter_lims[2] = { 0.000, 0.300 }; // realsense depth neg z-axis (MinZ 0.110m)
 	} else {
-		filter_lims = { -0.050, 0.050, -0.050, 0.050, 0.050, 0.200 }; // realsense depth neg z-axis (MinZ 0.110m)
+		filter_lims[0] = { -0.050, 0.050 };
+		filter_lims[1] = { -0.050, 0.050 };
+		filter_lims[2] = { 0.050, 0.200 }; // realsense depth neg z-axis (MinZ 0.110m)
 	}
 	std::cout << "Using the input camera REALSENSE_D435...\n" << std::endl;
 #endif
@@ -308,24 +313,33 @@ int main (int argc, char** argv)
 #endif //DEBUG
 
 		bool FILTER(true);
+		bool FILT_DFLT(false);
 		if (FILTER) {
 			time.tic();
-			// Build a passthrough filter to remove unwated points
-			pass.setInputCloud(cloud);
-			pass.setFilterFieldName("x");
-			pass.setFilterLimits(filter_lims[0], filter_lims[1]);
-			pass.filter(*cloud_filtered);
-			//
-			if (!disparity) {
-				pass.setInputCloud(cloud_filtered);
-				pass.setFilterFieldName("y");
-				pass.setFilterLimits(filter_lims[2], filter_lims[3]);
+			if (FILT_DFLT) {
+				// Build a passthrough filter to remove unwated points
+				pass.setInputCloud(cloud);
+				pass.setFilterFieldName("x");
+				pass.setFilterLimits(filter_lims[0][0], filter_lims[0][1]);
 				pass.filter(*cloud_filtered);
 				//
-				pass.setInputCloud(cloud_filtered);
-				pass.setFilterFieldName("z");
-				pass.setFilterLimits(filter_lims[4], filter_lims[5]);
-				pass.filter(*cloud_filtered);
+				if (!disparity) {
+					pass.setInputCloud(cloud_filtered);
+					pass.setFilterFieldName("y");
+					pass.setFilterLimits(filter_lims[1][0], filter_lims[1][1]);
+					pass.filter(*cloud_filtered);
+					//
+					pass.setInputCloud(cloud_filtered);
+					pass.setFilterFieldName("z");
+					pass.setFilterLimits(filter_lims[2][0], filter_lims[2][1]);
+					pass.filter(*cloud_filtered);
+				}
+			} else {
+				int valid = trimPointCloud(*cloud, *cloud_filtered, filter_lims);
+				if (valid == 1) {
+					std::cerr << "Invalid ranges for trimming the pointcloud." << std::endl;
+					return -1;
+				}
 			}
 			std::cerr << "PointCloud after filtering: " << cloud_filtered->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 		} else {
@@ -363,7 +377,7 @@ int main (int argc, char** argv)
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_segmented(new pcl::PointCloud<pcl::PointXYZ>);
 
 		switch (segmethod) {
-		case michelangelo::SEG_RANSAC:
+			case michelangelo::SEG_RANSAC: {
 
 				// Estimate point normals
 				std::cout << "Computing normals...";
@@ -373,7 +387,7 @@ int main (int argc, char** argv)
 				ne.compute(*cloud_normals);
 				std::cout << " done." << std::endl;
 
-#if PLANE_SEGMENTATION
+	#if PLANE_SEGMENTATION
 
 				time.tic();
 				// Create the segmentation object for the planar model and set all the parameters
@@ -431,7 +445,7 @@ int main (int argc, char** argv)
 	#endif //PLANE_SEGMENTATION
 
 	#if PRIMITIVE_MODEL
-							   
+
 				//std::array<michelangelo::Primitive, 3> prims = { michelangelo::PRIMITIVE_PLANE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER };
 				//std::array<michelangelo::PrimitiveModel, 3> prim_models();
 
@@ -506,7 +520,7 @@ int main (int argc, char** argv)
 					<< std::endl;*/
 
 	#ifndef DEBUG
-				// ICP aligned point cloud is red
+					// ICP aligned point cloud is red
 				cloud_primitive_color_h.setInputCloud(cloud_primitive);
 				viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);
 
@@ -546,11 +560,12 @@ int main (int argc, char** argv)
 					break;
 				}
 				break;
+			}
+			case michelangelo::SEG_LCCP: {
 
-			case michelangelo::SEG_LCCP:
-
+				time.tic();
 				// Convert the filtered cloud XYZ to XYZRGBA
-				pcl::copyPointCloud(*cloud_filtered, *cloud_filtered_rgba);				
+				pcl::copyPointCloud(*cloud_filtered, *cloud_filtered_rgba);
 
 				/// Preparation of Input: Supervoxel Oversegmentation
 				pcl::SupervoxelClustering<pcl::PointXYZRGBA> supervox(voxel_resolution, seed_resolution);
@@ -565,9 +580,8 @@ int main (int argc, char** argv)
 
 				PCL_INFO("Extracting supervoxels\n");
 				supervox.extract(supervoxel_clusters);
-				PCL_INFO("FLAG");
 
-				if (use_supervoxel_refinement){
+				if (use_supervoxel_refinement) {
 					PCL_INFO("Refining supervoxels\n");
 					supervox.refineSupervoxels(2, supervoxel_clusters);
 				}
@@ -595,30 +609,39 @@ int main (int argc, char** argv)
 				PCL_INFO("Interpolation voxel cloud -> input cloud and relabeling\n");
 				sv_labeled_cloud = supervox.getLabeledCloud();
 				lccp_labeled_cloud = sv_labeled_cloud->makeShared();
-				lccp.relabelCloud(*lccp_labeled_cloud);				
+				lccp.relabelCloud(*lccp_labeled_cloud);
 
 				std::vector<int> segments;
 				std::vector<uint32_t> labels;
 				std::vector<std::array<float, 3>> centroids;
-				michelangelo::getCentroidsLCCP(*lccp_labeled_cloud, labels, centroids);
-				std::cout << "  Nr. Segments: " << labels.size() << std::endl;				
+				std::vector<int> label_count = getCentroidsLCCP(*lccp_labeled_cloud, labels, centroids);
+				std::cout << "  Nr. Segments: " << labels.size() << std::endl;
+#ifdef DEBUG
 				for (int i(0); i < centroids.size(); ++i) {
 					std::cout << "    l: " << labels[i] <<
+						" pts: " << label_count[i] <<
 						" x: " << centroids[i][0] <<
 						" y: " << centroids[i][1] <<
 						" z: " << centroids[i][2] << std::endl;
 				}
+#endif //DEBUG
 
-				uint32_t lbl = michelangelo::selCentroidLCCP(labels, centroids);
-				michelangelo::getLabeledCloudLCCP(*lccp_labeled_cloud, *cloud_segmented, lbl);
+				uint32_t lbl = selCentroidLCCP(labels, centroids);				
+				getLabeledCloudLCCP(*lccp_labeled_cloud, *cloud_segmented, lbl);				
 				viewer.addPointCloud(cloud_segmented, "cloud_segmented");
+
+				std::cout << "PointCloud after LCCP: [" << lbl << "] " << cloud_segmented->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
+
+				cloud_filtered->clear();
+				pcl::copyPointCloud(*cloud_segmented, *cloud_filtered);
 				break;
+			}
 		}
 
 		// Estimate point normals
 		std::cout << "Computing normals...";
 		ne.setSearchMethod(tree);
-		ne.setInputCloud(cloud_segmented);
+		ne.setInputCloud(cloud_filtered);
 		ne.setKSearch(50);
 		ne.compute(*cloud_normals);
 		std::cout << " done." << std::endl;
@@ -657,13 +680,8 @@ int main (int argc, char** argv)
 		seg.setMaxIterations(10000);
 		seg.setDistanceThreshold(0.01); //0.05
 		seg.setRadiusLimits(0.005, 0.050);
-#if PLANE_SEGMENTATION
-		seg.setInputCloud(cloud_filtered2);
-		seg.setInputNormals(cloud_normals2);
-#else	
 		seg.setInputCloud(cloud_filtered);
 		seg.setInputNormals(cloud_normals);
-#endif //PLANE_SEGMENTATION
 
 		// Obtain the primitive inliers and coefficients
 		seg.segment(*inliers_primitive, *coefficients_primitive);
@@ -671,11 +689,7 @@ int main (int argc, char** argv)
 		//std::cerr << "primitive coefficients: " << *coefficients_primitive << std::endl;
 
 		// Save the primitive inliers
-#if PLANE_SEGMENTATION
-		extract.setInputCloud(cloud_filtered2);
-#else
 		extract.setInputCloud(cloud_filtered);
-#endif //PLANE_SEGMENTATION
 		extract.setIndices(inliers_primitive);
 		extract.setNegative(false);
 		//pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
@@ -780,6 +794,23 @@ float normPointT(pcl::PointXYZ c)
 	return std::sqrt(c.x * c.x + c.y * c.y + c.z * c.z);
 }
 
+int trimPointCloud(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointCloud<pcl::PointXYZ>& cloud_trimmed, const std::array<std::array<float,2>,3> ranges)
+{
+	for (auto i : ranges) {
+		if (i[0] > i[1]) {
+			return 1;
+		}
+	}
+	for (auto p : cloud.points) {
+		if (ranges[0][0] <= p.x && p.x <= ranges[0][1] &&
+			ranges[1][0] <= p.y && p.y <= ranges[1][1] && 
+			ranges[2][0] <= p.z && p.z <= ranges[2][1]) {
+			cloud_trimmed.push_back(pcl::PointXYZ(p.x, p.y, p.z));
+		}
+	}
+	return 0;
+}
+
 std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<PointT>& cloud, pcl::PointXYZ center, pcl::PointXYZ direction)
 {
 	std::array<float, 2> arr = {1000.0, -1000.0};
@@ -816,6 +847,60 @@ std::array<float, 6> getPointCloudBoundaries(const pcl::PointCloud<PointT>& clou
 			arr[5] = point.z;
 	}
 	return arr;
+}
+
+std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<float, 3>>& centroids)
+{
+	std::vector<int> counts;
+	for (auto p : cloud.points) {
+		bool is_in(false);
+		size_t i(0);
+		while (!is_in && i < labels.size()) {
+			if (labels[i] == p.label) {
+				is_in = true;
+			}
+			else {
+				++i;
+			}
+		}
+		if (!is_in) {
+			labels.push_back(p.label);
+			counts.push_back(0);
+			centroids.push_back({ 0.0, 0.0, 0.0 });
+		}
+		counts[i] += 1;
+		centroids[i][0] += p.x;
+		centroids[i][1] += p.y;
+		centroids[i][2] += p.z;
+	}
+	for (size_t i(0); i < labels.size(); ++i) {
+		centroids[i][0] /= counts[i];
+		centroids[i][1] /= counts[i];
+		centroids[i][2] /= counts[i];
+	}
+	return counts;
+}
+
+uint32_t selCentroidLCCP(const std::vector<uint32_t>& labels, const std::vector<std::array<float, 3>>& centroids)
+{
+	float d(10.0);
+	uint32_t lbl(std::pow(2, 32) - 1);
+	for (size_t i(0); i < centroids.size(); ++i) {
+		float d_temp = std::sqrt(std::pow(centroids[i][0], 2) + std::pow(centroids[i][1], 2));
+		if (0.0001 < d_temp && d_temp < d) {
+			lbl = labels[i];
+			d = d_temp;
+		}
+	}
+	return lbl;
+}
+
+void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl::PointCloud<pcl::PointXYZ>& cloud_seg, uint32_t label)
+{
+	for (auto p : cloud_lccp.points) {
+		if (p.label == label)
+			cloud_seg.points.push_back(pcl::PointXYZ(p.x, p.y, p.z));
+	}
 }
 
 void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& coefficients, const pcl::PointCloud<PointT>& cloud)
@@ -914,61 +999,6 @@ void michelangelo::printCamInfo(rs2::device& dev) {
 			}
 			//std::cout << "  stream " << profile.stream_name() << " " << profile.stream_type() << " " << profile.format() << " " << " " << profile.fps() << std::endl;
 		}
-	}
-}
-
-std::vector<int> michelangelo::getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<float, 3>>& centroids)
-{
-	std::vector<int> counts;
-	for (auto point : cloud) {
-		bool is_in(false);
-		size_t i(0);
-		while (!is_in && i < labels.size()) {
-			if (labels[i] == point.label) {
-				is_in = true;
-			} else {
-				++i;
-			}
-		}
-		if (!is_in) {
-			labels.push_back(point.label);
-			counts.push_back(0);
-			centroids.push_back({ 0.0, 0.0, 0.0 });
-		}
-		counts[i] += 1;
-		centroids[i][0] += point.x;
-		centroids[i][1] += point.y;
-		centroids[i][2] += point.z;
-	}
-	for (size_t i(0); i < labels.size(); ++i) {
-		centroids[i][0] /= counts[i];
-		centroids[i][1] /= counts[i];
-		centroids[i][2] /= counts[i];
-	}
-	return counts;
-}
-
-uint32_t michelangelo::selCentroidLCCP(const std::vector<uint32_t>& labels, const std::vector<std::array<float,3>>& centroids)
-{
-	float d(1.0);
-	uint32_t lbl(std::pow(2,32)-1);
-	for (size_t i(0); i < centroids.size(); ++i) {
-		if (std::sqrt( std::pow(centroids[i][0],2) + std::pow(centroids[i][1],2) ) <= d) {
-			if (d > 0) {
-				lbl = labels[i];
-				d = std::sqrt(std::pow(centroids[i][0], 2) + std::pow(centroids[i][1], 2));
-			}
-			//continue;
-		}
-	}
-	return lbl;
-}
-
-void michelangelo::getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl::PointCloud<pcl::PointXYZ>& cloud_seg, uint32_t label)
-{
-	for (auto p : cloud_lccp) {
-		if (p.label)
-			cloud_seg.push_back(pcl::PointXYZ(p.x, p.y, p.z));
 	}
 }
 
