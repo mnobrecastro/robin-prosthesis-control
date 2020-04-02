@@ -65,7 +65,8 @@ namespace michelangelo {
 	float readAngle(pcl::PointXYZ);
 	std::string setAction(float);
 
-	std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>&, std::vector<uint32_t>&, std::vector<std::array<double, 3>>&);
+	std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>&, std::vector<uint32_t>&, std::vector<std::array<float, 3>>&);
+	uint32_t selCentroidLCCP(const std::vector<uint32_t>&, const std::vector<std::array<float, 3>>&);
 	void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>&, pcl::PointCloud<pcl::PointXYZ>&, uint32_t);
 
 	class PrimitiveModel
@@ -263,7 +264,6 @@ int main (int argc, char** argv)
 		k_factor = 1;
 	pcl::SupervoxelClustering<pcl::PointXYZRGBA> supervox(voxel_resolution, seed_resolution);
 	
-
 	michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
 
 	pcl::console::TicToc time;
@@ -360,8 +360,10 @@ int main (int argc, char** argv)
 			continue;
 		}
 
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_segmented(new pcl::PointCloud<pcl::PointXYZ>);
+
 		switch (segmethod) {
-			case michelangelo::SEG_RANSAC:
+		case michelangelo::SEG_RANSAC:
 
 				// Estimate point normals
 				std::cout << "Computing normals...";
@@ -593,10 +595,148 @@ int main (int argc, char** argv)
 				PCL_INFO("Interpolation voxel cloud -> input cloud and relabeling\n");
 				sv_labeled_cloud = supervox.getLabeledCloud();
 				lccp_labeled_cloud = sv_labeled_cloud->makeShared();
-				lccp.relabelCloud(*lccp_labeled_cloud);
+				lccp.relabelCloud(*lccp_labeled_cloud);				
 
-				viewer.addPointCloud(lccp_labeled_cloud, "maincloud");
+				std::vector<int> segments;
+				std::vector<uint32_t> labels;
+				std::vector<std::array<float, 3>> centroids;
+				michelangelo::getCentroidsLCCP(*lccp_labeled_cloud, labels, centroids);
+				std::cout << "  Nr. Segments: " << labels.size() << std::endl;				
+				for (int i(0); i < centroids.size(); ++i) {
+					std::cout << "    l: " << labels[i] <<
+						" x: " << centroids[i][0] <<
+						" y: " << centroids[i][1] <<
+						" z: " << centroids[i][2] << std::endl;
+				}
+
+				uint32_t lbl = michelangelo::selCentroidLCCP(labels, centroids);
+				michelangelo::getLabeledCloudLCCP(*lccp_labeled_cloud, *cloud_segmented, lbl);
+				viewer.addPointCloud(cloud_segmented, "cloud_segmented");
 				break;
+		}
+
+		// Estimate point normals
+		std::cout << "Computing normals...";
+		ne.setSearchMethod(tree);
+		ne.setInputCloud(cloud_segmented);
+		ne.setKSearch(50);
+		ne.compute(*cloud_normals);
+		std::cout << " done." << std::endl;
+
+#if PRIMITIVE_MODEL
+
+		//std::array<michelangelo::Primitive, 3> prims = { michelangelo::PRIMITIVE_PLANE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER };
+		//std::array<michelangelo::PrimitiveModel, 3> prim_models();
+
+		/*#pragma omp parallel num_threads(3){
+			// This code will be executed by three threads.
+
+			// Chunks of this loop will be divided amongst
+			// the (three) threads of the current team.
+		#pragma omp for
+			for (int n = 0; n < 10; ++n)
+				printf(" %d", n);
+		}*/
+
+		time.tic();
+		// Create the segmentation object for primitive segmentation and set all the parameters
+		seg.setOptimizeCoefficients(true);
+		seg.setMethodType(pcl::SAC_RANSAC);
+		switch (prim) {
+		case michelangelo::PRIMITIVE_PLANE:
+			seg.setModelType(pcl::SACMODEL_PLANE);
+			break;
+		case michelangelo::PRIMITIVE_SPHERE:
+			seg.setModelType(pcl::SACMODEL_SPHERE);
+			break;
+		case michelangelo::PRIMITIVE_CYLINDER:
+			seg.setModelType(pcl::SACMODEL_CYLINDER);
+			break;
+		}
+		seg.setNormalDistanceWeight(0.1);
+		seg.setMaxIterations(10000);
+		seg.setDistanceThreshold(0.01); //0.05
+		seg.setRadiusLimits(0.005, 0.050);
+#if PLANE_SEGMENTATION
+		seg.setInputCloud(cloud_filtered2);
+		seg.setInputNormals(cloud_normals2);
+#else	
+		seg.setInputCloud(cloud_filtered);
+		seg.setInputNormals(cloud_normals);
+#endif //PLANE_SEGMENTATION
+
+		// Obtain the primitive inliers and coefficients
+		seg.segment(*inliers_primitive, *coefficients_primitive);
+		//std::cerr << "primitive inliers: " << *inliers_primitive << std::endl;
+		//std::cerr << "primitive coefficients: " << *coefficients_primitive << std::endl;
+
+		// Save the primitive inliers
+#if PLANE_SEGMENTATION
+		extract.setInputCloud(cloud_filtered2);
+#else
+		extract.setInputCloud(cloud_filtered);
+#endif //PLANE_SEGMENTATION
+		extract.setIndices(inliers_primitive);
+		extract.setNegative(false);
+		//pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
+		extract.filter(*cloud_primitive);
+
+		if (cloud_primitive->points.empty()) {
+			std::cerr << "\tCan't find the cylindrical component." << std::endl;
+			std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
+			continue;
+		}
+		else {
+			std::cerr << "PointCloud PRIMITIVE: " << cloud_primitive->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
+		}
+
+		// Obtain the primitive cloud boundaries
+		std::array<float, 6> bounds_primitive(getPointCloudBoundaries(*cloud_primitive));
+		/*std::cerr << "\nCylinder boundaries: "
+			<< "\n\tx: " << "[" << bounds_cylinder[0] << "," << bounds_cylinder[1] << "]"
+			<< "\n\ty: " << "[" << bounds_cylinder[2] << "," << bounds_cylinder[3] << "]"
+			<< "\n\tz: " << "[" << bounds_cylinder[4] << "," << bounds_cylinder[5] << "]"
+			<< std::endl;*/
+
+#ifndef DEBUG
+		// ICP aligned point cloud is red
+		cloud_primitive_color_h.setInputCloud(cloud_primitive);
+		viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);
+
+		// Plot primitive shape
+		switch (prim) {
+		case michelangelo::PRIMITIVE_PLANE:
+			//viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
+			break;
+		case michelangelo::PRIMITIVE_SPHERE:
+			viewer.addSphere(*coefficients_primitive, "sphere");
+			break;
+		case michelangelo::PRIMITIVE_CYLINDER:
+			pcl::ModelCoefficients::Ptr corrected_coefs_primitive(new pcl::ModelCoefficients);
+			correctCylShape(*corrected_coefs_primitive, *coefficients_primitive, *cloud_primitive);
+			viewer.addCylinder(*corrected_coefs_primitive, "cylinder");
+
+			// Plot cylinder longitudinal axis //PointT
+			PointT point_on_axis((*coefficients_primitive).values[0], (*coefficients_primitive).values[1], (*coefficients_primitive).values[2]);
+			PointT axis_direction(point_on_axis.x + (*coefficients_primitive).values[3], point_on_axis.y + (*coefficients_primitive).values[4], point_on_axis.z + (*coefficients_primitive).values[5]);
+			PointT cam_origin(0.0, 0.0, 0.0);
+			PointT axis_projection((*coefficients_primitive).values[3], (*coefficients_primitive).values[4], 0.0);
+
+			float camAngle(90.0 * M_PI / 180);
+			michelangelo::correctAngle(axis_projection, camAngle);
+#ifndef DEBUG
+			viewer.addLine(cam_origin, axis_projection, "line");
+#endif //DEBUG
+
+			// Calculate the angular difference			
+			//float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
+			float dTheta(michelangelo::readAngle(axis_projection));
+			std::string action(michelangelo::setAction(dTheta));
+			std::cout << "* Current angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
+
+#endif	// PRIMITIVE_MODEL
+#endif //DEBUG
+			break;
 		}
 		viewer.spinOnce(1, true);
 		std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
@@ -777,17 +917,18 @@ void michelangelo::printCamInfo(rs2::device& dev) {
 	}
 }
 
-std::vector<int> michelangelo::getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<double, 3>>& centroids)
+std::vector<int> michelangelo::getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<float, 3>>& centroids)
 {
 	std::vector<int> counts;
 	for (auto point : cloud) {
 		bool is_in(false);
 		size_t i(0);
 		while (!is_in && i < labels.size()) {
-			if (labels[i] == point.label)
+			if (labels[i] == point.label) {
 				is_in = true;
-			else
+			} else {
 				++i;
+			}
 		}
 		if (!is_in) {
 			labels.push_back(point.label);
@@ -807,11 +948,27 @@ std::vector<int> michelangelo::getCentroidsLCCP(const pcl::PointCloud<pcl::Point
 	return counts;
 }
 
+uint32_t michelangelo::selCentroidLCCP(const std::vector<uint32_t>& labels, const std::vector<std::array<float,3>>& centroids)
+{
+	float d(1.0);
+	uint32_t lbl(std::pow(2,32)-1);
+	for (size_t i(0); i < centroids.size(); ++i) {
+		if (std::sqrt( std::pow(centroids[i][0],2) + std::pow(centroids[i][1],2) ) <= d) {
+			if (d > 0) {
+				lbl = labels[i];
+				d = std::sqrt(std::pow(centroids[i][0], 2) + std::pow(centroids[i][1], 2));
+			}
+			//continue;
+		}
+	}
+	return lbl;
+}
+
 void michelangelo::getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl::PointCloud<pcl::PointXYZ>& cloud_seg, uint32_t label)
 {
-	for (auto point : cloud_lccp) {
-		if (point.label)
-			cloud_seg.push_back(pcl::PointXYZ(point.x, point.y, point.z));
+	for (auto p : cloud_lccp) {
+		if (p.label)
+			cloud_seg.push_back(pcl::PointXYZ(p.x, p.y, p.z));
 	}
 }
 
