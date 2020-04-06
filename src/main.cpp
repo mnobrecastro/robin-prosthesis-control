@@ -124,13 +124,13 @@ void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 int main (int argc, char** argv)
 {	
 	/*RawCross*/
-	michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);//SEG_LCCP
+	/*michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);//SEG_LCCP
 	bool DISPARITY(false);
 	bool FILTER(true);
 	bool FILT_DFLT(false);
 	char TRIM_TYPE('+');
 	float TRIM_WIDTH(0.050);//0.01
-	bool DOWNSAMPLING(true); //try 'false' later 
+	bool DOWNSAMPLING(true); //try 'false' later */
 
 	/*Disparity*/
 	/*michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
@@ -142,13 +142,13 @@ int main (int argc, char** argv)
 	bool DOWNSAMPLING(true);*/
 
 	/*LCCP*/
-	/*michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
+	michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
 	bool DISPARITY(false);
 	bool FILTER(true);
 	bool FILT_DFLT(false);
 	char TRIM_TYPE('o');
 	float TRIM_WIDTH(0.010);
-	bool DOWNSAMPLING(true);*/
+	bool DOWNSAMPLING(true);
 
 	//  Visualiser initiallization
 	pcl::visualization::PCLVisualizer viewer("3D Viewer");
@@ -702,16 +702,43 @@ int main (int argc, char** argv)
 				std::vector<int> label_count = getCentroidsLCCP(*lccp_labeled_cloud, labels, centroids);
 				std::cout << "  Nr. Segments: " << labels.size() << std::endl;
 
-				for (int i(0); i < centroids.size(); ++i) {			
-#ifdef DEBUG
-					std::cout << "    l: " << labels[i] <<
-						" pts: " << label_count[i] <<
-						" x: " << centroids[i][0] <<
-						" y: " << centroids[i][1] <<
-						" z: " << centroids[i][2] << std::endl;
-#endif //DEBUG
-				}
+				bool PLOT_CENTROIDS(false);
+				if (PLOT_CENTROIDS) {
+				std::string id;
+					for (int i(0); i < centroids.size(); ++i) {
+						pcl::PointXYZ pFUL(centroids[i][0] - 0.005, centroids[i][1] - 0.005, centroids[i][2] - 0.005);
+						pcl::PointXYZ pFUR(centroids[i][0] + 0.005, centroids[i][1] - 0.005, centroids[i][2] - 0.005);
+						pcl::PointXYZ pFDL(centroids[i][0] - 0.005, centroids[i][1] + 0.005, centroids[i][2] - 0.005);
+						pcl::PointXYZ pFDR(centroids[i][0] + 0.005, centroids[i][1] + 0.005, centroids[i][2] - 0.005);
 
+						pcl::PointXYZ pBUL(centroids[i][0] - 0.005, centroids[i][1] - 0.005, centroids[i][2] + 0.005);
+						pcl::PointXYZ pBUR(centroids[i][0] + 0.005, centroids[i][1] - 0.005, centroids[i][2] + 0.005);
+						pcl::PointXYZ pBDL(centroids[i][0] - 0.005, centroids[i][1] + 0.005, centroids[i][2] + 0.005);
+						pcl::PointXYZ pBDR(centroids[i][0] + 0.005, centroids[i][1] + 0.005, centroids[i][2] + 0.005);
+
+						viewer.addLine<pcl::PointXYZ>(pFUL, pFUR, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "FU", vp);
+						viewer.addLine<pcl::PointXYZ>(pFUR, pFDR, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "FR", vp);
+						viewer.addLine<pcl::PointXYZ>(pFDR, pFDL, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "FD", vp);
+						viewer.addLine<pcl::PointXYZ>(pFDL, pFUL, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "FL", vp);
+
+						viewer.addLine<pcl::PointXYZ>(pBUL, pBUR, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "BU", vp);
+						viewer.addLine<pcl::PointXYZ>(pBUR, pBDR, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "BR", vp);
+						viewer.addLine<pcl::PointXYZ>(pBDR, pBDL, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "BD", vp);
+						viewer.addLine<pcl::PointXYZ>(pBDL, pBUL, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "BL", vp);
+
+						viewer.addLine<pcl::PointXYZ>(pBUL, pFUL, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "LU", vp);
+						viewer.addLine<pcl::PointXYZ>(pBDL, pFDL, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "LD", vp);
+						viewer.addLine<pcl::PointXYZ>(pBUR, pFUR, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "RU", vp);
+						viewer.addLine<pcl::PointXYZ>(pBDR, pFDR, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "RD", vp);
+	#ifdef DEBUG
+						std::cout << "    l: " << labels[i] <<
+							" pts: " << label_count[i] <<
+							" x: " << centroids[i][0] <<
+							" y: " << centroids[i][1] <<
+							" z: " << centroids[i][2] << std::endl;
+	#endif //DEBUG
+					}
+				}
 				uint32_t lbl = selCentroidLCCP(labels, centroids);				
 				getLabeledCloudLCCP(*lccp_labeled_cloud, *cloud_segmented, lbl);	
 
