@@ -46,12 +46,24 @@ std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>&, std::v
 uint32_t selCentroidLCCP(const std::vector<uint32_t>&, const std::vector<std::array<float, 3>>&);
 void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>&, pcl::PointCloud<pcl::PointXYZ>&, uint32_t);
 void correctCylShape(pcl::ModelCoefficients&, const pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
+void correctCircleShape(pcl::ModelCoefficients&);
 
 namespace michelangelo {
 	enum Primitive {
 		PRIMITIVE_PLANE,
 		PRIMITIVE_CYLINDER,
 		PRIMITIVE_SPHERE
+	};
+
+	enum Method {
+		HEURISTIC,
+		SEGMENTATION
+	};
+
+	enum Heuristic {
+		HEU_NONE,
+		HEU_FAN,
+		HEU_CROSS,
 	};
 
 	enum Segmentation {
@@ -124,13 +136,15 @@ void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 int main (int argc, char** argv)
 {	
 	/*RawCross*/
-	/*michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);//SEG_LCCP
+	michelangelo::Method method(michelangelo::HEURISTIC);
+	michelangelo::Heuristic heumethod(michelangelo::HEU_CROSS);
+	michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
 	bool DISPARITY(false);
 	bool FILTER(true);
 	bool FILT_DFLT(false);
 	char TRIM_TYPE('+');
-	float TRIM_WIDTH(0.050);//0.01
-	bool DOWNSAMPLING(true); //try 'false' later */
+	float TRIM_WIDTH(0.010);//0.01
+	bool DOWNSAMPLING(true); //try 'false' later
 
 	/*Disparity*/
 	/*michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
@@ -142,13 +156,13 @@ int main (int argc, char** argv)
 	bool DOWNSAMPLING(true);*/
 
 	/*LCCP*/
-	michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
+	/*michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
 	bool DISPARITY(false);
 	bool FILTER(true);
 	bool FILT_DFLT(false);
 	char TRIM_TYPE('o');
 	float TRIM_WIDTH(0.010);
-	bool DOWNSAMPLING(true);
+	bool DOWNSAMPLING(true);*/
 
 	//  Visualiser initiallization
 	pcl::visualization::PCLVisualizer viewer("3D Viewer");
@@ -308,26 +322,44 @@ int main (int argc, char** argv)
 		pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
 		pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
 		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
+		pcl::PointCloud<PointT>::Ptr cloud_filt_vertical(new pcl::PointCloud<PointT>);
+		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals_vertical(new pcl::PointCloud<pcl::Normal>);
+		pcl::PointCloud<PointT>::Ptr cloud_filt_horizontal(new pcl::PointCloud<PointT>);
+		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals_horizontal(new pcl::PointCloud<pcl::Normal>);
 		pcl::PointCloud<PointT>::Ptr cloud_filtered2(new pcl::PointCloud<PointT>);
 		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals2(new pcl::PointCloud<pcl::Normal>);
 		pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
+		pcl::PointCloud<PointT>::Ptr cloud_prim_vertical(new pcl::PointCloud<PointT>());
+		pcl::PointCloud<PointT>::Ptr cloud_prim_horizontal(new pcl::PointCloud<PointT>());
 
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_in_color_h((int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl);
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_filtered_in_color_h((int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl);
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_plane_color_h(20, 180, 20);
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_segmented_color_h(20, 180, 20);
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_primitive_color_h(180, 20, 20);
+		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_prim_vertical_color_h(180, 20, 20);
+		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_prim_horizontal_color_h(180, 20, 20);
 
 		// PCL objects
 		pcl::PassThrough<PointT> pass(true);
 		pcl::NormalEstimation<PointT, pcl::Normal> ne;
+		pcl::NormalEstimation<PointT, pcl::Normal> ne_vertical;
+		pcl::NormalEstimation<PointT, pcl::Normal> ne_horizontal;
 		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
+		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_vertical;
+		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_horizontal;
 		pcl::ExtractIndices<PointT> extract;
+		pcl::ExtractIndices<PointT> extract_vertical;
+		pcl::ExtractIndices<PointT> extract_horizontal;
 		pcl::ExtractIndices<pcl::Normal> extract_normals;
+		pcl::ExtractIndices<pcl::Normal> extract_normals_vertical;
+		pcl::ExtractIndices<pcl::Normal> extract_normals_horizontal;
 		pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>());
+		pcl::search::KdTree<PointT>::Ptr tree_vertical(new pcl::search::KdTree<PointT>());
+		pcl::search::KdTree<PointT>::Ptr tree_horizontal(new pcl::search::KdTree<PointT>());
 
-		pcl::ModelCoefficients::Ptr coefficients_plane(new pcl::ModelCoefficients), coefficients_primitive(new pcl::ModelCoefficients);
-		pcl::PointIndices::Ptr inliers_plane(new pcl::PointIndices), inliers_primitive(new pcl::PointIndices);
+		pcl::ModelCoefficients::Ptr coefficients_plane(new pcl::ModelCoefficients), coefficients_primitive(new pcl::ModelCoefficients), coefficients_prim_vertical(new pcl::ModelCoefficients), coefficients_prim_horizontal(new pcl::ModelCoefficients);
+		pcl::PointIndices::Ptr inliers_plane(new pcl::PointIndices), inliers_primitive(new pcl::PointIndices), inliers_prim_vertical(new pcl::PointIndices), inliers_prim_horizontal(new pcl::PointIndices);
 
 		// PCL Primitive
 		std::array<michelangelo::Primitive, 3> primitives = { michelangelo::PRIMITIVE_PLANE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER };
@@ -459,10 +491,122 @@ int main (int argc, char** argv)
 			continue;
 		}
 
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_segmented(new pcl::PointCloud<pcl::PointXYZ>);
+		switch (method) {
+		case michelangelo::HEURISTIC:			
 
-		switch (segmethod) {
-			case michelangelo::SEG_RANSAC: {
+
+			for (auto p : cloud_filtered->points) {
+				//horizontal strip
+				if (filter_lims[0][0] <= p.x && p.x <= filter_lims[0][1] &&
+						-TRIM_WIDTH / 2 <= p.y && p.y <= TRIM_WIDTH / 2 &&
+						filter_lims[2][0] <= p.z && p.z <= filter_lims[2][1]){					
+					cloud_filt_horizontal->push_back(pcl::PointXYZ(p.x, 0.0, p.z));
+				//vertical strip
+				}else if (-TRIM_WIDTH / 2 <= p.x && p.x <= TRIM_WIDTH / 2 &&
+						filter_lims[1][0] <= p.y && p.y <= filter_lims[1][1] &&
+						filter_lims[2][0] <= p.z && p.z <= filter_lims[2][1]) {									
+					cloud_filt_vertical->push_back(pcl::PointXYZ(0.0, p.y, p.z));
+				}
+			}
+
+			time.tic();
+
+			// VERTICAL STRIP
+
+			// Estimate point normals
+			std::cout << "Computing normals...";
+			ne_vertical.setSearchMethod(tree_vertical);
+			ne_vertical.setInputCloud(cloud_filt_vertical);
+			ne_vertical.setKSearch(50);
+			ne_vertical.compute(*cloud_normals_vertical);
+			std::cout << " done." << std::endl;
+
+			// Create the segmentation object for primitive segmentation and set all the parameters			
+			seg_vertical.setOptimizeCoefficients(true);
+			seg_vertical.setMethodType(pcl::SAC_RANSAC); //RMSAC
+			seg_horizontal.setModelType(pcl::SACMODEL_CIRCLE3D);
+			//seg_vertical.setModelType(pcl::SACMODEL_LINE);
+			seg_vertical.setNormalDistanceWeight(0.1);
+			seg_vertical.setMaxIterations(1000);
+			seg_vertical.setDistanceThreshold(0.001);
+			seg_vertical.setRadiusLimits(0.005, 0.050);//0.05
+			seg_vertical.setInputCloud(cloud_filt_vertical);
+			seg_vertical.setInputNormals(cloud_normals_vertical);
+			// Obtain the primitive inliers and coefficients
+			seg_vertical.segment(*inliers_prim_vertical, *coefficients_prim_vertical);
+			std::cerr << "prim_vertical coeffs: " << *coefficients_prim_vertical << std::endl;
+			// Save the primitive inliers
+			extract_vertical.setInputCloud(cloud_filt_vertical);
+			extract_vertical.setIndices(inliers_prim_vertical);
+			extract_vertical.setNegative(false);
+			extract_vertical.filter(*cloud_prim_vertical);
+
+			// HORIZONTAL STRIP
+
+			// Estimate point normals
+			std::cout << "Computing normals...";
+			ne_horizontal.setSearchMethod(tree_horizontal);
+			ne_horizontal.setInputCloud(cloud_filt_horizontal);
+			ne_horizontal.setKSearch(50);
+			ne_horizontal.compute(*cloud_normals_horizontal);
+			std::cout << " done." << std::endl;
+
+			seg_horizontal.setOptimizeCoefficients(true);
+			seg_horizontal.setMethodType(pcl::SAC_RANSAC); //RMSAC
+			seg_horizontal.setModelType(pcl::SACMODEL_CIRCLE3D);
+			//seg_horizontal.setModelType(pcl::SACMODEL_LINE);
+			seg_horizontal.setNormalDistanceWeight(0.1);
+			seg_horizontal.setMaxIterations(1000);
+			seg_horizontal.setDistanceThreshold(0.001);
+			seg_horizontal.setRadiusLimits(0.005, 0.05);//0.05
+			seg_horizontal.setInputCloud(cloud_filt_horizontal);
+			seg_horizontal.setInputNormals(cloud_normals_horizontal);
+			// Obtain the primitive inliers and coefficients
+			seg_horizontal.segment(*inliers_prim_horizontal, *coefficients_prim_horizontal);
+			std::cerr << "prim_horizontal coeffs: " << *coefficients_prim_horizontal << std::endl;
+			// Save the primitive inliers
+			extract_horizontal.setInputCloud(cloud_filt_horizontal);
+			extract_horizontal.setIndices(inliers_prim_horizontal);
+			extract_horizontal.setNegative(false);
+			extract_horizontal.filter(*cloud_prim_horizontal);
+
+			/***/
+			if (cloud_prim_horizontal->points.empty() && cloud_prim_vertical->points.empty()) {
+				std::cerr << "\tCan't find the cylindrical component." << std::endl;
+				std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
+				continue;
+			}
+			else {
+				std::cerr << "PointCloud PRIMITIVE: " << cloud_prim_vertical->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
+			}
+
+			// prim_vertical point cloud is red			
+			cloud_prim_vertical_color_h.setInputCloud(cloud_prim_vertical);
+			viewer.addPointCloud(cloud_prim_vertical, cloud_prim_vertical_color_h, "cloud_prim_vertical", vp);
+				   
+			if (coefficients_prim_vertical->values.size() == 7) {
+				correctCircleShape(*coefficients_prim_vertical);
+				viewer.addCylinder(*coefficients_prim_vertical, "vertical");
+			}
+			//viewer.addLine(*coefficients_prim_vertical, "vertical");
+
+			// prim_horizontal point cloud is red
+			cloud_prim_horizontal_color_h.setInputCloud(cloud_prim_horizontal);
+			viewer.addPointCloud(cloud_prim_horizontal, cloud_prim_horizontal_color_h, "cloud_prim_horizontal", vp);
+
+			if (coefficients_prim_horizontal->values.size() == 7) {
+				correctCircleShape(*coefficients_prim_horizontal);
+				viewer.addCylinder(*coefficients_prim_horizontal, "horizontal");
+			}
+			//viewer.addLine(*coefficients_prim_vertical, "horizontal");
+			
+			break;
+
+		case michelangelo::SEGMENTATION:
+
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_segmented(new pcl::PointCloud<pcl::PointXYZ>);
+			switch (segmethod) {
+			case michelangelo::SEG_RANSAC:
 
 				// Estimate point normals
 				std::cout << "Computing normals...";
@@ -472,7 +616,7 @@ int main (int argc, char** argv)
 				ne.compute(*cloud_normals);
 				std::cout << " done." << std::endl;
 
-	#if PLANE_SEGMENTATION
+#if PLANE_SEGMENTATION
 
 				time.tic();
 				// Create the segmentation object for the planar model and set all the parameters
@@ -514,12 +658,12 @@ int main (int argc, char** argv)
 				extract_normals.setIndices(inliers_plane);
 				extract_normals.filter(*cloud_normals2);
 
-	#ifndef DEBUG
+#ifndef DEBUG
 				// Transformed point cloud is green
 				cloud_plane_color_h.setInputCloud(cloud_plane);
 				viewer.addPointCloud(cloud_plane, cloud_plane_color_h, "cloud_plane", vp);
-	#endif //DEBUG
-	#else
+#endif //DEBUG
+#else
 				/*
 		#ifndef DEBUG
 				// Transformed point cloud is green
@@ -527,9 +671,9 @@ int main (int argc, char** argv)
 				viewer.addPointCloud(cloud_filtered2, cloud_filtered2_color_h, "cloud_filtered2", vp);
 		#endif //DEBUG
 				*/
-	#endif //PLANE_SEGMENTATION
+#endif //PLANE_SEGMENTATION
 
-	#if PRIMITIVE_MODEL
+#if PRIMITIVE_MODEL
 
 				//std::array<michelangelo::Primitive, 3> prims = { michelangelo::PRIMITIVE_PLANE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER };
 				//std::array<michelangelo::PrimitiveModel, 3> prim_models();
@@ -563,13 +707,13 @@ int main (int argc, char** argv)
 				seg.setMaxIterations(10000);
 				seg.setDistanceThreshold(0.05); //0.05
 				seg.setRadiusLimits(0.005, 0.050);
-	#if PLANE_SEGMENTATION
+#if PLANE_SEGMENTATION
 				seg.setInputCloud(cloud_filtered2);
 				seg.setInputNormals(cloud_normals2);
-	#else	
+#else	
 				seg.setInputCloud(cloud_filtered);
 				seg.setInputNormals(cloud_normals);
-	#endif //PLANE_SEGMENTATION
+#endif //PLANE_SEGMENTATION
 
 				// Obtain the primitive inliers and coefficients
 				seg.segment(*inliers_primitive, *coefficients_primitive);
@@ -577,11 +721,11 @@ int main (int argc, char** argv)
 				//std::cerr << "primitive coefficients: " << *coefficients_primitive << std::endl;
 
 				// Save the primitive inliers
-	#if PLANE_SEGMENTATION
+#if PLANE_SEGMENTATION
 				extract.setInputCloud(cloud_filtered2);
-	#else
+#else
 				extract.setInputCloud(cloud_filtered);
-	#endif //PLANE_SEGMENTATION
+#endif //PLANE_SEGMENTATION
 				extract.setIndices(inliers_primitive);
 				extract.setNegative(false);
 				//pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
@@ -604,7 +748,7 @@ int main (int argc, char** argv)
 					<< "\n\tz: " << "[" << bounds_cylinder[4] << "," << bounds_cylinder[5] << "]"
 					<< std::endl;*/
 
-	#ifndef DEBUG
+#ifndef DEBUG
 				// ICP aligned point cloud is red
 				cloud_primitive_color_h.setInputCloud(cloud_primitive);
 				viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);
@@ -630,9 +774,9 @@ int main (int argc, char** argv)
 
 					float camAngle(90.0 * M_PI / 180);
 					michelangelo::correctAngle(axis_projection, camAngle);
-	#ifndef DEBUG
+#ifndef DEBUG
 					viewer.addLine(cam_origin, axis_projection, "line");
-	#endif //DEBUG
+#endif //DEBUG
 
 					// Calculate the angular difference			
 					//float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
@@ -640,13 +784,14 @@ int main (int argc, char** argv)
 					std::string action(michelangelo::setAction(dTheta));
 					std::cout << "* Current angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
 
-	#endif	// PRIMITIVE_MODEL
-	#endif //DEBUG
+#endif	// PRIMITIVE_MODEL
+#endif //DEBUG
 					break;
 				}
+
 				break;
-			}
-			case michelangelo::SEG_LCCP: {
+
+			case michelangelo::SEG_LCCP:
 
 				time.tic();
 				// Convert the filtered cloud XYZ to XYZRGBA
@@ -704,7 +849,7 @@ int main (int argc, char** argv)
 
 				bool PLOT_CENTROIDS(false);
 				if (PLOT_CENTROIDS) {
-				std::string id;
+					std::string id;
 					for (int i(0); i < centroids.size(); ++i) {
 						pcl::PointXYZ pFUL(centroids[i][0] - 0.005, centroids[i][1] - 0.005, centroids[i][2] - 0.005);
 						pcl::PointXYZ pFUR(centroids[i][0] + 0.005, centroids[i][1] - 0.005, centroids[i][2] - 0.005);
@@ -730,17 +875,17 @@ int main (int argc, char** argv)
 						viewer.addLine<pcl::PointXYZ>(pBDL, pFDL, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "LD", vp);
 						viewer.addLine<pcl::PointXYZ>(pBUR, pFUR, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "RU", vp);
 						viewer.addLine<pcl::PointXYZ>(pBDR, pFDR, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "RD", vp);
-	#ifdef DEBUG
+#ifdef DEBUG
 						std::cout << "    l: " << labels[i] <<
 							" pts: " << label_count[i] <<
 							" x: " << centroids[i][0] <<
 							" y: " << centroids[i][1] <<
 							" z: " << centroids[i][2] << std::endl;
-	#endif //DEBUG
+#endif //DEBUG
 					}
 				}
-				uint32_t lbl = selCentroidLCCP(labels, centroids);				
-				getLabeledCloudLCCP(*lccp_labeled_cloud, *cloud_segmented, lbl);	
+				uint32_t lbl = selCentroidLCCP(labels, centroids);
+				getLabeledCloudLCCP(*lccp_labeled_cloud, *cloud_segmented, lbl);
 
 				cloud_segmented_color_h.setInputCloud(cloud_segmented);
 				viewer.addPointCloud(cloud_segmented, cloud_segmented_color_h, "cloud_segmented", vp);
@@ -750,127 +895,124 @@ int main (int argc, char** argv)
 				std::cout << "PointCloud after LCCP: [" << lbl << "] " << cloud_segmented->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 				break;
 			}
-		}
-
-
 #if FITMODEL
-
-		// Estimate point normals
-		std::cout << "Computing normals...";
-		ne.setSearchMethod(tree);
-		ne.setInputCloud(cloud_filtered);
-		ne.setKSearch(50);//50
-		//ne.setRadiusSearch(0.01); //New
-		ne.compute(*cloud_normals);
-		std::cout << " done." << std::endl;
-
+			// Estimate point normals
+			std::cout << "Computing normals...";
+			ne.setSearchMethod(tree);
+			ne.setInputCloud(cloud_filtered);
+			ne.setKSearch(50);//50
+			//ne.setRadiusSearch(0.01); //New
+			ne.compute(*cloud_normals);
+			std::cout << " done." << std::endl;
 #if PRIMITIVE_MODEL
 
-		//std::array<michelangelo::Primitive, 3> prims = { michelangelo::PRIMITIVE_PLANE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER };
-		//std::array<michelangelo::PrimitiveModel, 3> prim_models();
+			//std::array<michelangelo::Primitive, 3> prims = { michelangelo::PRIMITIVE_PLANE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER };
+			//std::array<michelangelo::PrimitiveModel, 3> prim_models();
 
-		/*#pragma omp parallel num_threads(3){
-			// This code will be executed by three threads.
+			/*#pragma omp parallel num_threads(3){
+				// This code will be executed by three threads.
 
-			// Chunks of this loop will be divided amongst
-			// the (three) threads of the current team.
-		#pragma omp for
-			for (int n = 0; n < 10; ++n)
-				printf(" %d", n);
-		}*/
+				// Chunks of this loop will be divided amongst
+				// the (three) threads of the current team.
+			#pragma omp for
+				for (int n = 0; n < 10; ++n)
+					printf(" %d", n);
+			}*/
 
-		time.tic();
-		// Create the segmentation object for primitive segmentation and set all the parameters
-		seg.setOptimizeCoefficients(true);
-		seg.setMethodType(pcl::SAC_RANSAC);
-		switch (prim) {
-		case michelangelo::PRIMITIVE_PLANE:
-			seg.setModelType(pcl::SACMODEL_PLANE);
-			break;
-		case michelangelo::PRIMITIVE_SPHERE:
-			seg.setModelType(pcl::SACMODEL_SPHERE);
-			break;
-		case michelangelo::PRIMITIVE_CYLINDER:
-			seg.setModelType(pcl::SACMODEL_CYLINDER);
-			break;
-		}
-		seg.setNormalDistanceWeight(0.1);
-		seg.setMaxIterations(10000);
-		seg.setDistanceThreshold(0.05);
-		seg.setRadiusLimits(0.005, 0.050);
-		seg.setInputCloud(cloud_filtered);
-		seg.setInputNormals(cloud_normals);
+			time.tic();
+			// Create the segmentation object for primitive segmentation and set all the parameters
+			seg.setOptimizeCoefficients(true);
+			seg.setMethodType(pcl::SAC_RANSAC);
+			switch (prim) {
+			case michelangelo::PRIMITIVE_PLANE:
+				seg.setModelType(pcl::SACMODEL_PLANE);
+				break;
+			case michelangelo::PRIMITIVE_SPHERE:
+				seg.setModelType(pcl::SACMODEL_SPHERE);
+				break;
+			case michelangelo::PRIMITIVE_CYLINDER:
+				seg.setModelType(pcl::SACMODEL_CYLINDER);
+				break;
+			}
+			seg.setNormalDistanceWeight(0.1);
+			seg.setMaxIterations(10000);
+			seg.setDistanceThreshold(0.05);
+			seg.setRadiusLimits(0.005, 0.050);
+			seg.setInputCloud(cloud_filtered);
+			seg.setInputNormals(cloud_normals);
 
-		// Obtain the primitive inliers and coefficients
-		seg.segment(*inliers_primitive, *coefficients_primitive);
-		//std::cerr << "primitive inliers: " << *inliers_primitive << std::endl;
-		//std::cerr << "primitive coefficients: " << *coefficients_primitive << std::endl;
+			// Obtain the primitive inliers and coefficients
+			seg.segment(*inliers_primitive, *coefficients_primitive);
+			//std::cerr << "primitive inliers: " << *inliers_primitive << std::endl;
+			//std::cerr << "primitive coefficients: " << *coefficients_primitive << std::endl;
 
-		// Save the primitive inliers
-		extract.setInputCloud(cloud_filtered);
-		extract.setIndices(inliers_primitive);
-		extract.setNegative(false);
-		//pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
-		extract.filter(*cloud_primitive);
+			// Save the primitive inliers
+			extract.setInputCloud(cloud_filtered);
+			extract.setIndices(inliers_primitive);
+			extract.setNegative(false);
+			//pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
+			extract.filter(*cloud_primitive);
 
-		if (cloud_primitive->points.empty()) {
-			std::cerr << "\tCan't find the cylindrical component." << std::endl;
-			std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
-			continue;
-		}
-		else {
-			std::cerr << "PointCloud PRIMITIVE: " << cloud_primitive->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
-		}
+			if (cloud_primitive->points.empty()) {
+				std::cerr << "\tCan't find the cylindrical component." << std::endl;
+				std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
+				continue;
+			} else {
+				std::cerr << "PointCloud PRIMITIVE: " << cloud_primitive->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
+			}
 
-		// Obtain the primitive cloud boundaries
-		std::array<float, 6> bounds_primitive(getPointCloudBoundaries(*cloud_primitive));
-		/*std::cerr << "\nCylinder boundaries: "
-			<< "\n\tx: " << "[" << bounds_cylinder[0] << "," << bounds_cylinder[1] << "]"
-			<< "\n\ty: " << "[" << bounds_cylinder[2] << "," << bounds_cylinder[3] << "]"
-			<< "\n\tz: " << "[" << bounds_cylinder[4] << "," << bounds_cylinder[5] << "]"
-			<< std::endl;*/
+			// Obtain the primitive cloud boundaries
+			std::array<float, 6> bounds_primitive(getPointCloudBoundaries(*cloud_primitive));
+			/*std::cerr << "\nCylinder boundaries: "
+				<< "\n\tx: " << "[" << bounds_cylinder[0] << "," << bounds_cylinder[1] << "]"
+				<< "\n\ty: " << "[" << bounds_cylinder[2] << "," << bounds_cylinder[3] << "]"
+				<< "\n\tz: " << "[" << bounds_cylinder[4] << "," << bounds_cylinder[5] << "]"
+				<< std::endl;*/
 
 #ifndef DEBUG
-		// ICP aligned point cloud is red
-		cloud_primitive_color_h.setInputCloud(cloud_primitive);
-		viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);
+			// ICP aligned point cloud is red
+			cloud_primitive_color_h.setInputCloud(cloud_primitive);
+			viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);
 
-		// Plot primitive shape
-		switch (prim) {
-		case michelangelo::PRIMITIVE_PLANE:
-			//viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
-			break;
-		case michelangelo::PRIMITIVE_SPHERE:
-			viewer.addSphere(*coefficients_primitive, "sphere");
-			break;
-		case michelangelo::PRIMITIVE_CYLINDER:
-			pcl::ModelCoefficients::Ptr corrected_coefs_primitive(new pcl::ModelCoefficients);
-			correctCylShape(*corrected_coefs_primitive, *coefficients_primitive, *cloud_primitive);
-			viewer.addCylinder(*corrected_coefs_primitive, "cylinder");
+			/*********************************/
 
-			// Plot cylinder longitudinal axis //PointT
-			PointT point_on_axis((*coefficients_primitive).values[0], (*coefficients_primitive).values[1], (*coefficients_primitive).values[2]);
-			PointT axis_direction(point_on_axis.x + (*coefficients_primitive).values[3], point_on_axis.y + (*coefficients_primitive).values[4], point_on_axis.z + (*coefficients_primitive).values[5]);
-			PointT cam_origin(0.0, 0.0, 0.0);
-			PointT axis_projection((*coefficients_primitive).values[3], (*coefficients_primitive).values[4], 0.0);
+			// Plot primitive shape
+			switch (prim) {
+			case michelangelo::PRIMITIVE_PLANE:
+				//viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
+				break;
+			case michelangelo::PRIMITIVE_SPHERE:
+				viewer.addSphere(*coefficients_primitive, "sphere");
+				break;
+			case michelangelo::PRIMITIVE_CYLINDER:
+				pcl::ModelCoefficients::Ptr corrected_coefs_primitive(new pcl::ModelCoefficients);
+				correctCylShape(*corrected_coefs_primitive, *coefficients_primitive, *cloud_primitive);
+				viewer.addCylinder(*corrected_coefs_primitive, "cylinder");
 
-			float camAngle(90.0 * M_PI / 180);
-			michelangelo::correctAngle(axis_projection, camAngle);
+				// Plot cylinder longitudinal axis //PointT
+				PointT point_on_axis((*coefficients_primitive).values[0], (*coefficients_primitive).values[1], (*coefficients_primitive).values[2]);
+				PointT axis_direction(point_on_axis.x + (*coefficients_primitive).values[3], point_on_axis.y + (*coefficients_primitive).values[4], point_on_axis.z + (*coefficients_primitive).values[5]);
+				PointT cam_origin(0.0, 0.0, 0.0);
+				PointT axis_projection((*coefficients_primitive).values[3], (*coefficients_primitive).values[4], 0.0);
+
+				float camAngle(90.0 * M_PI / 180);
+				michelangelo::correctAngle(axis_projection, camAngle);
 #ifndef DEBUG
-			viewer.addLine(cam_origin, axis_projection, "line");
+				viewer.addLine(cam_origin, axis_projection, "line");
 #endif //DEBUG
 
-			// Calculate the angular difference			
-			//float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
-			float dTheta(michelangelo::readAngle(axis_projection));
-			std::string action(michelangelo::setAction(dTheta));
-			std::cout << "* Current angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
+				// Calculate the angular difference			
+				//float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
+				float dTheta(michelangelo::readAngle(axis_projection));
+				std::string action(michelangelo::setAction(dTheta));
+				std::cout << "* Current angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
 
 #endif	// PRIMITIVE_MODEL
 #endif //DEBUG
-			break;
-		}
+				break;
+			}
 
+		}
 #endif //ABCD
 		viewer.spinOnce(1, true);
 		std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
@@ -1063,6 +1205,23 @@ void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& 
 	cyl.values.push_back(bottom_top_direction.y);
 	cyl.values.push_back(bottom_top_direction.z);
 	cyl.values.push_back(coefficients.values[6]);
+}
+
+void correctCircleShape(pcl::ModelCoefficients& circle)
+{
+	std::array<float, 3> circle_normal = { circle.values[4],circle.values[5],circle.values[6] };
+	circle.values[6] = circle.values[3];
+	if (std::abs(circle_normal[0]) > 0.5) {
+		circle.values[3] = 0.001;
+	} else {
+		circle.values[3] = circle_normal[0];
+	}
+	if (std::abs(circle_normal[1]) > 0.5) {
+		circle.values[4] = 0.001;
+	} else {
+		circle.values[4] = circle_normal[1];
+	}
+	circle.values[5] = circle_normal[2];
 }
 
 void michelangelo::correctAngle(pcl::PointXYZ& axis_projection, float camAngle)
