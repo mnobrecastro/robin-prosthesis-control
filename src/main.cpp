@@ -40,6 +40,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr points_to_pcl(const rs2::points&);
 float dotProduct(pcl::PointXYZ, pcl::PointXYZ);
 float normPointT(pcl::PointXYZ);
 int trimPointCloud(const pcl::PointCloud<pcl::PointXYZ>&, pcl::PointCloud<pcl::PointXYZ>&, const std::array<std::array<float, 2>, 3>, char, float);
+void downsamplePointCloud(const pcl::PointCloud<pcl::PointXYZ>&, pcl::PointCloud<pcl::PointXYZ>&, int);
 std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<PointT>&, pcl::PointXYZ, pcl::PointXYZ);
 std::array<float, 6> getPointCloudBoundaries(const pcl::PointCloud<PointT>&);
 std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>&, std::vector<uint32_t>&, std::vector<std::array<float, 3>>&);
@@ -56,6 +57,7 @@ namespace michelangelo {
 	};
 
 	enum Method {
+		NONE,
 		HEURISTIC,
 		SEGMENTATION
 	};
@@ -136,7 +138,7 @@ void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 int main (int argc, char** argv)
 {	
 	/*RawCross*/
-	michelangelo::Method method(michelangelo::HEURISTIC);
+	michelangelo::Method method(michelangelo::NONE);//HEURISTIC
 	michelangelo::Heuristic heumethod(michelangelo::HEU_CROSS);
 	michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
 	bool DISPARITY(false);
@@ -145,6 +147,7 @@ int main (int argc, char** argv)
 	char TRIM_TYPE('+');
 	float TRIM_WIDTH(0.010);//0.01
 	bool DOWNSAMPLING(true); //try 'false' later
+	bool DNSP_DFLT(false);
 
 	/*Disparity*/
 	/*michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
@@ -434,8 +437,8 @@ int main (int argc, char** argv)
 
 		if (FILTER) {
 			time.tic();
-			if (FILT_DFLT) {
-				// Build a passthrough filter to remove unwated points
+			// Build a passthrough filter to remove unwated points
+			if (FILT_DFLT) {				
 				pass.setInputCloud(cloud);
 				pass.setFilterFieldName("x");
 				pass.setFilterLimits(filter_lims[0][0], filter_lims[0][1]);
@@ -464,17 +467,26 @@ int main (int argc, char** argv)
 			pcl::copyPointCloud(*cloud, *cloud_filtered);
 		}
 
+		
 		if (DOWNSAMPLING) {
 			time.tic();
-			// Downsampling the filtered point cloud		
-			pcl::VoxelGrid<pcl::PointXYZ> dsfilt;
-			dsfilt.setInputCloud(cloud_filtered);
-			if (!DISPARITY) {
-				dsfilt.setLeafSize(0.0025f, 0.0025f, 0.0025f); //0.005f //0.01f
+			// Downsampling the filtered point cloud
+			if (DNSP_DFLT) {						
+				pcl::VoxelGrid<pcl::PointXYZ> dsfilt;
+				dsfilt.setInputCloud(cloud_filtered);
+				if (!DISPARITY) {
+					dsfilt.setLeafSize(0.0025f, 0.0025f, 0.0025f); //0.005f //0.01f
+				}
+				else {
+					dsfilt.setLeafSize(0.002f, 0.002f, 0.002f); //0.01f
+				}
+				dsfilt.filter(*cloud_filtered);
 			} else {
-				dsfilt.setLeafSize(0.002f, 0.002f, 0.002f); //0.01f
+				pcl::PointCloud<PointT>::Ptr cloud_ds(new pcl::PointCloud<pcl::PointXYZ>);
+				downsamplePointCloud(*cloud_filtered, *cloud_ds, 100);
+				cloud_filtered->clear();
+				pcl::copyPointCloud(*cloud_ds, *cloud_filtered);
 			}
-			dsfilt.filter(*cloud_filtered);
 			std::cerr << "PointCloud after downsampling: " << cloud_filtered->width * cloud_filtered->height << "=" << cloud_filtered->points.size()
 				<< " data points (in " << time.toc() << " ms)." << std::endl; //pcl::getFieldsList(*cloud_filtered)
 		}
@@ -1089,6 +1101,20 @@ int trimPointCloud(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointCloud<
 	}
 
 	return 0;
+}
+
+void downsamplePointCloud(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointCloud<pcl::PointXYZ>& cloud_ds, int factor)
+{		
+	int i(0);
+	for (auto p : cloud.points) {
+		if (i == 0)
+			cloud_ds.push_back(pcl::PointXYZ(p.x, p.y, p.z));
+		if (i + 1 == factor) {
+			i = 0;
+		} else {
+			++i;
+		}
+	}
 }
 
 std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<PointT>& cloud, pcl::PointXYZ center, pcl::PointXYZ direction)
