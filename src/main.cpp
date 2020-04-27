@@ -6,9 +6,11 @@
 #include <pcl/ModelCoefficients.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
+#include <pcl/filters/random_sample.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/approximate_voxel_grid.h>
+#include <pcl/filters/extract_indices.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
@@ -138,7 +140,7 @@ void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 int main (int argc, char** argv)
 {	
 	/*RawCross*/
-	michelangelo::Method method(michelangelo::NONE);//HEURISTIC
+	michelangelo::Method method(michelangelo::HEURISTIC);
 	michelangelo::Heuristic heumethod(michelangelo::HEU_CROSS);
 	michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
 	bool DISPARITY(false);
@@ -147,7 +149,10 @@ int main (int argc, char** argv)
 	char TRIM_TYPE('+');
 	float TRIM_WIDTH(0.010);//0.01
 	bool DOWNSAMPLING(true); //try 'false' later
-	bool DNSP_DFLT(false);
+	bool DNSP_DFLT(true);
+	unsigned int N_SAMPLE(2000);
+	float MIN_SAMP_DIST(0.002);//0.002f
+	unsigned int RANSAC_MAX_IT(200);
 
 	/*Disparity*/
 	/*michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
@@ -159,13 +164,18 @@ int main (int argc, char** argv)
 	bool DOWNSAMPLING(true);*/
 
 	/*LCCP*/
-	/*michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
-	bool DISPARITY(false);
-	bool FILTER(true);
-	bool FILT_DFLT(false);
-	char TRIM_TYPE('o');
-	float TRIM_WIDTH(0.010);
-	bool DOWNSAMPLING(true);*/
+	//michelangelo::Method method(michelangelo::SEGMENTATION);
+	//michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
+	//bool DISPARITY(false);
+	//bool FILTER(true);
+	//bool FILT_DFLT(false);
+	//char TRIM_TYPE('o');
+	//float TRIM_WIDTH(0.010);
+	//bool DOWNSAMPLING(true);
+	//bool DNSP_DFLT(true);
+	//float MIN_SAMP_DIST(0.002);//0.002f
+	//unsigned int N_SAMPLE(2000);
+	//unsigned int RANSAC_MAX_IT(200);
 
 	//  Visualiser initiallization
 	pcl::visualization::PCLVisualizer viewer("3D Viewer");
@@ -203,7 +213,8 @@ int main (int argc, char** argv)
 	std::cout << "Opening pipeline for " << serial_number << std::endl;
 	cfg.enable_device(serial_number);	
 	if (!DISPARITY) {
-		cfg.enable_stream(RS2_STREAM_DEPTH, 424, 240, RS2_FORMAT_Z16, 90);
+		//cfg.enable_stream(RS2_STREAM_DEPTH, 256, 144, RS2_FORMAT_Z16, 90); //works fine!
+		cfg.enable_stream(RS2_STREAM_DEPTH, 424, 240, RS2_FORMAT_Z16, 90); //works fine!
 		//cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 60);
 		////cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_BGR8, 60);
 	} else {
@@ -472,20 +483,25 @@ int main (int argc, char** argv)
 			time.tic();
 			// Downsampling the filtered point cloud
 			if (DNSP_DFLT) {						
-				pcl::VoxelGrid<pcl::PointXYZ> dsfilt;
+				pcl::ApproximateVoxelGrid<pcl::PointXYZ> dsfilt;
 				dsfilt.setInputCloud(cloud_filtered);
 				if (!DISPARITY) {
-					dsfilt.setLeafSize(0.0025f, 0.0025f, 0.0025f); //0.005f //0.01f
+					dsfilt.setLeafSize(0.0025f, 0.0025f, 0.0025f); //0.005f
 				}
 				else {
-					dsfilt.setLeafSize(0.002f, 0.002f, 0.002f); //0.01f
+					dsfilt.setLeafSize(MIN_SAMP_DIST, MIN_SAMP_DIST, MIN_SAMP_DIST);
 				}
 				dsfilt.filter(*cloud_filtered);
 			} else {
-				pcl::PointCloud<PointT>::Ptr cloud_ds(new pcl::PointCloud<pcl::PointXYZ>);
-				downsamplePointCloud(*cloud_filtered, *cloud_ds, 100);
-				cloud_filtered->clear();
-				pcl::copyPointCloud(*cloud_ds, *cloud_filtered);
+				//pcl::PointCloud<PointT>::Ptr cloud_ds(new pcl::PointCloud<pcl::PointXYZ>);
+				//downsamplePointCloud(*cloud_filtered, *cloud_ds, 100);
+				//cloud_filtered->clear();
+				//pcl::copyPointCloud(*cloud_ds, *cloud_filtered);
+
+				pcl::RandomSample<pcl::PointXYZ> dsfilt;
+				dsfilt.setInputCloud(cloud_filtered);
+				dsfilt.setSample(N_SAMPLE);
+				dsfilt.filter(*cloud_filtered);
 			}
 			std::cerr << "PointCloud after downsampling: " << cloud_filtered->width * cloud_filtered->height << "=" << cloud_filtered->points.size()
 				<< " data points (in " << time.toc() << " ms)." << std::endl; //pcl::getFieldsList(*cloud_filtered)
@@ -505,7 +521,6 @@ int main (int argc, char** argv)
 
 		switch (method) {
 		case michelangelo::HEURISTIC:			
-
 
 			for (auto p : cloud_filtered->points) {
 				//horizontal strip
@@ -536,7 +551,7 @@ int main (int argc, char** argv)
 			// Create the segmentation object for primitive segmentation and set all the parameters			
 			seg_vertical.setOptimizeCoefficients(true);
 			seg_vertical.setMethodType(pcl::SAC_RANSAC); //RMSAC
-			seg_horizontal.setModelType(pcl::SACMODEL_CIRCLE3D);
+			seg_vertical.setModelType(pcl::SACMODEL_CIRCLE3D);
 			//seg_vertical.setModelType(pcl::SACMODEL_LINE);
 			seg_vertical.setNormalDistanceWeight(0.1);
 			seg_vertical.setMaxIterations(1000);
@@ -947,7 +962,7 @@ int main (int argc, char** argv)
 				break;
 			}
 			seg.setNormalDistanceWeight(0.1);
-			seg.setMaxIterations(10000);
+			seg.setMaxIterations(RANSAC_MAX_IT);
 			seg.setDistanceThreshold(0.05);
 			seg.setRadiusLimits(0.005, 0.050);
 			seg.setInputCloud(cloud_filtered);
