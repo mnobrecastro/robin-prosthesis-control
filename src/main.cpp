@@ -12,6 +12,7 @@
 #include <pcl/filters/approximate_voxel_grid.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/features/normal_3d.h>
+#include <pcl/common/pca.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
@@ -53,7 +54,7 @@ void correctCircleShape(pcl::ModelCoefficients&);
 
 namespace michelangelo {
 	enum Primitive {
-		PRIMITIVE_PLANE,
+		PRIMITIVE_CUBE,
 		PRIMITIVE_CYLINDER,
 		PRIMITIVE_SPHERE
 	};
@@ -99,7 +100,7 @@ namespace michelangelo {
 		{
 			//this->coefficients = new pcl::ModelCoefficients;				
 			switch (prim) {
-			case michelangelo::PRIMITIVE_PLANE:
+			case michelangelo::PRIMITIVE_CUBE:
 				seg.setModelType(pcl::SACMODEL_PLANE);
 				break;
 			case michelangelo::PRIMITIVE_SPHERE:
@@ -140,7 +141,7 @@ void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 int main (int argc, char** argv)
 {	
 	/*RawCross*/
-	michelangelo::Method method(michelangelo::HEURISTIC);
+	/*michelangelo::Method method(michelangelo::HEURISTIC);
 	michelangelo::Heuristic heumethod(michelangelo::HEU_CROSS);
 	michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
 	bool DISPARITY(false);
@@ -152,7 +153,7 @@ int main (int argc, char** argv)
 	bool DNSP_DFLT(true);
 	unsigned int N_SAMPLE(2000);
 	float MIN_SAMP_DIST(0.002);//0.002f
-	unsigned int RANSAC_MAX_IT(200);
+	unsigned int RANSAC_MAX_IT(200);*/
 
 	/*Disparity*/
 	/*michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
@@ -164,18 +165,18 @@ int main (int argc, char** argv)
 	bool DOWNSAMPLING(true);*/
 
 	/*LCCP*/
-	//michelangelo::Method method(michelangelo::SEGMENTATION);
-	//michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
-	//bool DISPARITY(false);
-	//bool FILTER(true);
-	//bool FILT_DFLT(false);
-	//char TRIM_TYPE('o');
-	//float TRIM_WIDTH(0.010);
-	//bool DOWNSAMPLING(true);
-	//bool DNSP_DFLT(true);
-	//float MIN_SAMP_DIST(0.002);//0.002f
-	//unsigned int N_SAMPLE(2000);
-	//unsigned int RANSAC_MAX_IT(200);
+	michelangelo::Method method(michelangelo::SEGMENTATION);
+	michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
+	bool DISPARITY(false);
+	bool FILTER(true);
+	bool FILT_DFLT(false);
+	char TRIM_TYPE('o');
+	float TRIM_WIDTH(0.010);
+	bool DOWNSAMPLING(true);
+	bool DNSP_DFLT(true);
+	float MIN_SAMP_DIST(0.002);//0.002f
+	unsigned int N_SAMPLE(2000);
+	unsigned int RANSAC_MAX_IT(200);
 
 	//  Visualiser initiallization
 	pcl::visualization::PCLVisualizer viewer("3D Viewer");
@@ -243,7 +244,7 @@ int main (int argc, char** argv)
 	if (!DISPARITY) {
 		filter_lims[0] = { -0.100, 0.100 };
 		filter_lims[1] = { -0.100, 0.100 };
-		filter_lims[2] = { 0.000, 0.300 }; // realsense depth neg z-axis (MinZ 0.110m)
+		filter_lims[2] = { 0.000, 0.200 }; // realsense depth neg z-axis (MinZ 0.110m)
 	} else {
 		filter_lims[0] = { -0.050, 0.050 };
 		filter_lims[1] = { -0.050, 0.050 };
@@ -345,6 +346,7 @@ int main (int argc, char** argv)
 		pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
 		pcl::PointCloud<PointT>::Ptr cloud_prim_vertical(new pcl::PointCloud<PointT>());
 		pcl::PointCloud<PointT>::Ptr cloud_prim_horizontal(new pcl::PointCloud<PointT>());
+		std::array<pcl::PointCloud<PointT>::Ptr,3> arr_cloud_plane;
 
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_in_color_h((int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl);
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_filtered_in_color_h((int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl);
@@ -353,6 +355,11 @@ int main (int argc, char** argv)
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_primitive_color_h(180, 20, 20);
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_prim_vertical_color_h(180, 20, 20);
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_prim_horizontal_color_h(180, 20, 20);
+		pcl::visualization::PointCloudColorHandlerCustom<PointT> arr_cloud_cube_color_h[3] = {
+			pcl::visualization::PointCloudColorHandlerCustom<PointT>(255, 0, 255), 
+			pcl::visualization::PointCloudColorHandlerCustom<PointT>(255, 255, 0),
+			pcl::visualization::PointCloudColorHandlerCustom<PointT>(0, 255, 255)
+		};
 
 		// PCL objects
 		pcl::PassThrough<PointT> pass(true);
@@ -373,11 +380,13 @@ int main (int argc, char** argv)
 		pcl::search::KdTree<PointT>::Ptr tree_horizontal(new pcl::search::KdTree<PointT>());
 
 		pcl::ModelCoefficients::Ptr coefficients_plane(new pcl::ModelCoefficients), coefficients_primitive(new pcl::ModelCoefficients), coefficients_prim_vertical(new pcl::ModelCoefficients), coefficients_prim_horizontal(new pcl::ModelCoefficients);
+		std::array<pcl::ModelCoefficients::Ptr, 3> arr_coeffs_plane;
 		pcl::PointIndices::Ptr inliers_plane(new pcl::PointIndices), inliers_primitive(new pcl::PointIndices), inliers_prim_vertical(new pcl::PointIndices), inliers_prim_horizontal(new pcl::PointIndices);
+		std::array<pcl::PointIndices::Ptr, 3> arr_inls_plane;
 
 		// PCL Primitive
-		std::array<michelangelo::Primitive, 3> primitives = { michelangelo::PRIMITIVE_PLANE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER };
-		michelangelo::Primitive prim(primitives[2]);
+		std::array<michelangelo::Primitive, 3> primitives = { michelangelo::PRIMITIVE_CUBE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER };
+		michelangelo::Primitive prim(primitives[0]);
 
 		// LCCP objects
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_filtered_rgba(new pcl::PointCloud<pcl::PointXYZRGBA>);
@@ -720,7 +729,7 @@ int main (int argc, char** argv)
 				seg.setOptimizeCoefficients(true);
 				seg.setMethodType(pcl::SAC_RANSAC);
 				switch (prim) {
-				case michelangelo::PRIMITIVE_PLANE:
+				case michelangelo::PRIMITIVE_CUBE:
 					seg.setModelType(pcl::SACMODEL_PLANE);
 					break;
 				case michelangelo::PRIMITIVE_SPHERE:
@@ -759,7 +768,7 @@ int main (int argc, char** argv)
 				extract.filter(*cloud_primitive);
 
 				if (cloud_primitive->points.empty()) {
-					std::cerr << "\tCan't find the cylindrical component." << std::endl;
+					std::cerr << "\tCan't find the solid component." << std::endl;
 					std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 					continue;
 				}
@@ -782,7 +791,7 @@ int main (int argc, char** argv)
 
 				// Plot primitive shape
 				switch (prim) {
-				case michelangelo::PRIMITIVE_PLANE:
+				case michelangelo::PRIMITIVE_CUBE:
 					//viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
 					break;
 				case michelangelo::PRIMITIVE_SPHERE:
@@ -946,39 +955,176 @@ int main (int argc, char** argv)
 					printf(" %d", n);
 			}*/
 
+			size_t n_planes(0); int n_pts(cloud_filtered->points.size());
+
 			time.tic();
-			// Create the segmentation object for primitive segmentation and set all the parameters
-			seg.setOptimizeCoefficients(true);
-			seg.setMethodType(pcl::SAC_RANSAC);
 			switch (prim) {
-			case michelangelo::PRIMITIVE_PLANE:
-				seg.setModelType(pcl::SACMODEL_PLANE);
+			case michelangelo::PRIMITIVE_CUBE:
+				// Create the segmentation object for primitive segmentation and set all the parameters
+				seg.setOptimizeCoefficients(true);
+				seg.setMethodType(pcl::SAC_RANSAC);
+				seg.setModelType(pcl::SACMODEL_PLANE); // SACMODEL_PARALLEL_PLANE , SACMODEL_NORMAL_PLANE , SACMODEL_NORMAL_PARALLEL_PLANE
+				seg.setNormalDistanceWeight(0.1);
+				seg.setMaxIterations(RANSAC_MAX_IT);
+				seg.setDistanceThreshold(0.005);
+				//seg.setRadiusLimits(0.005, 0.050);
+				//seg.setInputCloud(cloud_filtered);
+				//seg.setInputNormals(cloud_normals);
+				//seg.setAxis();
+				//seg.setEpsAngle();				
+				
+				while (cloud_filtered->points.size() > 0.01 * n_pts && n_planes < 3) {
+
+					pcl::PointCloud<PointT>::Ptr cloud_cube_face(new pcl::PointCloud<PointT>());
+					pcl::PointIndices::Ptr inliers_cube_face(new pcl::PointIndices);
+					pcl::ModelCoefficients::Ptr coefficients_cube_face(new pcl::ModelCoefficients);
+					
+					// Segment the largest planar component from the remaining cloud
+					seg.setInputCloud(cloud_filtered);
+					seg.setInputNormals(cloud_normals);
+					seg.segment(*inliers_cube_face, *coefficients_cube_face);
+					if (inliers_cube_face->indices.size() == 0) {
+						std::cout << "Could not estimate a planar model for the given dataset." << std::endl;
+						break;
+					}
+
+					std::cout << "Cube plane #" << n_planes + 1 << ": " << inliers_cube_face->indices.size() << "/" << cloud_filtered->points.size() << " points." << std::endl;
+					
+					// Extract the planar inliers from the input cloud
+					pcl::ExtractIndices<pcl::PointXYZ> extract;
+					extract.setInputCloud(cloud_filtered);
+					extract.setIndices(inliers_cube_face);
+					extract.setNegative(false);
+					extract.filter(*cloud_cube_face);
+
+					// Remove the planar inliers, extract the rest
+					pcl::PointCloud<PointT>::Ptr cloud_remain(new pcl::PointCloud<PointT>);
+					extract.setNegative(true);					
+					extract.filter(*cloud_filtered);
+					//cloud_filtered->swap(*cloud_remain);
+
+					std::cout << "Remaining filtered PointCloud: " << cloud_filtered->points.size() << " data points." << std::endl;
+
+					// Remove the planar inliers from normals
+					pcl::ExtractIndices<pcl::Normal> extract_normals;
+					extract_normals.setInputCloud(cloud_normals);
+					extract_normals.setIndices(inliers_cube_face);
+					extract_normals.setNegative(true);
+					extract_normals.filter(*cloud_normals);
+
+					arr_cloud_plane[n_planes] = cloud_cube_face;
+					arr_inls_plane[n_planes] = inliers_cube_face;
+					arr_coeffs_plane[n_planes] = coefficients_cube_face;
+
+					*cloud_primitive += *cloud_cube_face;
+
+					++n_planes;
+				}
+
+				/*if (n_planes != 0) {
+					pcl::PointCloud<PointT>::Ptr cloud_eigen(new pcl::PointCloud<PointT>());
+					pcl::PCA<pcl::PointXYZ> pca;
+					Eigen::Matrix3f eigenvecs;
+					Eigen::MatrixXf coeffs;
+					Eigen::Vector4f mean;
+					Eigen::Vector3f eigenvals;
+					Eigen::Quaternionf quat;
+
+					switch (n_planes) {
+					case 1:
+						//Plane coefficients [normal_x normal_y normal_z d]
+						pca.setInputCloud(arr_cloud_plane[0]);
+						eigenvecs = pca.getEigenVectors();
+						coeffs = pca.getCoefficients();
+						mean = pca.getMean();
+						eigenvals = pca.getEigenValues();
+
+						
+						//pca.project(arr_cloud_plane[0], *cloud_eigen);
+						
+						//arr_coeffs_plane[0];						
+
+						//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+						//coefficients_primitive->values.push_back(); //Tx
+						//coefficients_primitive->values.push_back(); //Ty
+						//coefficients_primitive->values.push_back(); //Tz
+						//coefficients_primitive->values.push_back(); //Qx
+						//coefficients_primitive->values.push_back(); //Qy
+						//coefficients_primitive->values.push_back(); //Qz
+						//coefficients_primitive->values.push_back(); //Qw
+						//coefficients_primitive->values.push_back(); //width
+						//coefficients_primitive->values.push_back(); //height
+						//coefficients_primitive->values.push_back(); //depth
+						break;
+
+					case 2:
+
+						//cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+						//coefficients_primitive->values.push_back();
+						break;
+
+					case 3:
+
+						//cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+						//coefficients_primitive->values.push_back();
+						break;
+					}
+				}else {
+					continue;
+				}*/
+
+
 				break;
+
 			case michelangelo::PRIMITIVE_SPHERE:
+				// Create the segmentation object for primitive segmentation and set all the parameters
+				seg.setOptimizeCoefficients(true);
+				seg.setMethodType(pcl::SAC_RANSAC);
 				seg.setModelType(pcl::SACMODEL_SPHERE);
+				seg.setNormalDistanceWeight(0.1);
+				seg.setMaxIterations(RANSAC_MAX_IT);
+				seg.setDistanceThreshold(0.05);
+				seg.setRadiusLimits(0.005, 0.050);
+				seg.setInputCloud(cloud_filtered);
+				seg.setInputNormals(cloud_normals);
+
+				// Obtain the primitive inliers and coefficients
+				seg.segment(*inliers_primitive, *coefficients_primitive);
+				//std::cerr << "primitive inliers: " << *inliers_primitive << std::endl;
+				//std::cerr << "primitive coefficients: " << *coefficients_primitive << std::endl;
+
+				// Save the primitive inliers
+				extract.setInputCloud(cloud_filtered);
+				extract.setIndices(inliers_primitive);
+				extract.setNegative(false);
+				//pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
+				extract.filter(*cloud_primitive);
 				break;
 			case michelangelo::PRIMITIVE_CYLINDER:
+				// Create the segmentation object for primitive segmentation and set all the parameters
+				seg.setOptimizeCoefficients(true);
+				seg.setMethodType(pcl::SAC_RANSAC);
 				seg.setModelType(pcl::SACMODEL_CYLINDER);
+				seg.setNormalDistanceWeight(0.1);
+				seg.setMaxIterations(RANSAC_MAX_IT);
+				seg.setDistanceThreshold(0.05);
+				seg.setRadiusLimits(0.005, 0.050);
+				seg.setInputCloud(cloud_filtered);
+				seg.setInputNormals(cloud_normals);
+
+				// Obtain the primitive inliers and coefficients
+				seg.segment(*inliers_primitive, *coefficients_primitive);
+				//std::cerr << "primitive inliers: " << *inliers_primitive << std::endl;
+				//std::cerr << "primitive coefficients: " << *coefficients_primitive << std::endl;
+
+				// Save the primitive inliers
+				extract.setInputCloud(cloud_filtered);
+				extract.setIndices(inliers_primitive);
+				extract.setNegative(false);
+				//pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
+				extract.filter(*cloud_primitive);
 				break;
 			}
-			seg.setNormalDistanceWeight(0.1);
-			seg.setMaxIterations(RANSAC_MAX_IT);
-			seg.setDistanceThreshold(0.05);
-			seg.setRadiusLimits(0.005, 0.050);
-			seg.setInputCloud(cloud_filtered);
-			seg.setInputNormals(cloud_normals);
-
-			// Obtain the primitive inliers and coefficients
-			seg.segment(*inliers_primitive, *coefficients_primitive);
-			//std::cerr << "primitive inliers: " << *inliers_primitive << std::endl;
-			//std::cerr << "primitive coefficients: " << *coefficients_primitive << std::endl;
-
-			// Save the primitive inliers
-			extract.setInputCloud(cloud_filtered);
-			extract.setIndices(inliers_primitive);
-			extract.setNegative(false);
-			//pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
-			extract.filter(*cloud_primitive);
 
 			if (cloud_primitive->points.empty()) {
 				std::cerr << "\tCan't find the cylindrical component." << std::endl;
@@ -999,14 +1145,18 @@ int main (int argc, char** argv)
 #ifndef DEBUG
 			// ICP aligned point cloud is red
 			cloud_primitive_color_h.setInputCloud(cloud_primitive);
-			viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);
+			viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);			
 
 			/*********************************/
 
 			// Plot primitive shape
 			switch (prim) {
-			case michelangelo::PRIMITIVE_PLANE:
-				//viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
+			case michelangelo::PRIMITIVE_CUBE:				
+				//viewer.addCube(*coefficients_primitive, "cube");
+				for (int i(0); i < n_planes; ++i) {
+					arr_cloud_cube_color_h[i].setInputCloud(arr_cloud_plane[i]);
+					viewer.addPointCloud(arr_cloud_plane[i], arr_cloud_cube_color_h[i], "cloud_cube_" + std::to_string(i), vp);
+				}
 				break;
 			case michelangelo::PRIMITIVE_SPHERE:
 				viewer.addSphere(*coefficients_primitive, "sphere");
@@ -1017,10 +1167,10 @@ int main (int argc, char** argv)
 				viewer.addCylinder(*corrected_coefs_primitive, "cylinder");
 
 				// Plot cylinder longitudinal axis //PointT
-				PointT point_on_axis((*coefficients_primitive).values[0], (*coefficients_primitive).values[1], (*coefficients_primitive).values[2]);
-				PointT axis_direction(point_on_axis.x + (*coefficients_primitive).values[3], point_on_axis.y + (*coefficients_primitive).values[4], point_on_axis.z + (*coefficients_primitive).values[5]);
-				PointT cam_origin(0.0, 0.0, 0.0);
-				PointT axis_projection((*coefficients_primitive).values[3], (*coefficients_primitive).values[4], 0.0);
+				pcl::PointXYZ point_on_axis((*coefficients_primitive).values[0], (*coefficients_primitive).values[1], (*coefficients_primitive).values[2]);
+				pcl::PointXYZ axis_direction(point_on_axis.x + (*coefficients_primitive).values[3], point_on_axis.y + (*coefficients_primitive).values[4], point_on_axis.z + (*coefficients_primitive).values[5]);
+				pcl::PointXYZ cam_origin(0.0, 0.0, 0.0);
+				pcl::PointXYZ axis_projection((*coefficients_primitive).values[3], (*coefficients_primitive).values[4], 0.0);
 
 				float camAngle(90.0 * M_PI / 180);
 				michelangelo::correctAngle(axis_projection, camAngle);
