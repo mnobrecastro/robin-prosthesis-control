@@ -141,7 +141,7 @@ void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 int main (int argc, char** argv)
 {	
 	/*RawCross*/
-	/*michelangelo::Method method(michelangelo::HEURISTIC);
+	michelangelo::Method method(michelangelo::HEURISTIC);
 	michelangelo::Heuristic heumethod(michelangelo::HEU_CROSS);
 	michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
 	bool DISPARITY(false);
@@ -153,7 +153,8 @@ int main (int argc, char** argv)
 	bool DNSP_DFLT(true);
 	unsigned int N_SAMPLE(2000);
 	float MIN_SAMP_DIST(0.002);//0.002f
-	unsigned int RANSAC_MAX_IT(200);*/
+	unsigned int RANSAC_MAX_IT(200);
+	bool STRIP_MODEL_LINE(true);
 
 	/*Disparity*/
 	/*michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
@@ -165,7 +166,7 @@ int main (int argc, char** argv)
 	bool DOWNSAMPLING(true);*/
 
 	/*LCCP*/
-	michelangelo::Method method(michelangelo::SEGMENTATION);
+	/*michelangelo::Method method(michelangelo::SEGMENTATION);
 	michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
 	bool DISPARITY(false);
 	bool FILTER(true);
@@ -176,7 +177,7 @@ int main (int argc, char** argv)
 	bool DNSP_DFLT(true);
 	float MIN_SAMP_DIST(0.002);//0.002f
 	unsigned int N_SAMPLE(2000);
-	unsigned int RANSAC_MAX_IT(200);
+	unsigned int RANSAC_MAX_IT(200);*/
 
 	//  Visualiser initiallization
 	pcl::visualization::PCLVisualizer viewer("3D Viewer");
@@ -367,8 +368,10 @@ int main (int argc, char** argv)
 		pcl::NormalEstimation<PointT, pcl::Normal> ne_vertical;
 		pcl::NormalEstimation<PointT, pcl::Normal> ne_horizontal;
 		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
-		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_vertical;
-		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_horizontal;
+		//pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_vertical;
+		//pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_horizontal;
+		pcl::SACSegmentation<PointT> seg_vertical;
+		pcl::SACSegmentation<PointT> seg_horizontal;
 		pcl::ExtractIndices<PointT> extract;
 		pcl::ExtractIndices<PointT> extract_vertical;
 		pcl::ExtractIndices<PointT> extract_horizontal;
@@ -528,19 +531,22 @@ int main (int argc, char** argv)
 			continue;
 		}
 
+		
+
 		switch (method) {
-		case michelangelo::HEURISTIC:			
+		case michelangelo::HEURISTIC:
 
 			for (auto p : cloud_filtered->points) {
 				//horizontal strip
 				if (filter_lims[0][0] <= p.x && p.x <= filter_lims[0][1] &&
-						-TRIM_WIDTH / 2 <= p.y && p.y <= TRIM_WIDTH / 2 &&
-						filter_lims[2][0] <= p.z && p.z <= filter_lims[2][1]){					
+					-TRIM_WIDTH / 2 <= p.y && p.y <= TRIM_WIDTH / 2 &&
+					filter_lims[2][0] <= p.z && p.z <= filter_lims[2][1]) {
 					cloud_filt_horizontal->push_back(pcl::PointXYZ(p.x, 0.0, p.z));
-				//vertical strip
-				}else if (-TRIM_WIDTH / 2 <= p.x && p.x <= TRIM_WIDTH / 2 &&
-						filter_lims[1][0] <= p.y && p.y <= filter_lims[1][1] &&
-						filter_lims[2][0] <= p.z && p.z <= filter_lims[2][1]) {									
+					//vertical strip
+				}
+				else if (-TRIM_WIDTH / 2 <= p.x && p.x <= TRIM_WIDTH / 2 &&
+					filter_lims[1][0] <= p.y && p.y <= filter_lims[1][1] &&
+					filter_lims[2][0] <= p.z && p.z <= filter_lims[2][1]) {
 					cloud_filt_vertical->push_back(pcl::PointXYZ(0.0, p.y, p.z));
 				}
 			}
@@ -557,17 +563,26 @@ int main (int argc, char** argv)
 			ne_vertical.compute(*cloud_normals_vertical);
 			std::cout << " done." << std::endl;
 
-			// Create the segmentation object for primitive segmentation and set all the parameters			
-			seg_vertical.setOptimizeCoefficients(true);
-			seg_vertical.setMethodType(pcl::SAC_RANSAC); //RMSAC
-			seg_vertical.setModelType(pcl::SACMODEL_CIRCLE3D);
-			//seg_vertical.setModelType(pcl::SACMODEL_LINE);
-			seg_vertical.setNormalDistanceWeight(0.1);
-			seg_vertical.setMaxIterations(1000);
-			seg_vertical.setDistanceThreshold(0.001);
-			seg_vertical.setRadiusLimits(0.005, 0.050);//0.05
 			seg_vertical.setInputCloud(cloud_filt_vertical);
-			seg_vertical.setInputNormals(cloud_normals_vertical);
+			//seg_vertical.setInputNormals(cloud_normals_vertical);
+			seg_vertical.setMethodType(pcl::SAC_RANSAC); //RMSAC
+			seg_vertical.setOptimizeCoefficients(true);
+			if (!STRIP_MODEL_LINE) {
+				// Create the segmentation object for primitive segmentation and set all the parameters			
+				seg_vertical.setModelType(pcl::SACMODEL_CIRCLE3D);
+				//seg_vertical.setNormalDistanceWeight(0.1);
+				seg_vertical.setMaxIterations(1000);
+				seg_vertical.setDistanceThreshold(0.001);
+				seg_vertical.setRadiusLimits(0.005, 0.050);//0.05
+			}
+			else {
+				// Create the segmentation object for primitive segmentation and set all the parameters			
+				seg_vertical.setModelType(pcl::SACMODEL_LINE);
+				//seg_vertical.setNormalDistanceWeight(0.1);
+				seg_vertical.setMaxIterations(1000);
+				seg_vertical.setDistanceThreshold(0.001);
+			}
+
 			// Obtain the primitive inliers and coefficients
 			seg_vertical.segment(*inliers_prim_vertical, *coefficients_prim_vertical);
 			std::cerr << "prim_vertical coeffs: " << *coefficients_prim_vertical << std::endl;
@@ -587,16 +602,24 @@ int main (int argc, char** argv)
 			ne_horizontal.compute(*cloud_normals_horizontal);
 			std::cout << " done." << std::endl;
 
-			seg_horizontal.setOptimizeCoefficients(true);
-			seg_horizontal.setMethodType(pcl::SAC_RANSAC); //RMSAC
-			seg_horizontal.setModelType(pcl::SACMODEL_CIRCLE3D);
-			//seg_horizontal.setModelType(pcl::SACMODEL_LINE);
-			seg_horizontal.setNormalDistanceWeight(0.1);
-			seg_horizontal.setMaxIterations(1000);
-			seg_horizontal.setDistanceThreshold(0.001);
-			seg_horizontal.setRadiusLimits(0.005, 0.05);//0.05
 			seg_horizontal.setInputCloud(cloud_filt_horizontal);
-			seg_horizontal.setInputNormals(cloud_normals_horizontal);
+			//seg_horizontal.setInputNormals(cloud_normals_horizontal);
+			seg_horizontal.setMethodType(pcl::SAC_RANSAC); //RMSAC
+			seg_horizontal.setOptimizeCoefficients(true);
+			if (!STRIP_MODEL_LINE) {
+				seg_horizontal.setModelType(pcl::SACMODEL_CIRCLE3D);
+				//seg_horizontal.setNormalDistanceWeight(0.1);
+				seg_horizontal.setMaxIterations(1000);
+				seg_horizontal.setDistanceThreshold(0.001);
+				seg_horizontal.setRadiusLimits(0.005, 0.05);//0.05
+			}
+			else {
+				seg_horizontal.setModelType(pcl::SACMODEL_LINE);
+				//seg_horizontal.setNormalDistanceWeight(0.1);
+				seg_horizontal.setMaxIterations(1000);
+				seg_horizontal.setDistanceThreshold(0.001);
+			}
+
 			// Obtain the primitive inliers and coefficients
 			seg_horizontal.segment(*inliers_prim_horizontal, *coefficients_prim_horizontal);
 			std::cerr << "prim_horizontal coeffs: " << *coefficients_prim_horizontal << std::endl;
@@ -619,12 +642,14 @@ int main (int argc, char** argv)
 			// prim_vertical point cloud is red			
 			cloud_prim_vertical_color_h.setInputCloud(cloud_prim_vertical);
 			viewer.addPointCloud(cloud_prim_vertical, cloud_prim_vertical_color_h, "cloud_prim_vertical", vp);
-				   
+
 			if (coefficients_prim_vertical->values.size() == 7) {
 				correctCircleShape(*coefficients_prim_vertical);
 				viewer.addCylinder(*coefficients_prim_vertical, "vertical");
 			}
-			//viewer.addLine(*coefficients_prim_vertical, "vertical");
+			else {
+				viewer.addLine(*coefficients_prim_vertical, "vertical");
+			}
 
 			// prim_horizontal point cloud is red
 			cloud_prim_horizontal_color_h.setInputCloud(cloud_prim_horizontal);
@@ -633,8 +658,9 @@ int main (int argc, char** argv)
 			if (coefficients_prim_horizontal->values.size() == 7) {
 				correctCircleShape(*coefficients_prim_horizontal);
 				viewer.addCylinder(*coefficients_prim_horizontal, "horizontal");
+			}else{
+				viewer.addLine(*coefficients_prim_vertical, "horizontal");
 			}
-			//viewer.addLine(*coefficients_prim_vertical, "horizontal");
 			
 			break;
 
@@ -1021,40 +1047,63 @@ int main (int argc, char** argv)
 					++n_planes;
 				}
 
-				/*if (n_planes != 0) {
-					pcl::PointCloud<PointT>::Ptr cloud_eigen(new pcl::PointCloud<PointT>());
+				if (n_planes != 0) {
+					//pcl::PointCloud<PointT>::Ptr cloud_eigen(new pcl::PointCloud<PointT>());
 					pcl::PCA<pcl::PointXYZ> pca;
-					Eigen::Matrix3f eigenvecs;
-					Eigen::MatrixXf coeffs;
-					Eigen::Vector4f mean;
-					Eigen::Vector3f eigenvals;
-					Eigen::Quaternionf quat;
+					pca.setInputCloud(arr_cloud_plane[0]);
+					Eigen::Matrix3f eigenvecs(pca.getEigenVectors());
+					Eigen::Vector3f eigenvals(pca.getEigenValues());
+					Eigen::MatrixXf coeffs(pca.getCoefficients());
+					Eigen::Vector4f mean(pca.getMean());					
 
-					switch (n_planes) {
+					//Plane coefficients [normal_x normal_y normal_z d]
+					pcl::PointXYZ face_center(mean.x(), mean.y(), mean.z());
+					pcl::PointXYZ cube_center(face_center.x + arr_coeffs_plane[0]->values[0] * 0.025, face_center.y + arr_coeffs_plane[0]->values[1] * 0.025, face_center.z + arr_coeffs_plane[0]->values[2] * 0.025);
+					Eigen::Quaternionf quat;
+					Eigen::Vector3f v1(0.0, 0.0, 1.0);
+					Eigen::Vector3f v2(arr_coeffs_plane[0]->values[0], arr_coeffs_plane[0]->values[1], arr_coeffs_plane[0]->values[2]);
+					quat.setFromTwoVectors(v1, v2);
+
+					//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+					coefficients_primitive->values.push_back(cube_center.x); //Tx
+					coefficients_primitive->values.push_back(cube_center.y); //Ty
+					coefficients_primitive->values.push_back(cube_center.z); //Tz
+					coefficients_primitive->values.push_back(quat.x()); //Qx
+					coefficients_primitive->values.push_back(quat.y()); //Qy
+					coefficients_primitive->values.push_back(quat.z()); //Qz
+					coefficients_primitive->values.push_back(quat.w()); //Qw
+					coefficients_primitive->values.push_back(0.050); //width
+					coefficients_primitive->values.push_back(0.050); //height
+					coefficients_primitive->values.push_back(0.050); //depth
+
+
+					/*switch (n_planes) {
 					case 1:
 						//Plane coefficients [normal_x normal_y normal_z d]
 						pca.setInputCloud(arr_cloud_plane[0]);
-						eigenvecs = pca.getEigenVectors();
+						eigenvecs.data( = pca.getEigenVectors();
 						coeffs = pca.getCoefficients();
 						mean = pca.getMean();
-						eigenvals = pca.getEigenValues();
+						//eigenvals = pca.getEigenValues();
 
+						// Plot cubeface normal
+						pcl::PointXYZ face_center(mean.x(), mean.y(), mean.z());
+						pcl::PointXYZ face_normal(face_center.x + arr_coeffs_plane[0]->values[0] * 0.025, face_center.y + arr_coeffs_plane[0]->values[1] * 0.025, face_center.z + arr_coeffs_plane[0]->values[2] * 0.025);
+						//viewer.addLine(face_center, face_normal, "normal_cubeface_" + std::to_string(1));
 						
-						//pca.project(arr_cloud_plane[0], *cloud_eigen);
-						
-						//arr_coeffs_plane[0];						
+						//pca.project(arr_cloud_plane[0], *cloud_eigen);				
 
 						//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
-						//coefficients_primitive->values.push_back(); //Tx
-						//coefficients_primitive->values.push_back(); //Ty
-						//coefficients_primitive->values.push_back(); //Tz
-						//coefficients_primitive->values.push_back(); //Qx
-						//coefficients_primitive->values.push_back(); //Qy
-						//coefficients_primitive->values.push_back(); //Qz
-						//coefficients_primitive->values.push_back(); //Qw
-						//coefficients_primitive->values.push_back(); //width
-						//coefficients_primitive->values.push_back(); //height
-						//coefficients_primitive->values.push_back(); //depth
+						coefficients_primitive->values.push_back(face_normal.x); //Tx
+						coefficients_primitive->values.push_back(face_normal.y); //Ty
+						coefficients_primitive->values.push_back(face_normal.z); //Tz
+						coefficients_primitive->values.push_back(0.0); //Qx
+						coefficients_primitive->values.push_back(0.0); //Qy
+						coefficients_primitive->values.push_back(0.0); //Qz
+						coefficients_primitive->values.push_back(1.0); //Qw
+						coefficients_primitive->values.push_back(0.050); //width
+						coefficients_primitive->values.push_back(0.050); //height
+						coefficients_primitive->values.push_back(0.050); //depth
 						break;
 
 					case 2:
@@ -1068,10 +1117,10 @@ int main (int argc, char** argv)
 						//cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
 						//coefficients_primitive->values.push_back();
 						break;
-					}
+					}*/
 				}else {
 					continue;
-				}*/
+				}
 
 
 				break;
@@ -1151,12 +1200,22 @@ int main (int argc, char** argv)
 
 			// Plot primitive shape
 			switch (prim) {
-			case michelangelo::PRIMITIVE_CUBE:				
-				//viewer.addCube(*coefficients_primitive, "cube");
-				for (int i(0); i < n_planes; ++i) {
+			case michelangelo::PRIMITIVE_CUBE:							
+				for (size_t i(0); i < n_planes; ++i) {
+
+					// Plot cubeface cloud
 					arr_cloud_cube_color_h[i].setInputCloud(arr_cloud_plane[i]);
-					viewer.addPointCloud(arr_cloud_plane[i], arr_cloud_cube_color_h[i], "cloud_cube_" + std::to_string(i), vp);
+					viewer.addPointCloud(arr_cloud_plane[i], arr_cloud_cube_color_h[i], "cloud_cubeface_" + std::to_string(i), vp);
+
+					// Plot cubeface normal
+					pcl::PCA<pcl::PointXYZ> pca;
+					pca.setInputCloud(arr_cloud_plane[i]);
+					Eigen::Vector4f mean(pca.getMean());
+					pcl::PointXYZ face_center(mean.x()*0.01, mean.y()*0.01, mean.z()*0.01);
+					pcl::PointXYZ face_normal(face_center.x + arr_coeffs_plane[i]->values[0], face_center.y + arr_coeffs_plane[i]->values[1], face_center.z + arr_coeffs_plane[i]->values[2]);
+					viewer.addLine(face_center, face_normal, "normal_cubeface_" + std::to_string(i));
 				}
+				viewer.addCube(*coefficients_primitive, "cube");
 				break;
 			case michelangelo::PRIMITIVE_SPHERE:
 				viewer.addSphere(*coefficients_primitive, "sphere");
