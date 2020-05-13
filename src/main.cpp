@@ -140,6 +140,8 @@ void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 
 int main (int argc, char** argv)
 {	
+	bool RENDER(true);
+
 	/*RawCross*/
 	michelangelo::Method method(michelangelo::HEURISTIC);
 	michelangelo::Heuristic heumethod(michelangelo::HEU_CROSS);
@@ -167,6 +169,7 @@ int main (int argc, char** argv)
 
 	/*LCCP*/
 	/*michelangelo::Method method(michelangelo::SEGMENTATION);
+	michelangelo::Heuristic heumethod;
 	michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
 	bool DISPARITY(false);
 	bool FILTER(true);
@@ -177,7 +180,8 @@ int main (int argc, char** argv)
 	bool DNSP_DFLT(true);
 	float MIN_SAMP_DIST(0.002);//0.002f
 	unsigned int N_SAMPLE(2000);
-	unsigned int RANSAC_MAX_IT(200);*/
+	unsigned int RANSAC_MAX_IT(200);
+	bool STRIP_MODEL_LINE;*/
 
 	//  Visualiser initiallization
 	pcl::visualization::PCLVisualizer viewer("3D Viewer");
@@ -368,10 +372,10 @@ int main (int argc, char** argv)
 		pcl::NormalEstimation<PointT, pcl::Normal> ne_vertical;
 		pcl::NormalEstimation<PointT, pcl::Normal> ne_horizontal;
 		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
-		//pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_vertical;
-		//pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_horizontal;
-		pcl::SACSegmentation<PointT> seg_vertical;
-		pcl::SACSegmentation<PointT> seg_horizontal;
+		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_vertical;
+		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_horizontal;
+		//pcl::SACSegmentation<PointT> seg_vertical;
+		//pcl::SACSegmentation<PointT> seg_horizontal;
 		pcl::ExtractIndices<PointT> extract;
 		pcl::ExtractIndices<PointT> extract_vertical;
 		pcl::ExtractIndices<PointT> extract_horizontal;
@@ -424,8 +428,10 @@ int main (int argc, char** argv)
 
 		// -------------------
 
-		viewer.removeAllShapes();
-		viewer.removeAllPointClouds();
+		if (RENDER) {
+			viewer.removeAllShapes();
+			viewer.removeAllPointClouds();
+		}
 
 #if INPUT_CAMERA == REALSENSE_D435
 
@@ -519,19 +525,17 @@ int main (int argc, char** argv)
 				<< " data points (in " << time.toc() << " ms)." << std::endl; //pcl::getFieldsList(*cloud_filtered)
 		}
 
-#ifndef DEBUG
-		// Draw filtered PointCloud
-		cloud_filtered_in_color_h.setInputCloud(cloud_filtered);
-		viewer.addPointCloud(cloud_filtered, cloud_filtered_in_color_h, "cloud_filtered_in", vp);
-#endif //DEBUG
+		if (RENDER) {
+			// Draw filtered PointCloud
+			cloud_filtered_in_color_h.setInputCloud(cloud_filtered);
+			viewer.addPointCloud(cloud_filtered, cloud_filtered_in_color_h, "cloud_filtered_in", vp);
+		}
 
 		if (cloud_filtered->points.size() < 100) {
 			std::cerr << "* Not enough points to perform segmentation." << std::endl;
 			std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 			continue;
 		}
-
-		
 
 		switch (method) {
 		case michelangelo::HEURISTIC:
@@ -564,13 +568,13 @@ int main (int argc, char** argv)
 			std::cout << " done." << std::endl;
 
 			seg_vertical.setInputCloud(cloud_filt_vertical);
-			//seg_vertical.setInputNormals(cloud_normals_vertical);
+			seg_vertical.setInputNormals(cloud_normals_vertical);
 			seg_vertical.setMethodType(pcl::SAC_RANSAC); //RMSAC
 			seg_vertical.setOptimizeCoefficients(true);
 			if (!STRIP_MODEL_LINE) {
 				// Create the segmentation object for primitive segmentation and set all the parameters			
 				seg_vertical.setModelType(pcl::SACMODEL_CIRCLE3D);
-				//seg_vertical.setNormalDistanceWeight(0.1);
+				seg_vertical.setNormalDistanceWeight(0.1);
 				seg_vertical.setMaxIterations(1000);
 				seg_vertical.setDistanceThreshold(0.001);
 				seg_vertical.setRadiusLimits(0.005, 0.050);//0.05
@@ -578,7 +582,7 @@ int main (int argc, char** argv)
 			else {
 				// Create the segmentation object for primitive segmentation and set all the parameters			
 				seg_vertical.setModelType(pcl::SACMODEL_LINE);
-				//seg_vertical.setNormalDistanceWeight(0.1);
+				seg_vertical.setNormalDistanceWeight(0.1);
 				seg_vertical.setMaxIterations(1000);
 				seg_vertical.setDistanceThreshold(0.001);
 			}
@@ -603,19 +607,19 @@ int main (int argc, char** argv)
 			std::cout << " done." << std::endl;
 
 			seg_horizontal.setInputCloud(cloud_filt_horizontal);
-			//seg_horizontal.setInputNormals(cloud_normals_horizontal);
+			seg_horizontal.setInputNormals(cloud_normals_horizontal);
 			seg_horizontal.setMethodType(pcl::SAC_RANSAC); //RMSAC
 			seg_horizontal.setOptimizeCoefficients(true);
 			if (!STRIP_MODEL_LINE) {
 				seg_horizontal.setModelType(pcl::SACMODEL_CIRCLE3D);
-				//seg_horizontal.setNormalDistanceWeight(0.1);
+				seg_horizontal.setNormalDistanceWeight(0.1);
 				seg_horizontal.setMaxIterations(1000);
 				seg_horizontal.setDistanceThreshold(0.001);
 				seg_horizontal.setRadiusLimits(0.005, 0.05);//0.05
 			}
 			else {
 				seg_horizontal.setModelType(pcl::SACMODEL_LINE);
-				//seg_horizontal.setNormalDistanceWeight(0.1);
+				seg_horizontal.setNormalDistanceWeight(0.1);
 				seg_horizontal.setMaxIterations(1000);
 				seg_horizontal.setDistanceThreshold(0.001);
 			}
@@ -639,27 +643,30 @@ int main (int argc, char** argv)
 				std::cerr << "PointCloud PRIMITIVE: " << cloud_prim_vertical->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 			}
 
-			// prim_vertical point cloud is red			
-			cloud_prim_vertical_color_h.setInputCloud(cloud_prim_vertical);
-			viewer.addPointCloud(cloud_prim_vertical, cloud_prim_vertical_color_h, "cloud_prim_vertical", vp);
+			if (RENDER) {
+				// prim_vertical point cloud is red			
+				cloud_prim_vertical_color_h.setInputCloud(cloud_prim_vertical);
+				viewer.addPointCloud(cloud_prim_vertical, cloud_prim_vertical_color_h, "cloud_prim_vertical", vp);
 
-			if (coefficients_prim_vertical->values.size() == 7) {
-				correctCircleShape(*coefficients_prim_vertical);
-				viewer.addCylinder(*coefficients_prim_vertical, "vertical");
-			}
-			else {
-				viewer.addLine(*coefficients_prim_vertical, "vertical");
-			}
+				if (coefficients_prim_vertical->values.size() == 7) {
+					correctCircleShape(*coefficients_prim_vertical);
+					viewer.addCylinder(*coefficients_prim_vertical, "vertical");
+				}
+				else {
+					viewer.addLine(*coefficients_prim_vertical, "vertical");
+				}
 
-			// prim_horizontal point cloud is red
-			cloud_prim_horizontal_color_h.setInputCloud(cloud_prim_horizontal);
-			viewer.addPointCloud(cloud_prim_horizontal, cloud_prim_horizontal_color_h, "cloud_prim_horizontal", vp);
+				// prim_horizontal point cloud is red
+				cloud_prim_horizontal_color_h.setInputCloud(cloud_prim_horizontal);
+				viewer.addPointCloud(cloud_prim_horizontal, cloud_prim_horizontal_color_h, "cloud_prim_horizontal", vp);
 
-			if (coefficients_prim_horizontal->values.size() == 7) {
-				correctCircleShape(*coefficients_prim_horizontal);
-				viewer.addCylinder(*coefficients_prim_horizontal, "horizontal");
-			}else{
-				viewer.addLine(*coefficients_prim_vertical, "horizontal");
+				if (coefficients_prim_horizontal->values.size() == 7) {
+					correctCircleShape(*coefficients_prim_horizontal);
+					viewer.addCylinder(*coefficients_prim_horizontal, "horizontal");
+				}
+				else {
+					viewer.addLine(*coefficients_prim_vertical, "horizontal");
+				}
 			}
 			
 			break;
@@ -810,23 +817,27 @@ int main (int argc, char** argv)
 					<< "\n\tz: " << "[" << bounds_cylinder[4] << "," << bounds_cylinder[5] << "]"
 					<< std::endl;*/
 
-#ifndef DEBUG
-				// ICP aligned point cloud is red
-				cloud_primitive_color_h.setInputCloud(cloud_primitive);
-				viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);
+				if (RENDER) {
+					// ICP aligned point cloud is red
+					cloud_primitive_color_h.setInputCloud(cloud_primitive);
+					viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);
+				}
 
 				// Plot primitive shape
 				switch (prim) {
 				case michelangelo::PRIMITIVE_CUBE:
-					//viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
+					if (RENDER) {
+						//viewer.addCylinder(*corrected_coefs_cylinder, "cylinder");
+					}
 					break;
 				case michelangelo::PRIMITIVE_SPHERE:
-					viewer.addSphere(*coefficients_primitive, "sphere");
+					if (RENDER) {
+						viewer.addSphere(*coefficients_primitive, "sphere");
+					}
 					break;
 				case michelangelo::PRIMITIVE_CYLINDER:
 					pcl::ModelCoefficients::Ptr corrected_coefs_primitive(new pcl::ModelCoefficients);
-					correctCylShape(*corrected_coefs_primitive, *coefficients_primitive, *cloud_primitive);
-					viewer.addCylinder(*corrected_coefs_primitive, "cylinder");
+					correctCylShape(*corrected_coefs_primitive, *coefficients_primitive, *cloud_primitive);					
 
 					// Plot cylinder longitudinal axis //PointT
 					PointT point_on_axis((*coefficients_primitive).values[0], (*coefficients_primitive).values[1], (*coefficients_primitive).values[2]);
@@ -836,9 +847,11 @@ int main (int argc, char** argv)
 
 					float camAngle(90.0 * M_PI / 180);
 					michelangelo::correctAngle(axis_projection, camAngle);
-#ifndef DEBUG
-					viewer.addLine(cam_origin, axis_projection, "line");
-#endif //DEBUG
+					
+					if (RENDER) {
+						viewer.addCylinder(*corrected_coefs_primitive, "cylinder");
+						viewer.addLine(cam_origin, axis_projection, "line");
+					}
 
 					// Calculate the angular difference			
 					//float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
@@ -847,7 +860,6 @@ int main (int argc, char** argv)
 					std::cout << "* Current angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
 
 #endif	// PRIMITIVE_MODEL
-#endif //DEBUG
 					break;
 				}
 
@@ -1191,39 +1203,41 @@ int main (int argc, char** argv)
 				<< "\n\tz: " << "[" << bounds_cylinder[4] << "," << bounds_cylinder[5] << "]"
 				<< std::endl;*/
 
-#ifndef DEBUG
-			// ICP aligned point cloud is red
-			cloud_primitive_color_h.setInputCloud(cloud_primitive);
-			viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);			
-
+			if (RENDER) {
+				// ICP aligned point cloud is red
+				cloud_primitive_color_h.setInputCloud(cloud_primitive);
+				viewer.addPointCloud(cloud_primitive, cloud_primitive_color_h, "cloud_primitive", vp);
+			}
 			/*********************************/
 
 			// Plot primitive shape
 			switch (prim) {
 			case michelangelo::PRIMITIVE_CUBE:							
-				for (size_t i(0); i < n_planes; ++i) {
+				if (RENDER) {
+					for (size_t i(0); i < n_planes; ++i) {
+						// Plot cubeface cloud
+						arr_cloud_cube_color_h[i].setInputCloud(arr_cloud_plane[i]);
+						viewer.addPointCloud(arr_cloud_plane[i], arr_cloud_cube_color_h[i], "cloud_cubeface_" + std::to_string(i), vp);
 
-					// Plot cubeface cloud
-					arr_cloud_cube_color_h[i].setInputCloud(arr_cloud_plane[i]);
-					viewer.addPointCloud(arr_cloud_plane[i], arr_cloud_cube_color_h[i], "cloud_cubeface_" + std::to_string(i), vp);
-
-					// Plot cubeface normal
-					pcl::PCA<pcl::PointXYZ> pca;
-					pca.setInputCloud(arr_cloud_plane[i]);
-					Eigen::Vector4f mean(pca.getMean());
-					pcl::PointXYZ face_center(mean.x()*0.01, mean.y()*0.01, mean.z()*0.01);
-					pcl::PointXYZ face_normal(face_center.x + arr_coeffs_plane[i]->values[0], face_center.y + arr_coeffs_plane[i]->values[1], face_center.z + arr_coeffs_plane[i]->values[2]);
-					viewer.addLine(face_center, face_normal, "normal_cubeface_" + std::to_string(i));
+						// Plot cubeface normal
+						pcl::PCA<pcl::PointXYZ> pca;
+						pca.setInputCloud(arr_cloud_plane[i]);
+						Eigen::Vector4f mean(pca.getMean());
+						pcl::PointXYZ face_center(mean.x() * 0.01, mean.y() * 0.01, mean.z() * 0.01);
+						pcl::PointXYZ face_normal(face_center.x + arr_coeffs_plane[i]->values[0], face_center.y + arr_coeffs_plane[i]->values[1], face_center.z + arr_coeffs_plane[i]->values[2]);
+						viewer.addLine(face_center, face_normal, "normal_cubeface_" + std::to_string(i));
+					}
+					viewer.addCube(*coefficients_primitive, "cube");
 				}
-				viewer.addCube(*coefficients_primitive, "cube");
 				break;
 			case michelangelo::PRIMITIVE_SPHERE:
-				viewer.addSphere(*coefficients_primitive, "sphere");
+				if (RENDER) {
+					viewer.addSphere(*coefficients_primitive, "sphere");
+				}
 				break;
 			case michelangelo::PRIMITIVE_CYLINDER:
 				pcl::ModelCoefficients::Ptr corrected_coefs_primitive(new pcl::ModelCoefficients);
 				correctCylShape(*corrected_coefs_primitive, *coefficients_primitive, *cloud_primitive);
-				viewer.addCylinder(*corrected_coefs_primitive, "cylinder");
 
 				// Plot cylinder longitudinal axis //PointT
 				pcl::PointXYZ point_on_axis((*coefficients_primitive).values[0], (*coefficients_primitive).values[1], (*coefficients_primitive).values[2]);
@@ -1233,24 +1247,27 @@ int main (int argc, char** argv)
 
 				float camAngle(90.0 * M_PI / 180);
 				michelangelo::correctAngle(axis_projection, camAngle);
-#ifndef DEBUG
-				viewer.addLine(cam_origin, axis_projection, "line");
-#endif //DEBUG
+
+				if (RENDER) {
+					viewer.addCylinder(*corrected_coefs_primitive, "cylinder");
+					viewer.addLine(cam_origin, axis_projection, "line");
+				}
 
 				// Calculate the angular difference			
 				//float dTheta(M_PI - std::atan2(axis_projection.y, axis_projection.x));
 				float dTheta(michelangelo::readAngle(axis_projection));
 				std::string action(michelangelo::setAction(dTheta));
-				std::cout << "* Current angle: " << dTheta * 180 / M_PI << "\tAction: " << action << std::endl;
+				std::cout << "* Current angle: " << dTheta * float(180) / M_PI << "\tAction: " << action << std::endl;
 
 #endif	// PRIMITIVE_MODEL
-#endif //DEBUG
 				break;
 			}
 
 		}
 #endif //ABCD
-		viewer.spinOnce(1, true);
+		if (RENDER) {
+			viewer.spinOnce(1, true);
+		}
 		std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 	}
 
