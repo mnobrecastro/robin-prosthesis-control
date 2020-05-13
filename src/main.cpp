@@ -49,8 +49,10 @@ std::array<float, 6> getPointCloudBoundaries(const pcl::PointCloud<PointT>&);
 std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>&, std::vector<uint32_t>&, std::vector<std::array<float, 3>>&);
 uint32_t selCentroidLCCP(const std::vector<uint32_t>&, const std::vector<std::array<float, 3>>&);
 void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>&, pcl::PointCloud<pcl::PointXYZ>&, uint32_t);
-void correctCylShape(pcl::ModelCoefficients&, const pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
+void correctLineShape(pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
 void correctCircleShape(pcl::ModelCoefficients&);
+void correctCylShape(pcl::ModelCoefficients&, const pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
+
 
 namespace michelangelo {
 	enum Primitive {
@@ -151,7 +153,7 @@ int main (int argc, char** argv)
 	bool FILT_DFLT(false);
 	char TRIM_TYPE('+');
 	float TRIM_WIDTH(0.010);//0.01
-	bool DOWNSAMPLING(true); //try 'false' later
+	bool DOWNSAMPLING(true); //'false'->rawdata slows down.
 	bool DNSP_DFLT(true);
 	unsigned int N_SAMPLE(2000);
 	float MIN_SAMP_DIST(0.002);//0.002f
@@ -372,10 +374,8 @@ int main (int argc, char** argv)
 		pcl::NormalEstimation<PointT, pcl::Normal> ne_vertical;
 		pcl::NormalEstimation<PointT, pcl::Normal> ne_horizontal;
 		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
-		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_vertical;
-		pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg_horizontal;
-		//pcl::SACSegmentation<PointT> seg_vertical;
-		//pcl::SACSegmentation<PointT> seg_horizontal;
+		pcl::SACSegmentation<PointT> seg_vertical;
+		pcl::SACSegmentation<PointT> seg_horizontal;
 		pcl::ExtractIndices<PointT> extract;
 		pcl::ExtractIndices<PointT> extract_vertical;
 		pcl::ExtractIndices<PointT> extract_horizontal;
@@ -559,30 +559,17 @@ int main (int argc, char** argv)
 
 			// VERTICAL STRIP
 
-			// Estimate point normals
-			std::cout << "Computing normals...";
-			ne_vertical.setSearchMethod(tree_vertical);
-			ne_vertical.setInputCloud(cloud_filt_vertical);
-			ne_vertical.setKSearch(50);
-			ne_vertical.compute(*cloud_normals_vertical);
-			std::cout << " done." << std::endl;
-
+			// Create the segmentation object for primitive segmentation
 			seg_vertical.setInputCloud(cloud_filt_vertical);
-			seg_vertical.setInputNormals(cloud_normals_vertical);
 			seg_vertical.setMethodType(pcl::SAC_RANSAC); //RMSAC
 			seg_vertical.setOptimizeCoefficients(true);
-			if (!STRIP_MODEL_LINE) {
-				// Create the segmentation object for primitive segmentation and set all the parameters			
+			if (!STRIP_MODEL_LINE) {							
 				seg_vertical.setModelType(pcl::SACMODEL_CIRCLE3D);
-				seg_vertical.setNormalDistanceWeight(0.1);
 				seg_vertical.setMaxIterations(1000);
 				seg_vertical.setDistanceThreshold(0.001);
 				seg_vertical.setRadiusLimits(0.005, 0.050);//0.05
-			}
-			else {
-				// Create the segmentation object for primitive segmentation and set all the parameters			
+			} else {		
 				seg_vertical.setModelType(pcl::SACMODEL_LINE);
-				seg_vertical.setNormalDistanceWeight(0.1);
 				seg_vertical.setMaxIterations(1000);
 				seg_vertical.setDistanceThreshold(0.001);
 			}
@@ -598,28 +585,17 @@ int main (int argc, char** argv)
 
 			// HORIZONTAL STRIP
 
-			// Estimate point normals
-			std::cout << "Computing normals...";
-			ne_horizontal.setSearchMethod(tree_horizontal);
-			ne_horizontal.setInputCloud(cloud_filt_horizontal);
-			ne_horizontal.setKSearch(50);
-			ne_horizontal.compute(*cloud_normals_horizontal);
-			std::cout << " done." << std::endl;
-
+			// Create the segmentation object for primitive segmentation
 			seg_horizontal.setInputCloud(cloud_filt_horizontal);
-			seg_horizontal.setInputNormals(cloud_normals_horizontal);
 			seg_horizontal.setMethodType(pcl::SAC_RANSAC); //RMSAC
 			seg_horizontal.setOptimizeCoefficients(true);
 			if (!STRIP_MODEL_LINE) {
 				seg_horizontal.setModelType(pcl::SACMODEL_CIRCLE3D);
-				seg_horizontal.setNormalDistanceWeight(0.1);
 				seg_horizontal.setMaxIterations(1000);
 				seg_horizontal.setDistanceThreshold(0.001);
 				seg_horizontal.setRadiusLimits(0.005, 0.05);//0.05
-			}
-			else {
+			} else {
 				seg_horizontal.setModelType(pcl::SACMODEL_LINE);
-				seg_horizontal.setNormalDistanceWeight(0.1);
 				seg_horizontal.setMaxIterations(1000);
 				seg_horizontal.setDistanceThreshold(0.001);
 			}
@@ -653,6 +629,7 @@ int main (int argc, char** argv)
 					viewer.addCylinder(*coefficients_prim_vertical, "vertical");
 				}
 				else {
+					correctLineShape(*coefficients_prim_vertical, *cloud_prim_vertical);
 					viewer.addLine(*coefficients_prim_vertical, "vertical");
 				}
 
@@ -665,7 +642,8 @@ int main (int argc, char** argv)
 					viewer.addCylinder(*coefficients_prim_horizontal, "horizontal");
 				}
 				else {
-					viewer.addLine(*coefficients_prim_vertical, "horizontal");
+					correctLineShape(*coefficients_prim_horizontal, *cloud_prim_horizontal);
+					viewer.addLine(*coefficients_prim_horizontal, "horizontal");
 				}
 			}
 			
@@ -1450,6 +1428,46 @@ void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl:
 	}
 }
 
+void correctLineShape(pcl::ModelCoefficients& line, const pcl::PointCloud<PointT>& cloud)
+{
+	pcl::PointXYZ point_on_axis(line.values[0], line.values[1], line.values[2]);
+	pcl::PointXYZ axis_direction(line.values[3], line.values[4], line.values[5]);
+	std::array<float, 2> arr(getPointCloudExtremes(cloud, point_on_axis, axis_direction));
+
+	pcl::PointXYZ point_bottom;
+	point_bottom.x = point_on_axis.x + arr[0] * axis_direction.x / normPointT(axis_direction);
+	point_bottom.y = point_on_axis.y + arr[0] * axis_direction.y / normPointT(axis_direction);
+	point_bottom.z = point_on_axis.z + arr[0] * axis_direction.z / normPointT(axis_direction);
+	pcl::PointXYZ bottom_top_direction;
+	bottom_top_direction.x = (-arr[0] + arr[1]) * axis_direction.x / normPointT(axis_direction);
+	bottom_top_direction.y = (-arr[0] + arr[1]) * axis_direction.y / normPointT(axis_direction);
+	bottom_top_direction.z = (-arr[0] + arr[1]) * axis_direction.z / normPointT(axis_direction);
+
+	line.values[0] = point_bottom.x;
+	line.values[1] = point_bottom.y;
+	line.values[2] = point_bottom.z;
+	line.values[3] = bottom_top_direction.x;
+	line.values[4] = bottom_top_direction.y;
+	line.values[5] = bottom_top_direction.z;
+}
+
+void correctCircleShape(pcl::ModelCoefficients& circle)
+{
+	std::array<float, 3> circle_normal = { circle.values[4],circle.values[5],circle.values[6] };
+	circle.values[6] = circle.values[3];
+	if (std::abs(circle_normal[0]) > 0.5) {
+		circle.values[3] = 0.001;
+	} else {
+		circle.values[3] = circle_normal[0];
+	}
+	if (std::abs(circle_normal[1]) > 0.5) {
+		circle.values[4] = 0.001;
+	} else {
+		circle.values[4] = circle_normal[1];
+	}
+	circle.values[5] = circle_normal[2];
+}
+
 void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& coefficients, const pcl::PointCloud<PointT>& cloud)
 {
 	pcl::PointXYZ point_on_axis(coefficients.values[0], coefficients.values[1], coefficients.values[2]);
@@ -1472,23 +1490,6 @@ void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& 
 	cyl.values.push_back(bottom_top_direction.y);
 	cyl.values.push_back(bottom_top_direction.z);
 	cyl.values.push_back(coefficients.values[6]);
-}
-
-void correctCircleShape(pcl::ModelCoefficients& circle)
-{
-	std::array<float, 3> circle_normal = { circle.values[4],circle.values[5],circle.values[6] };
-	circle.values[6] = circle.values[3];
-	if (std::abs(circle_normal[0]) > 0.5) {
-		circle.values[3] = 0.001;
-	} else {
-		circle.values[3] = circle_normal[0];
-	}
-	if (std::abs(circle_normal[1]) > 0.5) {
-		circle.values[4] = 0.001;
-	} else {
-		circle.values[4] = circle_normal[1];
-	}
-	circle.values[5] = circle_normal[2];
 }
 
 void michelangelo::correctAngle(pcl::PointXYZ& axis_projection, float camAngle)
