@@ -148,15 +148,16 @@ int main (int argc, char** argv)
 	michelangelo::Method method(michelangelo::HEURISTIC);
 	michelangelo::Heuristic heumethod(michelangelo::HEU_CROSS);
 	michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
+	unsigned int MIN_POINTS_PROCEED(50);
 	bool DISPARITY(false);
 	bool FILTER(true);
 	bool FILT_DFLT(false);
 	char TRIM_TYPE('+');
-	float TRIM_WIDTH(0.010);//0.01
+	float TRIM_WIDTH(0.005);//0.010
 	bool DOWNSAMPLING(true); //'false'->rawdata slows down.
 	bool DNSP_DFLT(true);
 	unsigned int N_SAMPLE(2000);
-	float MIN_SAMP_DIST(0.002);//0.002f
+	float MIN_SAMP_DIST(0.001);//0.002f
 	unsigned int RANSAC_MAX_IT(200);
 	bool STRIP_MODEL_LINE(true);
 
@@ -173,6 +174,7 @@ int main (int argc, char** argv)
 	/*michelangelo::Method method(michelangelo::SEGMENTATION);
 	michelangelo::Heuristic heumethod;
 	michelangelo::Segmentation segmethod(michelangelo::SEG_LCCP);
+	unsigned int MIN_POINTS_PROCEED(100);
 	bool DISPARITY(false);
 	bool FILTER(true);
 	bool FILT_DFLT(false);
@@ -251,7 +253,7 @@ int main (int argc, char** argv)
 	if (!DISPARITY) {
 		filter_lims[0] = { -0.100, 0.100 };
 		filter_lims[1] = { -0.100, 0.100 };
-		filter_lims[2] = { 0.000, 0.200 }; // realsense depth neg z-axis (MinZ 0.110m)
+		filter_lims[2] = { 0.050, 0.200 }; // realsense depth neg z-axis (MinZ 0.110m)
 	} else {
 		filter_lims[0] = { -0.050, 0.050 };
 		filter_lims[1] = { -0.050, 0.050 };
@@ -345,14 +347,12 @@ int main (int argc, char** argv)
 		pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
 		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
 		pcl::PointCloud<PointT>::Ptr cloud_filt_vertical(new pcl::PointCloud<PointT>);
-		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals_vertical(new pcl::PointCloud<pcl::Normal>);
 		pcl::PointCloud<PointT>::Ptr cloud_filt_horizontal(new pcl::PointCloud<PointT>);
-		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals_horizontal(new pcl::PointCloud<pcl::Normal>);
 		pcl::PointCloud<PointT>::Ptr cloud_filtered2(new pcl::PointCloud<PointT>);
 		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals2(new pcl::PointCloud<pcl::Normal>);
 		pcl::PointCloud<PointT>::Ptr cloud_primitive(new pcl::PointCloud<PointT>());
-		pcl::PointCloud<PointT>::Ptr cloud_prim_vertical(new pcl::PointCloud<PointT>());
-		pcl::PointCloud<PointT>::Ptr cloud_prim_horizontal(new pcl::PointCloud<PointT>());
+		std::array<pcl::PointCloud<PointT>::Ptr,2> arr_cloud_prim_vertical;
+		std::array<pcl::PointCloud<PointT>::Ptr,2> arr_cloud_prim_horizontal;
 		std::array<pcl::PointCloud<PointT>::Ptr,3> arr_cloud_plane;
 
 		pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_in_color_h((int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl);
@@ -377,8 +377,8 @@ int main (int argc, char** argv)
 		pcl::SACSegmentation<PointT> seg_vertical;
 		pcl::SACSegmentation<PointT> seg_horizontal;
 		pcl::ExtractIndices<PointT> extract;
-		pcl::ExtractIndices<PointT> extract_vertical;
-		pcl::ExtractIndices<PointT> extract_horizontal;
+		//pcl::ExtractIndices<PointT> extract_vertical;
+		//pcl::ExtractIndices<PointT> extract_horizontal;
 		pcl::ExtractIndices<pcl::Normal> extract_normals;
 		pcl::ExtractIndices<pcl::Normal> extract_normals_vertical;
 		pcl::ExtractIndices<pcl::Normal> extract_normals_horizontal;
@@ -386,9 +386,13 @@ int main (int argc, char** argv)
 		pcl::search::KdTree<PointT>::Ptr tree_vertical(new pcl::search::KdTree<PointT>());
 		pcl::search::KdTree<PointT>::Ptr tree_horizontal(new pcl::search::KdTree<PointT>());
 
-		pcl::ModelCoefficients::Ptr coefficients_plane(new pcl::ModelCoefficients), coefficients_primitive(new pcl::ModelCoefficients), coefficients_prim_vertical(new pcl::ModelCoefficients), coefficients_prim_horizontal(new pcl::ModelCoefficients);
+		pcl::ModelCoefficients::Ptr coefficients_plane(new pcl::ModelCoefficients), coefficients_primitive(new pcl::ModelCoefficients);
+		std::array<pcl::ModelCoefficients::Ptr, 2> arr_coeffs_prim_vertical;
+		std::array<pcl::ModelCoefficients::Ptr, 2> arr_coeffs_prim_horizontal;
 		std::array<pcl::ModelCoefficients::Ptr, 3> arr_coeffs_plane;
-		pcl::PointIndices::Ptr inliers_plane(new pcl::PointIndices), inliers_primitive(new pcl::PointIndices), inliers_prim_vertical(new pcl::PointIndices), inliers_prim_horizontal(new pcl::PointIndices);
+		pcl::PointIndices::Ptr inliers_plane(new pcl::PointIndices), inliers_primitive(new pcl::PointIndices);
+		std::array<pcl::PointIndices::Ptr, 2> arr_inliers_prim_vertical;
+		std::array<pcl::PointIndices::Ptr, 2> arr_inliers_prim_horizontal;
 		std::array<pcl::PointIndices::Ptr, 3> arr_inls_plane;
 
 		// PCL Primitive
@@ -464,10 +468,14 @@ int main (int argc, char** argv)
 		viewer.addPointCloud(cloud, cloud_in_color_h, "cloud_in", vp);
 #endif //DEBUG
 
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// CROPPING + DOWNSAMPLING
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 		if (FILTER) {
 			time.tic();
 			// Build a passthrough filter to remove unwated points
-			if (FILT_DFLT) {				
+			if (FILT_DFLT) {
 				pass.setInputCloud(cloud);
 				pass.setFilterFieldName("x");
 				pass.setFilterLimits(filter_lims[0][0], filter_lims[0][1]);
@@ -495,8 +503,7 @@ int main (int argc, char** argv)
 		} else {
 			pcl::copyPointCloud(*cloud, *cloud_filtered);
 		}
-
-		
+				
 		if (DOWNSAMPLING) {
 			time.tic();
 			// Downsampling the filtered point cloud
@@ -526,15 +533,30 @@ int main (int argc, char** argv)
 		}
 
 		if (RENDER) {
-			// Draw filtered PointCloud
+			// Render the filtered PointCloud
 			cloud_filtered_in_color_h.setInputCloud(cloud_filtered);
 			viewer.addPointCloud(cloud_filtered, cloud_filtered_in_color_h, "cloud_filtered_in", vp);
 		}
 
-		if (cloud_filtered->points.size() < 100) {
+		// Check whether the filtered PointCloud can proceed to the analysis
+		if (cloud_filtered->points.size() < MIN_POINTS_PROCEED) {
 			std::cerr << "* Not enough points to perform segmentation." << std::endl;
 			std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 			continue;
+		}
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// PRIMITIVE SEGMENTATION
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+		size_t k_lines_vertical, k_lines_horizontal;
+		int n_pts_vertical, n_pts_horizontal;
+		int MAX_LINES_VERTICAL, MAX_LINES_HORIZONTAL;
+		if (!STRIP_MODEL_LINE) {
+			MAX_LINES_VERTICAL = 1, MAX_LINES_HORIZONTAL = 1;
+		} else {
+			MAX_LINES_VERTICAL = 2, MAX_LINES_HORIZONTAL = 2;
 		}
 
 		switch (method) {
@@ -559,93 +581,214 @@ int main (int argc, char** argv)
 
 			// VERTICAL STRIP
 
-			// Create the segmentation object for primitive segmentation
-			seg_vertical.setInputCloud(cloud_filt_vertical);
+			// Create the segmentation object for primitive segmentation			
 			seg_vertical.setMethodType(pcl::SAC_RANSAC); //RMSAC
 			seg_vertical.setOptimizeCoefficients(true);
-			if (!STRIP_MODEL_LINE) {							
+			if (!STRIP_MODEL_LINE) {
 				seg_vertical.setModelType(pcl::SACMODEL_CIRCLE3D);
-				seg_vertical.setMaxIterations(1000);
+				seg_vertical.setMaxIterations(RANSAC_MAX_IT);
 				seg_vertical.setDistanceThreshold(0.001);
 				seg_vertical.setRadiusLimits(0.005, 0.050);//0.05
-			} else {		
+			} else {
 				seg_vertical.setModelType(pcl::SACMODEL_LINE);
-				seg_vertical.setMaxIterations(1000);
+				seg_vertical.setMaxIterations(RANSAC_MAX_IT);
 				seg_vertical.setDistanceThreshold(0.001);
 			}
 
-			// Obtain the primitive inliers and coefficients
-			seg_vertical.segment(*inliers_prim_vertical, *coefficients_prim_vertical);
-			std::cerr << "prim_vertical coeffs: " << *coefficients_prim_vertical << std::endl;
-			// Save the primitive inliers
-			extract_vertical.setInputCloud(cloud_filt_vertical);
-			extract_vertical.setIndices(inliers_prim_vertical);
-			extract_vertical.setNegative(false);
-			extract_vertical.filter(*cloud_prim_vertical);
+			k_lines_vertical = 0; n_pts_vertical = cloud_filt_vertical->points.size();
+			while (cloud_filt_vertical->points.size() > 0.03 * n_pts_vertical && k_lines_vertical < MAX_LINES_VERTICAL) {
+
+				pcl::PointCloud<PointT>::Ptr cloud_prim_line(new pcl::PointCloud<PointT>());
+				pcl::PointIndices::Ptr inliers_prim_line(new pcl::PointIndices);
+				pcl::ModelCoefficients::Ptr coefficients_prim_line(new pcl::ModelCoefficients);
+				
+				// Segment the largest line component from the remaining cloud
+				seg_vertical.setInputCloud(cloud_filt_vertical);
+				seg_vertical.segment(*inliers_prim_line, *coefficients_prim_line);
+				if (inliers_prim_line->indices.size() == 0) {
+					std::cout << "Could not estimate a line model for the vertical strip." << std::endl;
+					break;
+				}
+
+				std::cout << "Vertical prim line #" << k_lines_vertical + 1 << ": " << inliers_prim_line->indices.size() << "/" << cloud_filt_vertical->points.size() << " points." << std::endl;
+
+				// Extract the planar inliers from the input cloud
+				pcl::ExtractIndices<pcl::PointXYZ> extract_vertical;
+				extract_vertical.setInputCloud(cloud_filt_vertical);
+				extract_vertical.setIndices(inliers_prim_line);
+				extract_vertical.setNegative(false);
+				extract_vertical.filter(*cloud_prim_line);
+
+				// Remove the line inliers, extract the rest
+				extract_vertical.setNegative(true);
+				extract_vertical.filter(*cloud_filt_vertical);
+
+				//std::cout << "Remaining filtered PointCloud: " << cloud_filt_vertical->points.size() << " data points." << std::endl;
+
+				arr_cloud_prim_vertical[k_lines_vertical] = cloud_prim_line;
+				arr_inliers_prim_vertical[k_lines_vertical] = inliers_prim_line;
+				arr_coeffs_prim_vertical[k_lines_vertical] = coefficients_prim_line;
+
+				*cloud_primitive += *cloud_prim_line;
+
+				++k_lines_vertical;
+			}
 
 			// HORIZONTAL STRIP
 
-			// Create the segmentation object for primitive segmentation
-			seg_horizontal.setInputCloud(cloud_filt_horizontal);
+			// Create the segmentation object for primitive segmentation			
 			seg_horizontal.setMethodType(pcl::SAC_RANSAC); //RMSAC
 			seg_horizontal.setOptimizeCoefficients(true);
 			if (!STRIP_MODEL_LINE) {
 				seg_horizontal.setModelType(pcl::SACMODEL_CIRCLE3D);
-				seg_horizontal.setMaxIterations(1000);
+				seg_horizontal.setMaxIterations(RANSAC_MAX_IT);
 				seg_horizontal.setDistanceThreshold(0.001);
 				seg_horizontal.setRadiusLimits(0.005, 0.05);//0.05
 			} else {
 				seg_horizontal.setModelType(pcl::SACMODEL_LINE);
-				seg_horizontal.setMaxIterations(1000);
+				seg_horizontal.setMaxIterations(RANSAC_MAX_IT);
 				seg_horizontal.setDistanceThreshold(0.001);
 			}
 
-			// Obtain the primitive inliers and coefficients
-			seg_horizontal.segment(*inliers_prim_horizontal, *coefficients_prim_horizontal);
-			std::cerr << "prim_horizontal coeffs: " << *coefficients_prim_horizontal << std::endl;
-			// Save the primitive inliers
-			extract_horizontal.setInputCloud(cloud_filt_horizontal);
-			extract_horizontal.setIndices(inliers_prim_horizontal);
-			extract_horizontal.setNegative(false);
-			extract_horizontal.filter(*cloud_prim_horizontal);
+			k_lines_horizontal = 0; n_pts_horizontal = cloud_filt_horizontal->points.size();
+			while (cloud_filt_horizontal->points.size() > 0.03 * n_pts_horizontal && k_lines_horizontal < MAX_LINES_HORIZONTAL) {
 
-			/***/
-			if (cloud_prim_horizontal->points.empty() && cloud_prim_vertical->points.empty()) {
-				std::cerr << "\tCan't find the cylindrical component." << std::endl;
+				pcl::PointCloud<PointT>::Ptr cloud_prim_line(new pcl::PointCloud<PointT>());
+				pcl::PointIndices::Ptr inliers_prim_line(new pcl::PointIndices);
+				pcl::ModelCoefficients::Ptr coefficients_prim_line(new pcl::ModelCoefficients);
+
+				// Segment the largest line component from the remaining cloud
+				seg_horizontal.setInputCloud(cloud_filt_horizontal);
+				seg_horizontal.segment(*inliers_prim_line, *coefficients_prim_line);
+				if (inliers_prim_line->indices.size() == 0) {
+					std::cout << "Could not estimate a line model for the vertical strip." << std::endl;
+					break;
+				}
+
+				std::cout << "Horizontal prim line #" << k_lines_horizontal + 1 << ": " << inliers_prim_line->indices.size() << "/" << cloud_filt_horizontal->points.size() << " points." << std::endl;
+
+				// Extract the planar inliers from the input cloud
+				pcl::ExtractIndices<pcl::PointXYZ> extract_horizontal;
+				extract_horizontal.setInputCloud(cloud_filt_horizontal);
+				extract_horizontal.setIndices(inliers_prim_line);
+				extract_horizontal.setNegative(false);
+				extract_horizontal.filter(*cloud_prim_line);
+
+				// Remove the planar inliers, extract the rest
+				extract_horizontal.setNegative(true);
+				extract_horizontal.filter(*cloud_filt_horizontal);
+
+				//std::cout << "Remaining filtered PointCloud: " << cloud_filt_vertical->points.size() << " data points." << std::endl;
+
+				arr_cloud_prim_horizontal[k_lines_horizontal] = cloud_prim_line;
+				arr_inliers_prim_horizontal[k_lines_horizontal] = inliers_prim_line;
+				arr_coeffs_prim_horizontal[k_lines_horizontal] = coefficients_prim_line;
+
+				*cloud_primitive += *cloud_prim_line;
+
+				++k_lines_horizontal;
+			}
+
+			////// RENDERING
+
+			// Check if line primitives were found
+			if (k_lines_vertical == 0 && k_lines_horizontal == 0) {			
+				std::cerr << "\tCan't find the primitive." << std::endl;
 				std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 				continue;
 			}
 			else {
-				std::cerr << "PointCloud PRIMITIVE: " << cloud_prim_vertical->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
+				std::cerr << "PointCloud PRIMITIVE: " << cloud_primitive->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 			}
 
+			// Render the line primitives PointCloud and 3-D shape
 			if (RENDER) {
-				// prim_vertical point cloud is red			
-				cloud_prim_vertical_color_h.setInputCloud(cloud_prim_vertical);
-				viewer.addPointCloud(cloud_prim_vertical, cloud_prim_vertical_color_h, "cloud_prim_vertical", vp);
+				// prim_vertical point cloud is red
+				for (int i(0); i < k_lines_vertical; ++i) {
+					cloud_prim_vertical_color_h.setInputCloud(arr_cloud_prim_vertical[i]);
+					viewer.addPointCloud(arr_cloud_prim_vertical[i], cloud_prim_vertical_color_h, "cloud_prim_vertical_" + std::to_string(i), vp);
 
-				if (coefficients_prim_vertical->values.size() == 7) {
-					correctCircleShape(*coefficients_prim_vertical);
-					viewer.addCylinder(*coefficients_prim_vertical, "vertical");
-				}
-				else {
-					correctLineShape(*coefficients_prim_vertical, *cloud_prim_vertical);
-					viewer.addLine(*coefficients_prim_vertical, "vertical");
+					if (arr_coeffs_prim_vertical[i]->values.size() == 7) {
+						correctCircleShape(*arr_coeffs_prim_vertical[i]);
+						viewer.addCylinder(*arr_coeffs_prim_vertical[i], "vertical_" + std::to_string(i));
+					}
+					else {
+						correctLineShape(*arr_coeffs_prim_vertical[i], *arr_cloud_prim_vertical[i]);
+						viewer.addLine(*arr_coeffs_prim_vertical[i], "vertical_" + std::to_string(i));
+					}
 				}
 
 				// prim_horizontal point cloud is red
-				cloud_prim_horizontal_color_h.setInputCloud(cloud_prim_horizontal);
-				viewer.addPointCloud(cloud_prim_horizontal, cloud_prim_horizontal_color_h, "cloud_prim_horizontal", vp);
+				for (int i(0); i < k_lines_horizontal; ++i) {
+					cloud_prim_horizontal_color_h.setInputCloud(arr_cloud_prim_horizontal[i]);
+					viewer.addPointCloud(arr_cloud_prim_horizontal[i], cloud_prim_horizontal_color_h, "cloud_prim_horizontal_" + std::to_string(i), vp);
 
-				if (coefficients_prim_horizontal->values.size() == 7) {
-					correctCircleShape(*coefficients_prim_horizontal);
-					viewer.addCylinder(*coefficients_prim_horizontal, "horizontal");
-				}
-				else {
-					correctLineShape(*coefficients_prim_horizontal, *cloud_prim_horizontal);
-					viewer.addLine(*coefficients_prim_horizontal, "horizontal");
+					if (arr_coeffs_prim_horizontal[i]->values.size() == 7) {
+						correctCircleShape(*arr_coeffs_prim_horizontal[i]);
+						viewer.addCylinder(*arr_coeffs_prim_horizontal[i], "horizontal_" + std::to_string(i));
+					}
+					else {
+						correctLineShape(*arr_coeffs_prim_horizontal[i], *arr_cloud_prim_horizontal[i]);
+						viewer.addLine(*arr_coeffs_prim_horizontal[i], "horizontal_" + std::to_string(i));
+					}
 				}
 			}
+
+			// Guessing the primitive size
+			/*if (k_lines_vertical == 1 && k_lines_horizontal == 0) {
+			
+				//pcl::PointCloud<PointT>::Ptr cloud_eigen(new pcl::PointCloud<PointT>());
+				pcl::PCA<pcl::PointXYZ> pca;
+				pca.setInputCloud(arr_cloud_plane[0]);
+				Eigen::Matrix3f eigenvecs(pca.getEigenVectors());
+				Eigen::Vector3f eigenvals(pca.getEigenValues());
+				Eigen::MatrixXf coeffs(pca.getCoefficients());
+				Eigen::Vector4f mean(pca.getMean());
+
+				//Plane coefficients [normal_x normal_y normal_z d]
+				pcl::PointXYZ face_center(mean.x(), mean.y(), mean.z());
+				pcl::PointXYZ cube_center(face_center.x + arr_coeffs_plane[0]->values[0] * 0.025, face_center.y + arr_coeffs_plane[0]->values[1] * 0.025, face_center.z + arr_coeffs_plane[0]->values[2] * 0.025);
+				Eigen::Quaternionf quat;
+				Eigen::Vector3f v1(0.0, 0.0, 1.0);
+				Eigen::Vector3f v2(arr_coeffs_plane[0]->values[0], arr_coeffs_plane[0]->values[1], arr_coeffs_plane[0]->values[2]);
+				quat.setFromTwoVectors(v1, v2);
+
+				//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+				coefficients_primitive->values.push_back(cube_center.x); //Tx
+				coefficients_primitive->values.push_back(cube_center.y); //Ty
+				coefficients_primitive->values.push_back(cube_center.z); //Tz
+				coefficients_primitive->values.push_back(quat.x()); //Qx
+				coefficients_primitive->values.push_back(quat.y()); //Qy
+				coefficients_primitive->values.push_back(quat.z()); //Qz
+				coefficients_primitive->values.push_back(quat.w()); //Qw
+				coefficients_primitive->values.push_back(0.050); //width
+				coefficients_primitive->values.push_back(0.050); //height
+				coefficients_primitive->values.push_back(0.050); //depth
+
+			} else {
+				continue;
+			}*/
+
+			/*switch (prim) {
+			case michelangelo::PRIMITIVE_CUBE:
+				if (RENDER) {
+					for (size_t i(0); i < n_planes; ++i) {
+						// Plot cubeface cloud
+						arr_cloud_cube_color_h[i].setInputCloud(arr_cloud_plane[i]);
+						viewer.addPointCloud(arr_cloud_plane[i], arr_cloud_cube_color_h[i], "cloud_cubeface_" + std::to_string(i), vp);
+
+						// Plot cubeface normal
+						pcl::PCA<pcl::PointXYZ> pca;
+						pca.setInputCloud(arr_cloud_plane[i]);
+						Eigen::Vector4f mean(pca.getMean());
+						pcl::PointXYZ face_center(mean.x() * 0.01, mean.y() * 0.01, mean.z() * 0.01);
+						pcl::PointXYZ face_normal(face_center.x + arr_coeffs_plane[i]->values[0], face_center.y + arr_coeffs_plane[i]->values[1], face_center.z + arr_coeffs_plane[i]->values[2]);
+						viewer.addLine(face_center, face_normal, "normal_cubeface_" + std::to_string(i));
+					}
+					viewer.addCube(*coefficients_primitive, "cube");
+				}
+				break;
+			}*/
 			
 			break;
 
@@ -1014,10 +1157,8 @@ int main (int argc, char** argv)
 					extract.filter(*cloud_cube_face);
 
 					// Remove the planar inliers, extract the rest
-					pcl::PointCloud<PointT>::Ptr cloud_remain(new pcl::PointCloud<PointT>);
-					extract.setNegative(true);					
+					extract.setNegative(true);
 					extract.filter(*cloud_filtered);
-					//cloud_filtered->swap(*cloud_remain);
 
 					std::cout << "Remaining filtered PointCloud: " << cloud_filtered->points.size() << " data points." << std::endl;
 
