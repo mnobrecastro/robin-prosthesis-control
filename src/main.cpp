@@ -559,6 +559,9 @@ int main (int argc, char** argv)
 			MAX_LINES_VERTICAL = 2, MAX_LINES_HORIZONTAL = 2;
 		}
 
+		int vertical_idx(-1), horizontal_idx(-1);
+		float cube_width(0.050), cube_height(0.050), cube_depth(0.050);
+
 		switch (method) {
 		case michelangelo::HEURISTIC:
 
@@ -596,7 +599,7 @@ int main (int argc, char** argv)
 			}
 
 			k_lines_vertical = 0; n_pts_vertical = cloud_filt_vertical->points.size();
-			while (cloud_filt_vertical->points.size() > 0.03 * n_pts_vertical && k_lines_vertical < MAX_LINES_VERTICAL) {
+			while (cloud_filt_vertical->points.size() > 0.3 * n_pts_vertical && k_lines_vertical < MAX_LINES_VERTICAL) {
 
 				pcl::PointCloud<PointT>::Ptr cloud_prim_line(new pcl::PointCloud<PointT>());
 				pcl::PointIndices::Ptr inliers_prim_line(new pcl::PointIndices);
@@ -651,7 +654,7 @@ int main (int argc, char** argv)
 			}
 
 			k_lines_horizontal = 0; n_pts_horizontal = cloud_filt_horizontal->points.size();
-			while (cloud_filt_horizontal->points.size() > 0.03 * n_pts_horizontal && k_lines_horizontal < MAX_LINES_HORIZONTAL) {
+			while (cloud_filt_horizontal->points.size() > 0.3 * n_pts_horizontal && k_lines_horizontal < MAX_LINES_HORIZONTAL) {
 
 				pcl::PointCloud<PointT>::Ptr cloud_prim_line(new pcl::PointCloud<PointT>());
 				pcl::PointIndices::Ptr inliers_prim_line(new pcl::PointIndices);
@@ -735,61 +738,128 @@ int main (int argc, char** argv)
 			}
 
 			// Guessing the primitive size
-			/*if (k_lines_vertical == 1 && k_lines_horizontal == 0) {
-			
-				//pcl::PointCloud<PointT>::Ptr cloud_eigen(new pcl::PointCloud<PointT>());
-				pcl::PCA<pcl::PointXYZ> pca;
-				pca.setInputCloud(arr_cloud_plane[0]);
-				Eigen::Matrix3f eigenvecs(pca.getEigenVectors());
-				Eigen::Vector3f eigenvals(pca.getEigenValues());
-				Eigen::MatrixXf coeffs(pca.getCoefficients());
-				Eigen::Vector4f mean(pca.getMean());
 
-				//Plane coefficients [normal_x normal_y normal_z d]
-				pcl::PointXYZ face_center(mean.x(), mean.y(), mean.z());
-				pcl::PointXYZ cube_center(face_center.x + arr_coeffs_plane[0]->values[0] * 0.025, face_center.y + arr_coeffs_plane[0]->values[1] * 0.025, face_center.z + arr_coeffs_plane[0]->values[2] * 0.025);
-				Eigen::Quaternionf quat;
-				Eigen::Vector3f v1(0.0, 0.0, 1.0);
-				Eigen::Vector3f v2(arr_coeffs_plane[0]->values[0], arr_coeffs_plane[0]->values[1], arr_coeffs_plane[0]->values[2]);
-				quat.setFromTwoVectors(v1, v2);
+			std::array<std::array<float, 2>, arr_cloud_prim_vertical.size()> bounds_vertical;
+			for (int i(0); i < k_lines_vertical; ++i) {
+				std::array<float, 6> bounds_temp(getPointCloudBoundaries(*arr_cloud_prim_vertical[i]));
+				bounds_vertical[i][0] = bounds_temp[2];
+				bounds_vertical[i][1] = bounds_temp[3];
+			}
 
-				//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
-				coefficients_primitive->values.push_back(cube_center.x); //Tx
-				coefficients_primitive->values.push_back(cube_center.y); //Ty
-				coefficients_primitive->values.push_back(cube_center.z); //Tz
-				coefficients_primitive->values.push_back(quat.x()); //Qx
-				coefficients_primitive->values.push_back(quat.y()); //Qy
-				coefficients_primitive->values.push_back(quat.z()); //Qz
-				coefficients_primitive->values.push_back(quat.w()); //Qw
-				coefficients_primitive->values.push_back(0.050); //width
-				coefficients_primitive->values.push_back(0.050); //height
-				coefficients_primitive->values.push_back(0.050); //depth
+			std::array<std::array<float, 2>, arr_cloud_prim_horizontal.size()> bounds_horizontal;
+			for (int i(0); i < k_lines_horizontal; ++i) {
+				std::array<float, 6> bounds_temp(getPointCloudBoundaries(*arr_cloud_prim_horizontal[i]));
+				bounds_horizontal[i][0] = bounds_temp[0];
+				bounds_horizontal[i][1] = bounds_temp[1];
+			}
 
-			} else {
-				continue;
-			}*/
-
-			/*switch (prim) {
-			case michelangelo::PRIMITIVE_CUBE:
-				if (RENDER) {
-					for (size_t i(0); i < n_planes; ++i) {
-						// Plot cubeface cloud
-						arr_cloud_cube_color_h[i].setInputCloud(arr_cloud_plane[i]);
-						viewer.addPointCloud(arr_cloud_plane[i], arr_cloud_cube_color_h[i], "cloud_cubeface_" + std::to_string(i), vp);
-
-						// Plot cubeface normal
-						pcl::PCA<pcl::PointXYZ> pca;
-						pca.setInputCloud(arr_cloud_plane[i]);
-						Eigen::Vector4f mean(pca.getMean());
-						pcl::PointXYZ face_center(mean.x() * 0.01, mean.y() * 0.01, mean.z() * 0.01);
-						pcl::PointXYZ face_normal(face_center.x + arr_coeffs_plane[i]->values[0], face_center.y + arr_coeffs_plane[i]->values[1], face_center.z + arr_coeffs_plane[i]->values[2]);
-						viewer.addLine(face_center, face_normal, "normal_cubeface_" + std::to_string(i));
+			//int vertical_idx(-1), horizontal_idx(-1);
+			for (int k1(0); k1 < bounds_vertical.size(); ++k1) {
+				for (int k2(0); k2 < bounds_horizontal.size(); ++k2) {
+					if (bounds_vertical[k1][0]<= 0.0 && 0.0 < bounds_vertical[k1][1] && bounds_horizontal[k2][0] <= 0.0 && 0.0 < bounds_horizontal[k2][1]) {
+						vertical_idx = k1;
+						horizontal_idx = k2;
+						break;
 					}
-					viewer.addCube(*coefficients_primitive, "cube");
 				}
-				break;
-			}*/
-			
+			}
+
+			//float cube_width(0.050), cube_height(0.050), cube_depth(0.050);
+			if (vertical_idx == -1 && horizontal_idx == -1) {
+				continue;
+			} else {
+				// Find the centroid of the points in the line primitive
+				Eigen::Vector3f v_point(
+					arr_coeffs_prim_vertical[vertical_idx]->values[0],
+					arr_coeffs_prim_vertical[vertical_idx]->values[1],
+					arr_coeffs_prim_vertical[vertical_idx]->values[2]
+					);
+				Eigen::Vector3f v_dir(
+					arr_coeffs_prim_vertical[vertical_idx]->values[3],
+					arr_coeffs_prim_vertical[vertical_idx]->values[4],
+					arr_coeffs_prim_vertical[vertical_idx]->values[5]
+				);
+				Eigen::Vector3f v_center(v_point.x() + v_dir.x() * 0.5, v_point.y() + v_dir.y() * 0.5, v_point.z() + v_dir.z() * 0.5);
+				
+				Eigen::Vector3f h_point(
+					arr_coeffs_prim_horizontal[horizontal_idx]->values[0],
+					arr_coeffs_prim_horizontal[horizontal_idx]->values[1],
+					arr_coeffs_prim_horizontal[horizontal_idx]->values[2]
+				);
+				Eigen::Vector3f h_dir(
+					arr_coeffs_prim_horizontal[horizontal_idx]->values[3],
+					arr_coeffs_prim_horizontal[horizontal_idx]->values[4],
+					arr_coeffs_prim_horizontal[horizontal_idx]->values[5]
+				);
+				Eigen::Vector3f h_center(h_point.x() + h_dir.x() * 0.5, h_point.y() + h_dir.y() * 0.5, h_point.z() + h_dir.z() * 0.5);
+
+				Eigen::Vector3f vec(v_center.x() - h_center.x(), v_center.y() - h_center.y(), v_center.z() - h_center.z());
+				Eigen::Vector3f face_center(
+					h_center.x() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.x(),
+					h_center.y() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.y(),
+					h_center.z() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.z()
+				);
+				Eigen::Vector3f cube_center;
+
+				// Cube primitive parameters
+				cube_width = h_dir.norm();
+				cube_height = v_dir.norm();
+
+				Eigen::Vector3f face_normal(h_dir.cross(v_dir));
+				face_normal.normalize();
+				if (face_normal.z() < 0.0) {
+					face_normal[0] = -face_normal.x();
+					face_normal[1] = -face_normal.y();
+					face_normal[2] = -face_normal.z();
+				}
+
+				if (k_lines_vertical == 1 && k_lines_horizontal == 1 || k_lines_vertical == 2 && k_lines_horizontal == 1 || k_lines_vertical == 1 && k_lines_horizontal == 2) {
+					
+					if (k_lines_vertical == 1 && k_lines_horizontal == 2) {
+						Eigen::Vector3f d_dir(
+							arr_coeffs_prim_horizontal[2 - horizontal_idx]->values[3],
+							arr_coeffs_prim_horizontal[2 - horizontal_idx]->values[4],
+							arr_coeffs_prim_horizontal[2 - horizontal_idx]->values[5]
+						);
+						cube_depth = d_dir.norm();
+					} else if (k_lines_vertical == 2 && k_lines_horizontal == 1) {
+						Eigen::Vector3f d_dir(
+							arr_coeffs_prim_vertical[2 - vertical_idx]->values[3],
+							arr_coeffs_prim_vertical[2 - vertical_idx]->values[4],
+							arr_coeffs_prim_vertical[2 - vertical_idx]->values[5]
+						);
+						cube_depth = d_dir.norm();
+					}
+					cube_center = face_center + face_normal * cube_depth / 2;
+
+					Eigen::Quaternionf quat;
+					quat.setFromTwoVectors(Eigen::Vector3f(0.0, 0.0, 1.0), face_normal);
+
+					//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+					coefficients_primitive->values.push_back(cube_center.x()); //Tx
+					coefficients_primitive->values.push_back(cube_center.y()); //Ty
+					coefficients_primitive->values.push_back(cube_center.z()); //Tz
+					coefficients_primitive->values.push_back(quat.x()); //Qx
+					coefficients_primitive->values.push_back(quat.y()); //Qy
+					coefficients_primitive->values.push_back(quat.z()); //Qz
+					coefficients_primitive->values.push_back(quat.w()); //Qw
+					coefficients_primitive->values.push_back(cube_width); //width
+					coefficients_primitive->values.push_back(cube_height); //height
+					coefficients_primitive->values.push_back(cube_depth); //depth
+
+					if (RENDER) {
+						viewer.addCube(*coefficients_primitive, "cube");
+					}
+				}
+
+				/*switch (prim) {
+				case michelangelo::PRIMITIVE_CUBE:
+					if (RENDER) {
+						viewer.addCube(*coefficients_primitive, "cube");
+					};
+					break;
+				}*/
+			}	
 			break;
 
 		case michelangelo::SEGMENTATION:
