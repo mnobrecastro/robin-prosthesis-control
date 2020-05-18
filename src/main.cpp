@@ -157,7 +157,7 @@ int main (int argc, char** argv)
 	bool DOWNSAMPLING(true); //'false'->rawdata slows down.
 	bool DNSP_DFLT(true);
 	unsigned int N_SAMPLE(2000);
-	float MIN_SAMP_DIST(0.001);//0.002f
+	float MIN_SAMP_DIST(0.002);//0.002f
 	unsigned int RANSAC_MAX_IT(200);
 	bool STRIP_MODEL_LINE(true);
 
@@ -512,8 +512,7 @@ int main (int argc, char** argv)
 				dsfilt.setInputCloud(cloud_filtered);
 				if (!DISPARITY) {
 					dsfilt.setLeafSize(0.0025f, 0.0025f, 0.0025f); //0.005f
-				}
-				else {
+				} else {
 					dsfilt.setLeafSize(MIN_SAMP_DIST, MIN_SAMP_DIST, MIN_SAMP_DIST);
 				}
 				dsfilt.filter(*cloud_filtered);
@@ -560,6 +559,7 @@ int main (int argc, char** argv)
 		}
 
 		int vertical_idx(-1), horizontal_idx(-1);
+		std::vector<std::array<float, 2>> bounds_vertical, bounds_horizontal;
 		float cube_width(0.050), cube_height(0.050), cube_depth(0.050);
 
 		switch (method) {
@@ -695,7 +695,7 @@ int main (int argc, char** argv)
 			////// RENDERING
 
 			// Check if line primitives were found
-			if (k_lines_vertical == 0 && k_lines_horizontal == 0) {			
+			if (k_lines_vertical == 0 || k_lines_horizontal == 0) {	//&&		
 				std::cerr << "\tCan't find the primitive." << std::endl;
 				std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 				continue;
@@ -737,26 +737,29 @@ int main (int argc, char** argv)
 				}
 			}
 
-			// Guessing the primitive size
-
-			std::array<std::array<float, 2>, arr_cloud_prim_vertical.size()> bounds_vertical;
+			// Computing the boundaries of the line primitives
+			//   [-]
+			//   [-]
+			// [-----][--------]
+			//   [-]
+			//   [-]
+			//   [-]
+			//std::vector<std::array<float, 2>> bounds_vertical;
 			for (int i(0); i < k_lines_vertical; ++i) {
 				std::array<float, 6> bounds_temp(getPointCloudBoundaries(*arr_cloud_prim_vertical[i]));
-				bounds_vertical[i][0] = bounds_temp[2];
-				bounds_vertical[i][1] = bounds_temp[3];
+				bounds_vertical.push_back({ bounds_temp[2] ,bounds_temp[3] });
 			}
-
-			std::array<std::array<float, 2>, arr_cloud_prim_horizontal.size()> bounds_horizontal;
+			//std::vector<std::array<float, 2>> bounds_horizontal;
 			for (int i(0); i < k_lines_horizontal; ++i) {
 				std::array<float, 6> bounds_temp(getPointCloudBoundaries(*arr_cloud_prim_horizontal[i]));
-				bounds_horizontal[i][0] = bounds_temp[0];
-				bounds_horizontal[i][1] = bounds_temp[1];
+				bounds_horizontal.push_back({ bounds_temp[0] ,bounds_temp[1] });
 			}
 
+			// Finding the front cube_face spaned by '+'
 			//int vertical_idx(-1), horizontal_idx(-1);
 			for (int k1(0); k1 < bounds_vertical.size(); ++k1) {
 				for (int k2(0); k2 < bounds_horizontal.size(); ++k2) {
-					if (bounds_vertical[k1][0]<= 0.0 && 0.0 < bounds_vertical[k1][1] && bounds_horizontal[k2][0] <= 0.0 && 0.0 < bounds_horizontal[k2][1]) {
+					if (bounds_vertical[k1][0] <= 0.0 && 0.0 < bounds_vertical[k1][1] && bounds_horizontal[k2][0] <= 0.0 && 0.0 < bounds_horizontal[k2][1]) {
 						vertical_idx = k1;
 						horizontal_idx = k2;
 						break;
@@ -765,9 +768,11 @@ int main (int argc, char** argv)
 			}
 
 			//float cube_width(0.050), cube_height(0.050), cube_depth(0.050);
-			if (vertical_idx == -1 && horizontal_idx == -1) {
+			if (vertical_idx == -1 || horizontal_idx == -1) { //&&
 				continue;
 			} else {
+				std::cout << "vert_idx: " << vertical_idx  << " hori_idx: " << horizontal_idx << std::endl;
+
 				// Find the centroid of the points in the line primitive
 				Eigen::Vector3f v_point(
 					arr_coeffs_prim_vertical[vertical_idx]->values[0],
@@ -793,6 +798,7 @@ int main (int argc, char** argv)
 				);
 				Eigen::Vector3f h_center(h_point.x() + h_dir.x() * 0.5, h_point.y() + h_dir.y() * 0.5, h_point.z() + h_dir.z() * 0.5);
 
+				// Find the cube_face center
 				Eigen::Vector3f vec(v_center.x() - h_center.x(), v_center.y() - h_center.y(), v_center.z() - h_center.z());
 				Eigen::Vector3f face_center(
 					h_center.x() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.x(),
@@ -812,45 +818,50 @@ int main (int argc, char** argv)
 					face_normal[1] = -face_normal.y();
 					face_normal[2] = -face_normal.z();
 				}
-
-				if (k_lines_vertical == 1 && k_lines_horizontal == 1 || k_lines_vertical == 2 && k_lines_horizontal == 1 || k_lines_vertical == 1 && k_lines_horizontal == 2) {
 					
-					if (k_lines_vertical == 1 && k_lines_horizontal == 2) {
-						Eigen::Vector3f d_dir(
-							arr_coeffs_prim_horizontal[2 - horizontal_idx]->values[3],
-							arr_coeffs_prim_horizontal[2 - horizontal_idx]->values[4],
-							arr_coeffs_prim_horizontal[2 - horizontal_idx]->values[5]
-						);
-						cube_depth = d_dir.norm();
-					} else if (k_lines_vertical == 2 && k_lines_horizontal == 1) {
-						Eigen::Vector3f d_dir(
-							arr_coeffs_prim_vertical[2 - vertical_idx]->values[3],
-							arr_coeffs_prim_vertical[2 - vertical_idx]->values[4],
-							arr_coeffs_prim_vertical[2 - vertical_idx]->values[5]
-						);
-						cube_depth = d_dir.norm();
-					}
-					cube_center = face_center + face_normal * cube_depth / 2;
-
-					Eigen::Quaternionf quat;
-					quat.setFromTwoVectors(Eigen::Vector3f(0.0, 0.0, 1.0), face_normal);
-
-					//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
-					coefficients_primitive->values.push_back(cube_center.x()); //Tx
-					coefficients_primitive->values.push_back(cube_center.y()); //Ty
-					coefficients_primitive->values.push_back(cube_center.z()); //Tz
-					coefficients_primitive->values.push_back(quat.x()); //Qx
-					coefficients_primitive->values.push_back(quat.y()); //Qy
-					coefficients_primitive->values.push_back(quat.z()); //Qz
-					coefficients_primitive->values.push_back(quat.w()); //Qw
-					coefficients_primitive->values.push_back(cube_width); //width
-					coefficients_primitive->values.push_back(cube_height); //height
-					coefficients_primitive->values.push_back(cube_depth); //depth
-
-					if (RENDER) {
-						viewer.addCube(*coefficients_primitive, "cube");
-					}
+				if (k_lines_vertical == 1 && k_lines_horizontal == 2) {
+					Eigen::Vector3f d_dir(
+						arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[3],
+						arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[4],
+						arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[5]
+					);
+					cube_depth = d_dir.norm();
+				} else if (k_lines_vertical == 2 && k_lines_horizontal == 1) {
+					Eigen::Vector3f d_dir(
+						arr_coeffs_prim_vertical[int(1) - vertical_idx]->values[3],
+						arr_coeffs_prim_vertical[int(1) - vertical_idx]->values[4],
+						arr_coeffs_prim_vertical[int(1) - vertical_idx]->values[5]
+					);
+					cube_depth = d_dir.norm();
+				} else if (k_lines_vertical == 2 && k_lines_horizontal == 2) {
+					Eigen::Vector3f d_dir( // Has to be reviewed base on weight of the number of points
+						arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[3],
+						arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[4],
+						arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[5]
+					);
+					cube_depth = d_dir.norm();
 				}
+				cube_center = face_center + face_normal * cube_depth / 2;
+
+				Eigen::Quaternionf quat;
+				quat.setFromTwoVectors(Eigen::Vector3f(0.0, 0.0, 1.0), face_normal);
+
+				//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+				coefficients_primitive->values.push_back(cube_center.x()); //Tx
+				coefficients_primitive->values.push_back(cube_center.y()); //Ty
+				coefficients_primitive->values.push_back(cube_center.z()); //Tz
+				coefficients_primitive->values.push_back(quat.x()); //Qx
+				coefficients_primitive->values.push_back(quat.y()); //Qy
+				coefficients_primitive->values.push_back(quat.z()); //Qz
+				coefficients_primitive->values.push_back(quat.w()); //Qw
+				coefficients_primitive->values.push_back(cube_width); //width
+				coefficients_primitive->values.push_back(cube_height); //height
+				coefficients_primitive->values.push_back(cube_depth); //depth
+
+				if (RENDER) {
+					viewer.addCube(*coefficients_primitive, "cube");
+				}
+				//}
 
 				/*switch (prim) {
 				case michelangelo::PRIMITIVE_CUBE:
@@ -1126,7 +1137,7 @@ int main (int argc, char** argv)
 						pcl::PointXYZ pBDL(centroids[i][0] - 0.005, centroids[i][1] + 0.005, centroids[i][2] + 0.005);
 						pcl::PointXYZ pBDR(centroids[i][0] + 0.005, centroids[i][1] + 0.005, centroids[i][2] + 0.005);
 
-						viewer.addLine<pcl::PointXYZ>(pFUL, pFUR, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "FU", vp);
+						viewer.addLine<pcl::PointXYZ>(pFUL, pFUR, int(255) * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "FU", vp);
 						viewer.addLine<pcl::PointXYZ>(pFUR, pFDR, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "FR", vp);
 						viewer.addLine<pcl::PointXYZ>(pFDR, pFDL, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "FD", vp);
 						viewer.addLine<pcl::PointXYZ>(pFDL, pFUL, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, (int)255 * txt_gray_lvl, std::to_string(i) + "FL", vp);
