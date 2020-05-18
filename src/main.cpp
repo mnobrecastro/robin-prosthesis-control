@@ -49,6 +49,7 @@ std::array<float, 6> getPointCloudBoundaries(const pcl::PointCloud<PointT>&);
 std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>&, std::vector<uint32_t>&, std::vector<std::array<float, 3>>&);
 uint32_t selCentroidLCCP(const std::vector<uint32_t>&, const std::vector<std::array<float, 3>>&);
 void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>&, pcl::PointCloud<pcl::PointXYZ>&, uint32_t);
+float moving_average(float, std::list<float>&, int);
 void correctLineShape(pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
 void correctCircleShape(pcl::ModelCoefficients&);
 void correctCylShape(pcl::ModelCoefficients&, const pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
@@ -561,6 +562,8 @@ int main (int argc, char** argv)
 		int vertical_idx(-1), horizontal_idx(-1);
 		std::vector<std::array<float, 2>> bounds_vertical, bounds_horizontal;
 		float cube_width(0.050), cube_height(0.050), cube_depth(0.050);
+		std::list<float> save_cube_width, save_cube_height, save_cube_depth;
+		int MOVING_AVG_SIZE(100);
 
 		switch (method) {
 		case michelangelo::HEURISTIC:
@@ -626,8 +629,6 @@ int main (int argc, char** argv)
 				extract_vertical.setNegative(true);
 				extract_vertical.filter(*cloud_filt_vertical);
 
-				//std::cout << "Remaining filtered PointCloud: " << cloud_filt_vertical->points.size() << " data points." << std::endl;
-
 				arr_cloud_prim_vertical[k_lines_vertical] = cloud_prim_line;
 				arr_inliers_prim_vertical[k_lines_vertical] = inliers_prim_line;
 				arr_coeffs_prim_vertical[k_lines_vertical] = coefficients_prim_line;
@@ -680,8 +681,6 @@ int main (int argc, char** argv)
 				// Remove the planar inliers, extract the rest
 				extract_horizontal.setNegative(true);
 				extract_horizontal.filter(*cloud_filt_horizontal);
-
-				//std::cout << "Remaining filtered PointCloud: " << cloud_filt_vertical->points.size() << " data points." << std::endl;
 
 				arr_cloud_prim_horizontal[k_lines_horizontal] = cloud_prim_line;
 				arr_inliers_prim_horizontal[k_lines_horizontal] = inliers_prim_line;
@@ -809,7 +808,9 @@ int main (int argc, char** argv)
 
 				// Cube primitive parameters
 				cube_width = h_dir.norm();
+				cube_width = moving_average(cube_width, save_cube_width, MOVING_AVG_SIZE);
 				cube_height = v_dir.norm();
+				cube_height = moving_average(cube_height, save_cube_height, MOVING_AVG_SIZE);
 
 				Eigen::Vector3f face_normal(h_dir.cross(v_dir));
 				face_normal.normalize();
@@ -841,6 +842,7 @@ int main (int argc, char** argv)
 					);
 					cube_depth = d_dir.norm();
 				}
+				cube_depth = moving_average(cube_depth, save_cube_depth, MOVING_AVG_SIZE);
 				cube_center = face_center + face_normal * cube_depth / 2;
 
 				Eigen::Quaternionf quat;
@@ -1648,6 +1650,23 @@ void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl:
 		if (p.label == label)
 			cloud_seg.points.push_back(pcl::PointXYZ(p.x, p.y, p.z));
 	}
+}
+
+float moving_average(float val, std::list<float>& vec, int n_samples)
+{		
+	float avg(val);
+	for (auto p : vec) {
+		avg += p;
+	}
+	avg /= (vec.size() + 1);
+
+	if (vec.size() < n_samples) {
+		vec.push_back(avg);
+	} else {
+		vec.pop_front();
+		vec.push_back(avg);
+	}
+	return avg;
 }
 
 void correctLineShape(pcl::ModelCoefficients& line, const pcl::PointCloud<PointT>& cloud)
