@@ -39,6 +39,8 @@
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 
+enum MovAvg { DEFAULT, EXPONENTIAL};
+
 pcl::PointCloud<pcl::PointXYZ>::Ptr points_to_pcl(const rs2::points&);
 float dotProduct(pcl::PointXYZ, pcl::PointXYZ);
 float normPointT(pcl::PointXYZ);
@@ -49,11 +51,10 @@ std::array<float, 6> getPointCloudBoundaries(const pcl::PointCloud<PointT>&);
 std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>&, std::vector<uint32_t>&, std::vector<std::array<float, 3>>&);
 uint32_t selCentroidLCCP(const std::vector<uint32_t>&, const std::vector<std::array<float, 3>>&);
 void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>&, pcl::PointCloud<pcl::PointXYZ>&, uint32_t);
-float moving_average(float, std::list<float>&, int);
+float moving_average(float, std::list<float>&, int, MovAvg);
 void correctLineShape(pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
 void correctCircleShape(pcl::ModelCoefficients&);
 void correctCylShape(pcl::ModelCoefficients&, const pcl::ModelCoefficients&, const pcl::PointCloud<PointT>&);
-
 
 namespace michelangelo {
 	enum Primitive {
@@ -154,13 +155,14 @@ int main (int argc, char** argv)
 	bool FILTER(true);
 	bool FILT_DFLT(false);
 	char TRIM_TYPE('+');
-	float TRIM_WIDTH(0.005);//0.010
+	float TRIM_WIDTH(0.010);//0.010
 	bool DOWNSAMPLING(true); //'false'->rawdata slows down.
 	bool DNSP_DFLT(true);
 	unsigned int N_SAMPLE(2000);
 	float MIN_SAMP_DIST(0.002);//0.002f
-	unsigned int RANSAC_MAX_IT(200);
+	unsigned int RANSAC_MAX_IT(100);
 	bool STRIP_MODEL_LINE(true);
+	int MOVING_AVG_SIZE(50);
 
 	/*Disparity*/
 	/*michelangelo::Segmentation segmethod(michelangelo::SEG_NONE);
@@ -563,7 +565,6 @@ int main (int argc, char** argv)
 		std::vector<std::array<float, 2>> bounds_vertical, bounds_horizontal;
 		float cube_width(0.050), cube_height(0.050), cube_depth(0.050);
 		std::list<float> save_cube_width, save_cube_height, save_cube_depth;
-		int MOVING_AVG_SIZE(100);
 
 		switch (method) {
 		case michelangelo::HEURISTIC:
@@ -808,9 +809,9 @@ int main (int argc, char** argv)
 
 				// Cube primitive parameters
 				cube_width = h_dir.norm();
-				cube_width = moving_average(cube_width, save_cube_width, MOVING_AVG_SIZE);
+				cube_width = moving_average(cube_width, save_cube_width, MOVING_AVG_SIZE, EXPONENTIAL);
 				cube_height = v_dir.norm();
-				cube_height = moving_average(cube_height, save_cube_height, MOVING_AVG_SIZE);
+				cube_height = moving_average(cube_height, save_cube_height, MOVING_AVG_SIZE, EXPONENTIAL);
 
 				Eigen::Vector3f face_normal(h_dir.cross(v_dir));
 				face_normal.normalize();
@@ -842,7 +843,7 @@ int main (int argc, char** argv)
 					);
 					cube_depth = d_dir.norm();
 				}
-				cube_depth = moving_average(cube_depth, save_cube_depth, MOVING_AVG_SIZE);
+				cube_depth = moving_average(cube_depth, save_cube_depth, MOVING_AVG_SIZE, EXPONENTIAL);
 				cube_center = face_center + face_normal * cube_depth / 2;
 
 				Eigen::Quaternionf quat;
@@ -1652,20 +1653,33 @@ void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl:
 	}
 }
 
-float moving_average(float val, std::list<float>& vec, int n_samples)
+float moving_average(float val, std::list<float>& vec, int n_samples, MovAvg mode=DEFAULT)
 {		
 	float avg(val);
-	for (auto p : vec) {
-		avg += p;
+
+	switch(mode){
+	case DEFAULT:
+		// Simple Moving Average		
+		for (auto p : vec) {
+			avg += p;
+		}
+		avg /= (vec.size() + 1);
+
+	case EXPONENTIAL:
+		// Exponentially Weighted Moving Average
+		if(vec.size() > 0) {			
+			avg = (1 - 1 / n_samples) * vec.back() + (1 / n_samples) * avg;
+		}
 	}
-	avg /= (vec.size() + 1);
 
 	if (vec.size() < n_samples) {
 		vec.push_back(avg);
-	} else {
+	}
+	else {
 		vec.pop_front();
 		vec.push_back(avg);
 	}
+
 	return avg;
 }
 
