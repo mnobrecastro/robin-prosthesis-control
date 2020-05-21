@@ -98,7 +98,10 @@ namespace michelangelo {
 	float readAngle(pcl::PointXYZ);
 	std::string setAction(float);
 
+	bool segmentSubprimitive(michelangelo::Subprimitive, std::vector<pcl::ModelCoefficients::Ptr>&, std::vector<pcl::PointIndices::Ptr>&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, const pcl::PointCloud<pcl::PointXYZ>::Ptr, size_t, float);
+	bool segmentGuess(pcl::ModelCoefficients::Ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, michelangelo::Subprimitive, size_t, float, pcl::visualization::PCLVisualizer&);
 	bool segmentPrimitive(pcl::ModelCoefficients::Ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, michelangelo::Subprimitive, size_t, float, pcl::visualization::PCLVisualizer&);
+	
 
 	class PrimitiveModel
 	{
@@ -566,8 +569,8 @@ int main (int argc, char** argv)
 
 			time.tic();
 
-			if (michelangelo::segmentPrimitive(coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, michelangelo::SUBPRIMITIVE_LINE, 100, 0.001, viewer)) {
-
+			//if (michelangelo::segmentPrimitive(coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, michelangelo::SUBPRIMITIVE_LINE, 100, 0.001, viewer)) {
+			if(michelangelo::segmentGuess(coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, michelangelo::SUBPRIMITIVE_LINE, 100, 0.001, viewer)){
 				if (RENDER) {
 					viewer.addCube(*coefficients_primitive, "cube");
 				}
@@ -1452,6 +1455,287 @@ void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& 
 	cyl.values.push_back(bottom_top_direction.y);
 	cyl.values.push_back(bottom_top_direction.z);
 	cyl.values.push_back(coefficients.values[6]);
+}
+
+bool michelangelo::segmentSubprimitive(michelangelo::Subprimitive subprim, std::vector<pcl::ModelCoefficients::Ptr>& arr_coeffs_subprim, std::vector<pcl::PointIndices::Ptr>& arr_inliers_subprim, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& arr_cloud_subprim, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt, size_t SAC_MAX_IT, float SAC_TOL)
+{
+	size_t k_lines;
+	int n_pts;
+
+	int MAX_LINES;
+	switch (subprim) {
+	case michelangelo::SUBPRIMITIVE_LINE:
+		MAX_LINES = 2;
+		break;
+	case michelangelo::SUBPRIMITIVE_CIRCLE:
+		MAX_LINES = 1;
+		break;
+	}
+
+	// Create the segmentation object for primitive segmentation	
+	pcl::SACSegmentation<pcl::PointXYZ> seg;
+	seg.setMethodType(pcl::SAC_RANSAC); //RMSAC
+	seg.setOptimizeCoefficients(true);
+	seg.setMaxIterations(SAC_MAX_IT);
+	seg.setDistanceThreshold(SAC_TOL);
+	switch (subprim) {
+	case michelangelo::SUBPRIMITIVE_LINE:
+		seg.setModelType(pcl::SACMODEL_LINE);
+		break;
+	case michelangelo::SUBPRIMITIVE_CIRCLE:
+		seg.setModelType(pcl::SACMODEL_CIRCLE3D);
+		seg.setRadiusLimits(0.005, 0.050);
+		break;
+	}
+
+	k_lines = 0; n_pts = cloud_filt->points.size();
+	while (cloud_filt->points.size() > 0.3 * n_pts && k_lines < MAX_LINES) {
+
+		pcl::PointCloud<PointT>::Ptr cloud_subprim(new pcl::PointCloud<PointT>());
+		pcl::PointIndices::Ptr inliers_subprim(new pcl::PointIndices);
+		pcl::ModelCoefficients::Ptr coefficients_subprim(new pcl::ModelCoefficients);
+
+		// Segment the largest line component from the remaining cloud
+		seg.setInputCloud(cloud_filt);
+		seg.segment(*inliers_subprim, *coefficients_subprim);
+		if (inliers_subprim->indices.size() == 0) {
+			std::cout << "Could not estimate a line model for the fan strip." << std::endl;
+			break;
+		}
+
+		std::cout << "Subprim line #" << k_lines + 1 << ": " << inliers_subprim->indices.size() << "/" << cloud_filt->points.size() << " points." << std::endl;
+
+		// Extract the planar inliers from the input cloud
+		pcl::ExtractIndices<pcl::PointXYZ> extract;
+		extract.setInputCloud(cloud_filt);
+		extract.setIndices(inliers_subprim);
+		extract.setNegative(false);
+		extract.filter(*cloud_subprim);
+
+		// Remove the line inliers, extract the rest
+		extract.setNegative(true);
+		extract.filter(*cloud_filt);
+
+		arr_cloud_subprim.push_back(cloud_subprim);
+		arr_inliers_subprim.push_back(inliers_subprim);
+		arr_coeffs_subprim.push_back(coefficients_subprim);
+
+		//*cloud_primitive += *cloud_prim_line;
+
+		++k_lines;
+	}
+
+	if (arr_coeffs_subprim.size() > 0) {
+		return true;
+	} else {
+		return false;
+	}		
+}
+
+bool michelangelo::segmentGuess(pcl::ModelCoefficients::Ptr coefficients_primitive, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_primitive, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_vertical, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_horizontal, michelangelo::Subprimitive subprim, size_t SAC_MAX_IT, float SAC_TOL, pcl::visualization::PCLVisualizer& viewer)
+{
+	pcl::console::TicToc time;
+	bool RENDER(true);
+
+	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> arr_cloud_prim_vertical;
+	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> arr_cloud_prim_horizontal;
+	std::vector<pcl::ModelCoefficients::Ptr> arr_coeffs_prim_vertical;
+	std::vector<pcl::ModelCoefficients::Ptr> arr_coeffs_prim_horizontal;
+	std::vector<pcl::PointIndices::Ptr> arr_inliers_prim_vertical;
+	std::vector<pcl::PointIndices::Ptr> arr_inliers_prim_horizontal;
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_prim_vertical_color_h(180, 20, 20);
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_prim_horizontal_color_h(180, 20, 20);
+
+	int vertical_idx(-1), horizontal_idx(-1);
+
+	std::vector<std::array<float, 2>> bounds_vertical, bounds_horizontal;
+	float cube_width(0.050), cube_height(0.050), cube_depth(0.050);
+	std::list<float> save_cube_width, save_cube_height, save_cube_depth;
+
+	size_t MOVING_AVG_SIZE(50);
+
+	time.tic();
+
+	// VERTICAL STRIP
+	bool bool_vertical = michelangelo::segmentSubprimitive(subprim, arr_coeffs_prim_vertical, arr_inliers_prim_vertical, arr_cloud_prim_vertical, cloud_filt_vertical, SAC_MAX_IT, SAC_TOL);
+	//std::thread t1;
+
+	// HORIZONTAL STRIP	
+	bool bool_horizontal = michelangelo::segmentSubprimitive(subprim, arr_coeffs_prim_horizontal, arr_inliers_prim_horizontal, arr_cloud_prim_horizontal, cloud_filt_horizontal, SAC_MAX_IT, SAC_TOL);
+	//std::thread t2;
+
+	//t1.join();
+	//t2.join();
+
+	// Check if line primitives were found
+	if (!(bool_vertical && bool_horizontal)) {
+		std::cerr << "\tCan't find one or more subprimitives." << std::endl;
+		//std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
+		return false;
+	} else {
+		std::cerr << "PointCloud PRIMITIVE: " << cloud_primitive->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
+	}
+
+	////// RENDERING
+
+	// Render the line primitives PointCloud and 3-D shape
+	if (RENDER) {
+		// prim_vertical point cloud is red
+		for (int i(0); i < arr_coeffs_prim_vertical.size(); ++i) {
+			cloud_prim_vertical_color_h.setInputCloud(arr_cloud_prim_vertical[i]);
+			viewer.addPointCloud(arr_cloud_prim_vertical[i], cloud_prim_vertical_color_h, "cloud_prim_vertical_" + std::to_string(i));//, vp
+
+			if (arr_coeffs_prim_vertical[i]->values.size() == 7) {
+				correctCircleShape(*arr_coeffs_prim_vertical[i]);
+				viewer.addCylinder(*arr_coeffs_prim_vertical[i], "vertical_" + std::to_string(i));
+			}
+			else {
+				correctLineShape(*arr_coeffs_prim_vertical[i], *arr_cloud_prim_vertical[i]);
+				viewer.addLine(*arr_coeffs_prim_vertical[i], "vertical_" + std::to_string(i));
+			}
+		}
+
+		// prim_horizontal point cloud is red
+		for (int i(0); i < arr_coeffs_prim_horizontal.size(); ++i) {
+			cloud_prim_horizontal_color_h.setInputCloud(arr_cloud_prim_horizontal[i]);
+			viewer.addPointCloud(arr_cloud_prim_horizontal[i], cloud_prim_horizontal_color_h, "cloud_prim_horizontal_" + std::to_string(i));//, vp
+
+			if (arr_coeffs_prim_horizontal[i]->values.size() == 7) {
+				correctCircleShape(*arr_coeffs_prim_horizontal[i]);
+				viewer.addCylinder(*arr_coeffs_prim_horizontal[i], "horizontal_" + std::to_string(i));
+			}
+			else {
+				correctLineShape(*arr_coeffs_prim_horizontal[i], *arr_cloud_prim_horizontal[i]);
+				viewer.addLine(*arr_coeffs_prim_horizontal[i], "horizontal_" + std::to_string(i));
+			}
+		}
+	}
+
+	// Computing the boundaries of the line primitives
+	//   [-]
+	//   [-]
+	// [-----][--------]
+	//   [-]
+	//   [-]
+	//   [-]
+	//std::vector<std::array<float, 2>> bounds_vertical;
+	for (int i(0); i < arr_coeffs_prim_vertical.size(); ++i) {
+		std::array<float, 6> bounds_temp(getPointCloudBoundaries(*arr_cloud_prim_vertical[i]));
+		bounds_vertical.push_back({ bounds_temp[2] ,bounds_temp[3] });
+	}
+	//std::vector<std::array<float, 2>> bounds_horizontal;
+	for (int i(0); i < arr_coeffs_prim_horizontal.size(); ++i) {
+		std::array<float, 6> bounds_temp(getPointCloudBoundaries(*arr_cloud_prim_horizontal[i]));
+		bounds_horizontal.push_back({ bounds_temp[0] ,bounds_temp[1] });
+	}
+
+	// Finding the front cube_face spaned by '+'
+	//int vertical_idx(-1), horizontal_idx(-1);
+	for (int k1(0); k1 < bounds_vertical.size(); ++k1) {
+		for (int k2(0); k2 < bounds_horizontal.size(); ++k2) {
+			if (bounds_vertical[k1][0] <= 0.0 && 0.0 < bounds_vertical[k1][1] && bounds_horizontal[k2][0] <= 0.0 && 0.0 < bounds_horizontal[k2][1]) {
+				vertical_idx = k1;
+				horizontal_idx = k2;
+				break;
+			}
+		}
+	}
+
+	//float cube_width(0.050), cube_height(0.050), cube_depth(0.050);
+	if (vertical_idx != -1 && horizontal_idx != -1) {
+		std::cout << "vert_idx: " << vertical_idx << " hori_idx: " << horizontal_idx << std::endl;
+
+		// Find the centroid of the points in the line primitive
+		Eigen::Vector3f v_point(
+			arr_coeffs_prim_vertical[vertical_idx]->values[0],
+			arr_coeffs_prim_vertical[vertical_idx]->values[1],
+			arr_coeffs_prim_vertical[vertical_idx]->values[2]
+		);
+		Eigen::Vector3f v_dir(
+			arr_coeffs_prim_vertical[vertical_idx]->values[3],
+			arr_coeffs_prim_vertical[vertical_idx]->values[4],
+			arr_coeffs_prim_vertical[vertical_idx]->values[5]
+		);
+		Eigen::Vector3f v_center(v_point.x() + v_dir.x() * 0.5, v_point.y() + v_dir.y() * 0.5, v_point.z() + v_dir.z() * 0.5);
+
+		Eigen::Vector3f h_point(
+			arr_coeffs_prim_horizontal[horizontal_idx]->values[0],
+			arr_coeffs_prim_horizontal[horizontal_idx]->values[1],
+			arr_coeffs_prim_horizontal[horizontal_idx]->values[2]
+		);
+		Eigen::Vector3f h_dir(
+			arr_coeffs_prim_horizontal[horizontal_idx]->values[3],
+			arr_coeffs_prim_horizontal[horizontal_idx]->values[4],
+			arr_coeffs_prim_horizontal[horizontal_idx]->values[5]
+		);
+		Eigen::Vector3f h_center(h_point.x() + h_dir.x() * 0.5, h_point.y() + h_dir.y() * 0.5, h_point.z() + h_dir.z() * 0.5);
+
+		// Find the cube_face center
+		Eigen::Vector3f vec(v_center.x() - h_center.x(), v_center.y() - h_center.y(), v_center.z() - h_center.z());
+		Eigen::Vector3f face_center(
+			h_center.x() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.x(),
+			h_center.y() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.y(),
+			h_center.z() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.z()
+		);
+		Eigen::Vector3f cube_center;
+
+		// Cube primitive parameters
+		cube_width = h_dir.norm();
+		cube_width = moving_average(cube_width, save_cube_width, MOVING_AVG_SIZE, EXPONENTIAL);
+		cube_height = v_dir.norm();
+		cube_height = moving_average(cube_height, save_cube_height, MOVING_AVG_SIZE, EXPONENTIAL);
+
+		Eigen::Vector3f face_normal(h_dir.cross(v_dir));
+		face_normal.normalize();
+		if (face_normal.z() < 0.0) {
+			face_normal[0] = -face_normal.x();
+			face_normal[1] = -face_normal.y();
+			face_normal[2] = -face_normal.z();
+		}
+
+		if (arr_coeffs_prim_vertical.size() == 1 && arr_coeffs_prim_horizontal.size() == 2) {
+			Eigen::Vector3f d_dir(
+				arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[3],
+				arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[4],
+				arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[5]
+			);
+			cube_depth = d_dir.norm();
+		}
+		else if (arr_coeffs_prim_vertical.size() == 2 && arr_coeffs_prim_horizontal.size() == 1) {
+			Eigen::Vector3f d_dir(
+				arr_coeffs_prim_vertical[int(1) - vertical_idx]->values[3],
+				arr_coeffs_prim_vertical[int(1) - vertical_idx]->values[4],
+				arr_coeffs_prim_vertical[int(1) - vertical_idx]->values[5]
+			);
+			cube_depth = d_dir.norm();
+		}
+		else if (arr_coeffs_prim_vertical.size() == 2 && arr_coeffs_prim_horizontal.size() == 2) {
+			Eigen::Vector3f d_dir( // Has to be reviewed base on weight of the number of points
+				arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[3],
+				arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[4],
+				arr_coeffs_prim_horizontal[int(1) - horizontal_idx]->values[5]
+			);
+			cube_depth = d_dir.norm();
+		}
+		cube_depth = moving_average(cube_depth, save_cube_depth, MOVING_AVG_SIZE, EXPONENTIAL);
+		cube_center = face_center + face_normal * cube_depth / 2;
+
+		Eigen::Quaternionf quat;
+		quat.setFromTwoVectors(Eigen::Vector3f(0.0, 0.0, 1.0), face_normal);
+
+		//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+		coefficients_primitive->values.push_back(cube_center.x()); //Tx
+		coefficients_primitive->values.push_back(cube_center.y()); //Ty
+		coefficients_primitive->values.push_back(cube_center.z()); //Tz
+		coefficients_primitive->values.push_back(quat.x()); //Qx
+		coefficients_primitive->values.push_back(quat.y()); //Qy
+		coefficients_primitive->values.push_back(quat.z()); //Qz
+		coefficients_primitive->values.push_back(quat.w()); //Qw
+		coefficients_primitive->values.push_back(cube_width); //width
+		coefficients_primitive->values.push_back(cube_height); //height
+		coefficients_primitive->values.push_back(cube_depth); //depth	
+	}
+	return true;
 }
 
 bool michelangelo::segmentPrimitive(pcl::ModelCoefficients::Ptr coefficients_primitive, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_primitive, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_vertical, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_horizontal, michelangelo::Subprimitive subprim, size_t SAC_MAX_IT, float SAC_TOL, pcl::visualization::PCLVisualizer& viewer)
