@@ -519,7 +519,7 @@ int main (int argc, char** argv)
 
 			time.tic();
 
-			if (michelangelo::segmentPrimitive(prim, coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, 100, 0.003, viewer)) {
+			if (michelangelo::segmentPrimitive(prim, coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, 100, 0.002, viewer)) {
 			//if(michelangelo::segmentGuess(coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, michelangelo::SUBPRIMITIVE_LINE, 100, 0.001, viewer)){
 				if (RENDER) {
 					switch (prim) {
@@ -534,16 +534,7 @@ int main (int argc, char** argv)
 						break;
 					}					
 				}
-			}
-				//}
-
-				/*switch (prim) {
-				case michelangelo::PRIMITIVE_CUBE:
-					if (RENDER) {
-						viewer.addCube(*coefficients_primitive, "cube");
-					};
-					break;
-				}*/	
+			}				
 			break;
 
 		case michelangelo::SEGMENTATION:
@@ -1503,6 +1494,13 @@ void michelangelo::segmentSubprimitive(michelangelo::Subprimitive subprim, std::
 		extract.setNegative(true);
 		extract.filter(*cloud_filt);
 
+		// Ignore concave circle cases
+		if (subprim == michelangelo::SUBPRIMITIVE_CIRCLE) {
+			std::array<float, 6> bounds(getPointCloudBoundaries(*cloud_subprim));
+			// Reject and keep looking in case: min_z of cloud_subprim > center_z
+			if (bounds[4] > coefficients_subprim->values[2]) { continue; }				
+		}
+
 		arr_cloud_subprim.push_back(cloud_subprim);
 		arr_inliers_subprim.push_back(inliers_subprim);
 		arr_coeffs_subprim.push_back(coefficients_subprim);
@@ -1880,7 +1878,7 @@ bool michelangelo::segmentPrimitive(michelangelo::Primitive primitive, pcl::Mode
 #endif
 
 	// Check if line primitives were found
-	if (arr_coeffs_subprim_vertical.size() == 0 && arr_coeffs_subprim_horizontal.size() == 0) {	//&&		
+	if (arr_coeffs_subprim_vertical.size() == 0 || arr_coeffs_subprim_horizontal.size() == 0) {
 		std::cerr << "\tCan't find the primitive." << std::endl;
 		//std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 		return false;
