@@ -108,8 +108,8 @@ namespace michelangelo {
 	void heuristicCube(pcl::ModelCoefficients::Ptr&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, std::vector<pcl::ModelCoefficients::Ptr>&, std::vector<pcl::ModelCoefficients::Ptr>&);
 	void heuristicSphere(pcl::ModelCoefficients::Ptr&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, std::vector<pcl::ModelCoefficients::Ptr>&, std::vector<pcl::ModelCoefficients::Ptr>&);
 	void heuristicCylinder(pcl::ModelCoefficients::Ptr&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, std::vector<pcl::ModelCoefficients::Ptr>&, std::vector<pcl::ModelCoefficients::Ptr>&);
-	bool segmentGuess(pcl::ModelCoefficients::Ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, michelangelo::Subprimitive, size_t, float, pcl::visualization::PCLVisualizer&);
-	bool segmentPrimitive(michelangelo::Primitive, pcl::ModelCoefficients::Ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, size_t, float, pcl::visualization::PCLVisualizer&);
+	bool segmentPrimitive(const michelangelo::Primitive, pcl::ModelCoefficients::Ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, size_t, float, pcl::visualization::PCLVisualizer&);
+	bool segmentGuess(michelangelo::Primitive&, pcl::ModelCoefficients::Ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, size_t, float, pcl::visualization::PCLVisualizer&);
 	//bool segmentPrimitive(std::vector<michelangelo::Primitive>, pcl::ModelCoefficients::Ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr, const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>, size_t, float, pcl::visualization::PCLVisualizer&);
 	//bool segmentCube(pcl::ModelCoefficients::Ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, const pcl::PointCloud<pcl::PointXYZ>::Ptr, size_t, float, pcl::visualization::PCLVisualizer&);
 
@@ -166,7 +166,7 @@ void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 int main (int argc, char** argv)
 {	
 	// PCL Primitive [ michelangelo::PRIMITIVE_CUBE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER ]
-	michelangelo::Primitive prim(michelangelo::PRIMITIVE_CYLINDER);
+	michelangelo::Primitive prim(michelangelo::PRIMITIVE_CUBE);
 
 	bool RENDER(true);
 
@@ -518,8 +518,8 @@ int main (int argc, char** argv)
 
 			time.tic();
 
-			if (michelangelo::segmentPrimitive(prim, coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, 100, 0.0015, viewer)) {
-			//if(michelangelo::segmentGuess(coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, michelangelo::SUBPRIMITIVE_LINE, 100, 0.001, viewer)){
+			//if (michelangelo::segmentPrimitive(prim, coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, 100, 0.0015, viewer)) {
+			if(michelangelo::segmentGuess(prim, coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, 100, 0.001, viewer)){
 				if (RENDER) {
 					switch (prim) {
 					case michelangelo::PRIMITIVE_CUBE:
@@ -1834,7 +1834,7 @@ void michelangelo::heuristicCylinder(pcl::ModelCoefficients::Ptr& coefficients_p
 	}
 }
 
-bool michelangelo::segmentPrimitive(michelangelo::Primitive primitive, pcl::ModelCoefficients::Ptr coefficients_primitive, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_primitive, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_vertical, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_horizontal, size_t SAC_MAX_IT, float SAC_TOL, pcl::visualization::PCLVisualizer& viewer)
+bool michelangelo::segmentPrimitive(const michelangelo::Primitive primitive, pcl::ModelCoefficients::Ptr coefficients_primitive, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_primitive, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_vertical, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_horizontal, size_t SAC_MAX_IT, float SAC_TOL, pcl::visualization::PCLVisualizer& viewer)
 {
 	pcl::console::TicToc time;
 	bool RENDER(true);
@@ -1992,26 +1992,12 @@ bool michelangelo::segmentPrimitive(michelangelo::Primitive primitive, pcl::Mode
 	return true;
 }
 
-/*bool michelangelo::segmentPrimitive(std::vector<michelangelo::Primitive> dar_subprim, pcl::ModelCoefficients::Ptr coefficients_primitive, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_primitive, const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> dar_cloud_filt, size_t SAC_MAX_IT, float SAC_TOL, pcl::visualization::PCLVisualizer& viewer)
+bool michelangelo::segmentGuess(michelangelo::Primitive& primitive, pcl::ModelCoefficients::Ptr coefficients_primitive, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_primitive, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_vertical, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_horizontal, size_t SAC_MAX_IT, float SAC_TOL, pcl::visualization::PCLVisualizer& viewer)
 {
 	pcl::console::TicToc time;
 	bool RENDER(true);
 
 	michelangelo::Subprimitive subprim_vertical, subprim_horizontal;
-	switch (primitive) {
-	case michelangelo::PRIMITIVE_CUBE:
-		subprim_vertical = michelangelo::SUBPRIMITIVE_LINE;
-		subprim_horizontal = michelangelo::SUBPRIMITIVE_LINE;
-		break;
-	case michelangelo::PRIMITIVE_SPHERE:
-		subprim_vertical = michelangelo::SUBPRIMITIVE_CIRCLE;
-		subprim_horizontal = michelangelo::SUBPRIMITIVE_CIRCLE;
-		break;
-	case michelangelo::PRIMITIVE_CYLINDER:
-		subprim_vertical = michelangelo::SUBPRIMITIVE_LINE;
-		subprim_horizontal = michelangelo::SUBPRIMITIVE_CIRCLE;
-		break;
-	}
 
 	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> arr_cloud_subprim_vertical;
 	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> arr_cloud_subprim_horizontal;
@@ -2019,6 +2005,14 @@ bool michelangelo::segmentPrimitive(michelangelo::Primitive primitive, pcl::Mode
 	std::vector<pcl::ModelCoefficients::Ptr> arr_coeffs_subprim_horizontal;
 	std::vector<pcl::PointIndices::Ptr> arr_inliers_subprim_vertical;
 	std::vector<pcl::PointIndices::Ptr> arr_inliers_subprim_horizontal;
+	// Initialization for the cylinder case
+	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> arr_cloud_subprim_vertical_;
+	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> arr_cloud_subprim_horizontal_;
+	std::vector<pcl::ModelCoefficients::Ptr> arr_coeffs_subprim_vertical_;
+	std::vector<pcl::ModelCoefficients::Ptr> arr_coeffs_subprim_horizontal_;
+	std::vector<pcl::PointIndices::Ptr> arr_inliers_subprim_vertical_;
+	std::vector<pcl::PointIndices::Ptr> arr_inliers_subprim_horizontal_;
+	// cyl
 	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_subprim_vertical_color_h(180, 20, 20);
 	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_subprim_horizontal_color_h(180, 20, 20);
 
@@ -2031,16 +2025,47 @@ bool michelangelo::segmentPrimitive(michelangelo::Primitive primitive, pcl::Mode
 	michelangelo::segmentSubprimitive(subprim_horizontal, arr_coeffs_subprim_horizontal, arr_inliers_subprim_horizontal, arr_cloud_subprim_horizontal, cloud_filt_horizontal, SAC_MAX_IT, SAC_TOL);
 #else
 	// VERTICAL STRIP
-	std::thread t1(michelangelo::segmentSubprimitive, std::ref(subprim_vertical), std::ref(arr_coeffs_subprim_vertical), std::ref(arr_inliers_subprim_vertical), std::ref(arr_cloud_subprim_vertical), std::ref(cloud_filt_vertical), std::ref(SAC_MAX_IT), std::ref(SAC_TOL));
+	std::thread t_v1(michelangelo::segmentSubprimitive, michelangelo::SUBPRIMITIVE_LINE, std::ref(arr_coeffs_subprim_vertical), std::ref(arr_inliers_subprim_vertical), std::ref(arr_cloud_subprim_vertical), std::ref(cloud_filt_vertical), std::ref(SAC_MAX_IT), std::ref(SAC_TOL));
+	std::thread t_v2(michelangelo::segmentSubprimitive, michelangelo::SUBPRIMITIVE_CIRCLE, std::ref(arr_coeffs_subprim_vertical_), std::ref(arr_inliers_subprim_vertical_), std::ref(arr_cloud_subprim_vertical_), std::ref(cloud_filt_vertical), std::ref(SAC_MAX_IT), std::ref(SAC_TOL));
 	// HORIZONTAL STRIP
-	std::thread t2(michelangelo::segmentSubprimitive, std::ref(subprim_horizontal), std::ref(arr_coeffs_subprim_horizontal), std::ref(arr_inliers_subprim_horizontal), std::ref(arr_cloud_subprim_horizontal), std::ref(cloud_filt_horizontal), std::ref(SAC_MAX_IT), std::ref(SAC_TOL));
+	std::thread t_h1(michelangelo::segmentSubprimitive, michelangelo::SUBPRIMITIVE_LINE, std::ref(arr_coeffs_subprim_horizontal), std::ref(arr_inliers_subprim_horizontal), std::ref(arr_cloud_subprim_horizontal), std::ref(cloud_filt_horizontal), std::ref(SAC_MAX_IT), std::ref(SAC_TOL));
+	std::thread t_h2(michelangelo::segmentSubprimitive, michelangelo::SUBPRIMITIVE_CIRCLE, std::ref(arr_coeffs_subprim_horizontal_), std::ref(arr_inliers_subprim_horizontal_), std::ref(arr_cloud_subprim_horizontal_), std::ref(cloud_filt_horizontal), std::ref(SAC_MAX_IT), std::ref(SAC_TOL));
 
-	t1.join();
-	t2.join();
+	t_v1.join();
+	t_v2.join();
+	t_h1.join();
+	t_h2.join();
+
+	// Pick the biggest cloud that corresponds to the correct subprimitive
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_subprim_vertical(new pcl::PointCloud<pcl::PointXYZ>()), cloud_subprim_vertical_(new pcl::PointCloud<pcl::PointXYZ>());
+	for (auto c : arr_cloud_subprim_vertical) { *cloud_subprim_vertical += *c; }
+	for (auto c : arr_cloud_subprim_vertical_) { *cloud_subprim_vertical_ += *c; }
+	if (cloud_subprim_vertical_->size() > cloud_subprim_vertical->size()) {
+		arr_coeffs_subprim_vertical = arr_coeffs_subprim_vertical_;
+		arr_inliers_subprim_vertical = arr_inliers_subprim_vertical_;
+		arr_cloud_subprim_vertical = arr_cloud_subprim_vertical_;
+		subprim_vertical = michelangelo::SUBPRIMITIVE_CIRCLE;
+	}
+	else {
+		subprim_vertical = michelangelo::SUBPRIMITIVE_LINE;
+	}
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_subprim_horizontal(new pcl::PointCloud<pcl::PointXYZ>()), cloud_subprim_horizontal_(new pcl::PointCloud<pcl::PointXYZ>());
+	for (auto c : arr_cloud_subprim_horizontal) { *cloud_subprim_horizontal += *c; }
+	for (auto c : arr_cloud_subprim_horizontal_) { *cloud_subprim_horizontal_ += *c; }
+	if (cloud_subprim_horizontal_->size() > cloud_subprim_horizontal->size()) {
+		arr_coeffs_subprim_horizontal = arr_coeffs_subprim_horizontal_;
+		arr_inliers_subprim_horizontal = arr_inliers_subprim_horizontal_;
+		arr_cloud_subprim_horizontal = arr_cloud_subprim_horizontal_;
+		subprim_horizontal = michelangelo::SUBPRIMITIVE_CIRCLE;
+	}
+	else {
+		subprim_horizontal = michelangelo::SUBPRIMITIVE_LINE;
+	}
+
 #endif
 
 	// Check if line primitives were found
-	if (arr_coeffs_subprim_vertical.size() == 0 && arr_coeffs_subprim_horizontal.size() == 0) {	//&&		
+	if (arr_coeffs_subprim_vertical.size() == 0 || arr_coeffs_subprim_horizontal.size() == 0) {
 		std::cerr << "\tCan't find the primitive." << std::endl;
 		//std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 		return false;
@@ -2049,90 +2074,10 @@ bool michelangelo::segmentPrimitive(michelangelo::Primitive primitive, pcl::Mode
 		std::cerr << "PointCloud PRIMITIVE: " << cloud_primitive->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 	}
 
-	// RENDERING
+	// COEFFICIENT CORRECTION
 	// -----------------------------------------------------------------------------------------
 
-	// Render the line primitives PointCloud and 3-D shape
-	if (RENDER) {
-		// prim_vertical point cloud is red
-		for (int i(0); i < arr_coeffs_subprim_vertical.size(); ++i) {
-			cloud_subprim_vertical_color_h.setInputCloud(arr_cloud_subprim_vertical[i]);
-			viewer.addPointCloud(arr_cloud_subprim_vertical[i], cloud_subprim_vertical_color_h, "cloud_subprim_vertical_" + std::to_string(i));//, vp
 
-			if (arr_coeffs_subprim_vertical[i]->values.size() == 7) {
-				correctCircleShape(*arr_coeffs_subprim_vertical[i]);
-				viewer.addCylinder(*arr_coeffs_subprim_vertical[i], "vertical_" + std::to_string(i));
-			}
-			else {
-				correctLineShape(*arr_coeffs_subprim_vertical[i], *arr_cloud_subprim_vertical[i]);
-				viewer.addLine(*arr_coeffs_subprim_vertical[i], "vertical_" + std::to_string(i));
-			}
-		}
-
-		// prim_horizontal point cloud is red
-		for (int i(0); i < arr_coeffs_subprim_horizontal.size(); ++i) {
-			cloud_subprim_horizontal_color_h.setInputCloud(arr_cloud_subprim_horizontal[i]);
-			viewer.addPointCloud(arr_cloud_subprim_horizontal[i], cloud_subprim_horizontal_color_h, "cloud_subprim_horizontal_" + std::to_string(i));//, vp
-
-			if (arr_coeffs_subprim_horizontal[i]->values.size() == 7) {
-				correctCircleShape(*arr_coeffs_subprim_horizontal[i]);
-				viewer.addCylinder(*arr_coeffs_subprim_horizontal[i], "horizontal_" + std::to_string(i));
-			}
-			else {
-				correctLineShape(*arr_coeffs_subprim_horizontal[i], *arr_cloud_subprim_horizontal[i]);
-				viewer.addLine(*arr_coeffs_subprim_horizontal[i], "horizontal_" + std::to_string(i));
-			}
-		}
-	}
-
-	// SHAPE HEURISTIC
-	// -----------------------------------------------------------------------------------------
-	michelangelo::heuristicCube(coefficients_primitive, arr_cloud_subprim_vertical, arr_cloud_subprim_horizontal, arr_coeffs_subprim_vertical, arr_coeffs_subprim_horizontal);
-
-	return true;
-}
-*/
-
-bool michelangelo::segmentGuess(pcl::ModelCoefficients::Ptr coefficients_primitive, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_primitive, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_vertical, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_horizontal, michelangelo::Subprimitive subprim, size_t SAC_MAX_IT, float SAC_TOL, pcl::visualization::PCLVisualizer& viewer)
-{
-	pcl::console::TicToc time;
-	bool RENDER(true);
-
-	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> arr_cloud_subprim_vertical;
-	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> arr_cloud_subprim_horizontal;
-	std::vector<pcl::ModelCoefficients::Ptr> arr_coeffs_subprim_vertical;
-	std::vector<pcl::ModelCoefficients::Ptr> arr_coeffs_subprim_horizontal;
-	std::vector<pcl::PointIndices::Ptr> arr_inliers_subprim_vertical;
-	std::vector<pcl::PointIndices::Ptr> arr_inliers_subprim_horizontal;
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_subprim_vertical_color_h(180, 20, 20);
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_subprim_horizontal_color_h(180, 20, 20);
-
-	time.tic();
-
-#ifndef MULTITHREADING
-	// VERTICAL STRIP
-	michelangelo::segmentSubprimitive(subprim, arr_coeffs_subprim_vertical, arr_inliers_subprim_vertical, arr_cloud_subprim_vertical, cloud_filt_vertical, SAC_MAX_IT, SAC_TOL);
-	// HORIZONTAL STRIP
-	michelangelo::segmentSubprimitive(subprim, arr_coeffs_subprim_horizontal, arr_inliers_subprim_horizontal, arr_cloud_subprim_horizontal, cloud_filt_horizontal, SAC_MAX_IT, SAC_TOL);
-#else
-	// VERTICAL STRIP
-	std::thread t1(michelangelo::segmentSubprimitive, std::ref(subprim), std::ref(arr_coeffs_subprim_vertical), std::ref(arr_inliers_subprim_vertical), std::ref(arr_cloud_subprim_vertical), std::ref(cloud_filt_vertical), std::ref(SAC_MAX_IT), std::ref(SAC_TOL));
-	// HORIZONTAL STRIP
-	std::thread t2(michelangelo::segmentSubprimitive, std::ref(subprim), std::ref(arr_coeffs_subprim_horizontal), std::ref(arr_inliers_subprim_horizontal), std::ref(arr_cloud_subprim_horizontal), std::ref(cloud_filt_horizontal), std::ref(SAC_MAX_IT), std::ref(SAC_TOL));
-
-	t1.join();
-	t2.join();
-#endif
-
-	// Check if line primitives were found
-	if (arr_coeffs_subprim_vertical.size() == 0 && arr_coeffs_subprim_horizontal.size() == 0) {
-		std::cerr << "\tCan't find one or more subprimitives." << std::endl;
-		//std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
-		return false;
-	}
-	else {
-		std::cerr << "PointCloud PRIMITIVE: " << cloud_primitive->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
-	}
 
 	// RENDERING
 	// -----------------------------------------------------------------------------------------
@@ -2145,10 +2090,12 @@ bool michelangelo::segmentGuess(pcl::ModelCoefficients::Ptr coefficients_primiti
 			viewer.addPointCloud(arr_cloud_subprim_vertical[i], cloud_subprim_vertical_color_h, "cloud_subprim_vertical_" + std::to_string(i));//, vp
 
 			if (arr_coeffs_subprim_vertical[i]->values.size() == 7) {
+				// michelangelo::SUBPRIMITIVE_CIRCLE ~ model (7 coef) is corrected and rendered as a 1mm height cylinder
 				correctCircleShape(*arr_coeffs_subprim_vertical[i]);
 				viewer.addCylinder(*arr_coeffs_subprim_vertical[i], "vertical_" + std::to_string(i));
 			}
 			else {
+				// michelangelo::SUBPRIMITIVE_LINE
 				correctLineShape(*arr_coeffs_subprim_vertical[i], *arr_cloud_subprim_vertical[i]);
 				viewer.addLine(*arr_coeffs_subprim_vertical[i], "vertical_" + std::to_string(i));
 			}
@@ -2160,9 +2107,12 @@ bool michelangelo::segmentGuess(pcl::ModelCoefficients::Ptr coefficients_primiti
 			viewer.addPointCloud(arr_cloud_subprim_horizontal[i], cloud_subprim_horizontal_color_h, "cloud_subprim_horizontal_" + std::to_string(i));//, vp
 
 			if (arr_coeffs_subprim_horizontal[i]->values.size() == 7) {
+				// michelangelo::SUBPRIMITIVE_CIRCLE ~ model (7 coef) is corrected and rendered as a 1mm height cylinder
 				correctCircleShape(*arr_coeffs_subprim_horizontal[i]);
 				viewer.addCylinder(*arr_coeffs_subprim_horizontal[i], "horizontal_" + std::to_string(i));
-			} else {
+			}
+			else {
+				// michelangelo::SUBPRIMITIVE_LINE
 				correctLineShape(*arr_coeffs_subprim_horizontal[i], *arr_cloud_subprim_horizontal[i]);
 				viewer.addLine(*arr_coeffs_subprim_horizontal[i], "horizontal_" + std::to_string(i));
 			}
@@ -2171,8 +2121,28 @@ bool michelangelo::segmentGuess(pcl::ModelCoefficients::Ptr coefficients_primiti
 
 	// SHAPE HEURISTIC
 	// -----------------------------------------------------------------------------------------
-	michelangelo::heuristicCube(coefficients_primitive, arr_cloud_subprim_vertical, arr_cloud_subprim_horizontal, arr_coeffs_subprim_vertical, arr_coeffs_subprim_horizontal);
- 
+	// Decision tree based guess
+	if (subprim_vertical == michelangelo::SUBPRIMITIVE_LINE) {
+		if (subprim_horizontal == michelangelo::SUBPRIMITIVE_LINE) { primitive = michelangelo::PRIMITIVE_CUBE; }
+		else if (subprim_horizontal == michelangelo::SUBPRIMITIVE_CIRCLE) { primitive = michelangelo::PRIMITIVE_CYLINDER; }
+	}
+	else if (subprim_vertical == michelangelo::SUBPRIMITIVE_CIRCLE) {
+		if (subprim_horizontal == michelangelo::SUBPRIMITIVE_LINE) { primitive = michelangelo::PRIMITIVE_CYLINDER; }
+		else if (subprim_horizontal == michelangelo::SUBPRIMITIVE_CIRCLE) { primitive = michelangelo::PRIMITIVE_SPHERE; }
+	}
+
+	switch (primitive) {
+	case michelangelo::PRIMITIVE_CUBE:
+		michelangelo::heuristicCube(coefficients_primitive, arr_cloud_subprim_vertical, arr_cloud_subprim_horizontal, arr_coeffs_subprim_vertical, arr_coeffs_subprim_horizontal);
+		break;
+	case michelangelo::PRIMITIVE_SPHERE:
+		michelangelo::heuristicSphere(coefficients_primitive, arr_cloud_subprim_vertical, arr_cloud_subprim_horizontal, arr_coeffs_subprim_vertical, arr_coeffs_subprim_horizontal);
+		break;
+	case michelangelo::PRIMITIVE_CYLINDER:
+		michelangelo::heuristicCylinder(coefficients_primitive, arr_cloud_subprim_vertical, arr_cloud_subprim_horizontal, arr_coeffs_subprim_vertical, arr_coeffs_subprim_horizontal);
+		break;
+	}
+
 	return true;
 }
 
@@ -2201,7 +2171,6 @@ pcl::PointXYZ michelangelo::otherAngle(const pcl::PointXYZ& axis_projection, flo
 	other.y = -other.y;
 	return other;
 }
-
 
 float michelangelo::readAngle(pcl::PointXYZ axis_projection)
 {
