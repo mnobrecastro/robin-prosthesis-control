@@ -2,6 +2,7 @@
 #include <cmath>
 #include <array>
 #include <vector>
+#include <list>
 #include <thread>
 #include <mutex>
 #include <omp.h>
@@ -165,8 +166,31 @@ void pp_callback(const pcl::visualization::PointPickingEvent&, void*);
 
 int main (int argc, char** argv)
 {	
-	// PCL Primitive [ michelangelo::PRIMITIVE_CUBE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER ]
-	michelangelo::Primitive prim(michelangelo::PRIMITIVE_CUBE);
+	char g_in;
+	do {
+		std::cout << "Automated heuristic segmentation [y/n]: ";
+		std::cin >> g_in;
+	} while (g_in != 'y' && g_in != 'n');
+	bool GUESS;
+	if (g_in == 'y') { GUESS = true; }
+	else if (g_in == 'n') { GUESS = false; }
+	
+	// PCL Primitive [ michelangelo::PRIMITIVE_CUBE, michelangelo::PRIMITIVE_SPHERE, michelangelo::PRIMITIVE_CYLINDER ]	
+	michelangelo::Primitive prim;
+	if (!GUESS) {
+		int pr;
+		do {
+			std::cout << "Choose primitive [Cube(0)/Sphere(1)/Cylinder(2)]: ";
+			std::cin >> pr;
+		} while (pr < 0 && pr > 2);
+		switch (pr) {
+			case 0: prim = michelangelo::PRIMITIVE_CUBE; break;
+			case 1: prim = michelangelo::PRIMITIVE_SPHERE; break;
+			case 2: prim = michelangelo::PRIMITIVE_CYLINDER; break;
+		}
+
+	}
+
 
 	bool RENDER(true);
 
@@ -518,22 +542,25 @@ int main (int argc, char** argv)
 
 			time.tic();
 
-			//if (michelangelo::segmentPrimitive(prim, coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, 100, 0.0015, viewer)) {
-			if(michelangelo::segmentGuess(prim, coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, 100, 0.001, viewer)){
-				if (RENDER) {
-					switch (prim) {
-					case michelangelo::PRIMITIVE_CUBE:
-						viewer.addCube(*coefficients_primitive, "cube");
-						break;
-					case michelangelo::PRIMITIVE_SPHERE:
-						viewer.addSphere(*coefficients_primitive, "sphere");
-						break;
-					case michelangelo::PRIMITIVE_CYLINDER:
-						viewer.addCylinder(*coefficients_primitive, "cylinder");
-						break;
-					}					
+			bool segment_success;
+			if (GUESS) {
+				segment_success = michelangelo::segmentGuess(prim, coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, 100, 0.001, viewer);
+			} else {
+				segment_success = michelangelo::segmentPrimitive(prim, coefficients_primitive, cloud_primitive, cloud_filt_vertical, cloud_filt_horizontal, 100, 0.0015, viewer);
+			}
+			if (segment_success && RENDER) {
+				switch (prim) {
+				case michelangelo::PRIMITIVE_CUBE:
+					viewer.addCube(*coefficients_primitive, "cube");
+					break;
+				case michelangelo::PRIMITIVE_SPHERE:
+					viewer.addSphere(*coefficients_primitive, "sphere");
+					break;
+				case michelangelo::PRIMITIVE_CYLINDER:
+					viewer.addCylinder(*coefficients_primitive, "cylinder");
+					break;
 				}
-			}				
+			}	
 			break;
 
 		case michelangelo::SEGMENTATION:
@@ -1432,10 +1459,10 @@ void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& 
 
 void michelangelo::segmentSubprimitive(michelangelo::Subprimitive subprim, std::vector<pcl::ModelCoefficients::Ptr>& arr_coeffs_subprim, std::vector<pcl::PointIndices::Ptr>& arr_inliers_subprim, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& arr_cloud_subprim, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, size_t SAC_MAX_IT, float SAC_TOL)
 {
+	/*Method operates on a single 1-D depth data array to find subprimitive (2-D) shapes such as a Line, Circle or Ellipse. */
+
 	pcl::PointCloud<PointT>::Ptr cloud_filt(new pcl::PointCloud<pcl::PointXYZ>());
 	pcl::copyPointCloud(*cloud, *cloud_filt);
-	size_t k_lines;
-	int n_pts;
 
 	int MAX_LINES;
 	switch (subprim) {
@@ -1463,7 +1490,7 @@ void michelangelo::segmentSubprimitive(michelangelo::Subprimitive subprim, std::
 		break;
 	}
 
-	k_lines = 0; n_pts = cloud_filt->points.size();
+	size_t k_lines = 0; int n_pts = cloud_filt->points.size();
 	while (cloud_filt->points.size() > 0.3 * n_pts && k_lines < MAX_LINES) {
 
 		pcl::PointCloud<PointT>::Ptr cloud_subprim(new pcl::PointCloud<PointT>());
@@ -1499,7 +1526,7 @@ void michelangelo::segmentSubprimitive(michelangelo::Subprimitive subprim, std::
 		if (subprim == michelangelo::SUBPRIMITIVE_CIRCLE) {
 			std::array<float, 6> bounds(getPointCloudBoundaries(*cloud_subprim));
 			// Reject and keep looking in case: min_z of cloud_subprim > center_z
-			if (bounds[4] > coefficients_subprim->values[2]) { continue; }				
+			if (bounds[4] > coefficients_subprim->values[2]) { continue; }
 		}
 
 		arr_cloud_subprim.push_back(cloud_subprim);
@@ -1526,6 +1553,7 @@ void michelangelo::heuristicCube(pcl::ModelCoefficients::Ptr& coefficients_primi
 	//   [-]
 	//   [-]
 	//   [-]
+	// ** Make this class getBoundaries (chose vector direction as input) **
 	std::vector<std::array<float, 2>> bounds_vertical;
 	for (int i(0); i < arr_coeffs_subprim_vertical.size(); ++i) {
 		std::array<float, 6> bounds_temp(getPointCloudBoundaries(*arr_cloud_subprim_vertical[i]));
