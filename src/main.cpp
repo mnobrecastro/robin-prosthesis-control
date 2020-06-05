@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include <list>
+#include <algorithm>
 #include <thread>
 #include <mutex>
 #include <omp.h>
@@ -105,6 +106,7 @@ namespace michelangelo {
 	float readAngle(pcl::PointXYZ);
 	std::string setAction(float);
 
+	bool comparePoints(pcl::PointXYZ&, pcl::PointXYZ&);
 	void segmentSubprimitive(michelangelo::Subprimitive, std::vector<pcl::ModelCoefficients::Ptr>&, std::vector<pcl::PointIndices::Ptr>&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, const pcl::PointCloud<pcl::PointXYZ>::Ptr, size_t, float);
 	void heuristicCube(pcl::ModelCoefficients::Ptr&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, std::vector<pcl::ModelCoefficients::Ptr>&, std::vector<pcl::ModelCoefficients::Ptr>&);
 	void heuristicSphere(pcl::ModelCoefficients::Ptr&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&, std::vector<pcl::ModelCoefficients::Ptr>&, std::vector<pcl::ModelCoefficients::Ptr>&);
@@ -1457,6 +1459,14 @@ void correctCylShape(pcl::ModelCoefficients& cyl, const pcl::ModelCoefficients& 
 	cyl.values.push_back(coefficients.values[6]);
 }
 
+bool michelangelo::comparePoints(pcl::PointXYZ& pt1, pcl::PointXYZ& pt2) {
+	if (std::abs(pt1.x - pt2.x) > std::abs(pt1.y - pt2.y)) { 
+		return pt1.x < pt2.x;
+	} else { 
+		return pt1.y < pt2.y;
+	}
+}
+
 void michelangelo::segmentSubprimitive(michelangelo::Subprimitive subprim, std::vector<pcl::ModelCoefficients::Ptr>& arr_coeffs_subprim, std::vector<pcl::PointIndices::Ptr>& arr_inliers_subprim, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& arr_cloud_subprim, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, size_t SAC_MAX_IT, float SAC_TOL)
 {
 	/*Method operates on a single 1-D depth data array to find subprimitive (2-D) shapes such as a Line, Circle or Ellipse. */
@@ -1522,21 +1532,104 @@ void michelangelo::segmentSubprimitive(michelangelo::Subprimitive subprim, std::
 		extract.setNegative(true);
 		extract.filter(*cloud_filt);
 
+		// Testing segments for line cases parallel to the view
+		if (subprim == michelangelo::SUBPRIMITIVE_LINE) {
+			// Check angle
+			Eigen::Vector3f vscreen(1.0, 0.0, 0.0);
+			Eigen::Vector3f vsubprim(coefficients_subprim->values[3], coefficients_subprim->values[4], coefficients_subprim->values[5]);
+			float ang(std::acos(vscreen.dot(vsubprim) / vscreen.norm() / vsubprim.norm()));
+
+			// Sort and slice colinear sub-subprimitives (with ang < M_PI/4 to the screen) if they exist
+			//if (std::abs(ang) < M_PI/4) {
+			if(true){
+				// Sort
+				std::sort(cloud_subprim->points.begin(), cloud_subprim->points.end(), michelangelo::comparePoints);
+
+				// Slice
+				pcl::PointCloud<PointT>::Ptr cloud_slice(new pcl::PointCloud<PointT>());
+				pcl::PointIndices::Ptr inliers_slice(new pcl::PointIndices);
+				pcl::ModelCoefficients::Ptr coefficients_slice(new pcl::ModelCoefficients);
+
+				size_t k_slices(0);
+				for (size_t i(0); i < cloud_subprim->points.size()-1; ++i) {
+					
+					cloud_slice->push_back(cloud_subprim->points[i]);
+					inliers_slice->indices.push_back(pcl::index_t(i));
+
+					Eigen::Vector3f current(cloud_subprim->points[i].x, cloud_subprim->points[i].y, cloud_subprim->points[i].z);
+					Eigen::Vector3f next(cloud_subprim->points[i+1].x, cloud_subprim->points[i+1].y, cloud_subprim->points[i+1].z);
+					Eigen::Vector3f dist(next - current);
+
+					if (dist.norm() <= 0.010 && i+1 != cloud_subprim->points.size()-1) {
+						continue;
+					}
+					else if (dist.norm() <= 0.010 && i+1 == cloud_subprim->points.size()-1) {
+						cloud_slice->push_back(cloud_subprim->points[i+1]);
+						inliers_slice->indices.push_back(pcl::index_t(i+1));
+
+						coefficients_slice->values.push_back(cloud_subprim->points[i+1].x);
+						coefficients_slice->values.push_back(cloud_subprim->points[i+1].y);
+						coefficients_slice->values.push_back(cloud_subprim->points[i+1].z);
+						coefficients_slice->values.push_back(coefficients_subprim->values[3]);
+						coefficients_slice->values.push_back(coefficients_subprim->values[4]);
+						coefficients_slice->values.push_back(coefficients_subprim->values[5]);
+
+						mu.lock();
+						std::cout << "Slice (" << k_lines + 1 << ") #" << k_slices + 1 << ": " << cloud_slice->points.size() << " (" << inliers_subprim->indices.size() << "/" << cloud_filt->points.size() << ") points." << std::endl;
+						mu.unlock();
+
+						arr_cloud_subprim.push_back(cloud_slice);
+						arr_inliers_subprim.push_back(inliers_slice);
+						arr_coeffs_subprim.push_back(coefficients_slice);
+						++k_slices;
+					}
+					else if(dist.norm() > 0.010) {
+						// Store it only if is not a single point cloud
+						if (cloud_slice->points.size() > 1) {
+							coefficients_slice->values.push_back(cloud_subprim->points[i].x);
+							coefficients_slice->values.push_back(cloud_subprim->points[i].y);
+							coefficients_slice->values.push_back(cloud_subprim->points[i].z);
+							coefficients_slice->values.push_back(coefficients_subprim->values[3]);
+							coefficients_slice->values.push_back(coefficients_subprim->values[4]);
+							coefficients_slice->values.push_back(coefficients_subprim->values[5]);
+
+							mu.lock();
+							std::cout << "Slice (" << k_lines + 1 << ") #" << k_slices + 1 << ": " << cloud_slice->points.size() << " (" << inliers_subprim->indices.size() << "/" << cloud_filt->points.size() << ") points." << std::endl;
+							mu.unlock();
+
+							arr_cloud_subprim.push_back(cloud_slice);
+							arr_inliers_subprim.push_back(inliers_slice);
+							arr_coeffs_subprim.push_back(coefficients_slice);
+							++k_slices;
+						}
+						// Reset the slice pointcloud objects
+						cloud_slice->clear();
+						inliers_slice->indices.clear();
+						coefficients_slice->values.clear();
+					}
+				}				
+			}			
+		}
+			
+
 		// Ignore concave circle cases
 		if (subprim == michelangelo::SUBPRIMITIVE_CIRCLE) {
 			std::array<float, 6> bounds(getPointCloudBoundaries(*cloud_subprim));
 			// Reject and keep looking in case: min_z of cloud_subprim > center_z
 			if (bounds[4] > coefficients_subprim->values[2]) { continue; }
+
+			// Sort
+			std::sort(cloud_subprim->points.begin(), cloud_subprim->points.end(), michelangelo::comparePoints);
+
+			arr_cloud_subprim.push_back(cloud_subprim);
+			arr_inliers_subprim.push_back(inliers_subprim);
+			arr_coeffs_subprim.push_back(coefficients_subprim);
+
+			//*cloud_primitive += *cloud_subprim_line;			
 		}
 
-		arr_cloud_subprim.push_back(cloud_subprim);
-		arr_inliers_subprim.push_back(inliers_subprim);
-		arr_coeffs_subprim.push_back(coefficients_subprim);
-
-		//*cloud_primitive += *cloud_subprim_line;
-
 		++k_lines;
-	}	
+	}
 }
 
 void michelangelo::heuristicCube(pcl::ModelCoefficients::Ptr& coefficients_primitive, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& arr_cloud_subprim_vertical, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& arr_cloud_subprim_horizontal, std::vector<pcl::ModelCoefficients::Ptr>& arr_coeffs_subprim_vertical, std::vector<pcl::ModelCoefficients::Ptr>& arr_coeffs_subprim_horizontal)
@@ -1864,6 +1957,7 @@ void michelangelo::heuristicCylinder(pcl::ModelCoefficients::Ptr& coefficients_p
 
 bool michelangelo::segmentPrimitive(const michelangelo::Primitive primitive, pcl::ModelCoefficients::Ptr coefficients_primitive, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_primitive, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_vertical, const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filt_horizontal, size_t SAC_MAX_IT, float SAC_TOL, pcl::visualization::PCLVisualizer& viewer)
 {
+	/* This primitive class can be made specific.*/
 	pcl::console::TicToc time;
 	bool RENDER(true);
 
@@ -1931,18 +2025,46 @@ bool michelangelo::segmentPrimitive(const michelangelo::Primitive primitive, pcl
 		t4.join();
 
 		// Pick the biggest cloud that corresponds to the correct subprimitive
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_subprim_vertical(new pcl::PointCloud<pcl::PointXYZ>()), cloud_subprim_vertical_(new pcl::PointCloud<pcl::PointXYZ>());
+		/*pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_subprim_vertical(new pcl::PointCloud<pcl::PointXYZ>()), cloud_subprim_vertical_(new pcl::PointCloud<pcl::PointXYZ>());
 		for (auto c : arr_cloud_subprim_vertical) { *cloud_subprim_vertical += *c; }
 		for (auto c : arr_cloud_subprim_vertical_) { *cloud_subprim_vertical_ += *c; }
-		if (cloud_subprim_vertical_->size() > cloud_subprim_vertical->size()) {
+		if (cloud_subprim_vertical_->size() > cloud_subprim_vertical->size()) {*/
+		float max_subprim_vertical(0.0), max_subprim_vertical_(0.0);
+		for (auto c : arr_cloud_subprim_vertical) { 
+			std::array<float, 6> bounds_temp(getPointCloudBoundaries(*c));
+			if ((bounds_temp[2] <=0 && bounds_temp[3]>0) && c->points.size() > max_subprim_vertical) {
+				max_subprim_vertical = c->points.size();
+			}
+		}
+		for (auto c : arr_cloud_subprim_vertical_) {
+			std::array<float, 6> bounds_temp(getPointCloudBoundaries(*c));
+			if ((bounds_temp[2] <= 0 && bounds_temp[3] > 0) && c->points.size() > max_subprim_vertical_) {
+				max_subprim_vertical_ = c->points.size();
+			}
+		}
+		if (max_subprim_vertical_ > max_subprim_vertical) {
 			arr_coeffs_subprim_vertical = arr_coeffs_subprim_vertical_;
 			arr_inliers_subprim_vertical = arr_inliers_subprim_vertical_;
 			arr_cloud_subprim_vertical = arr_cloud_subprim_vertical_;
 		}
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_subprim_horizontal(new pcl::PointCloud<pcl::PointXYZ>()), cloud_subprim_horizontal_(new pcl::PointCloud<pcl::PointXYZ>());
+		/*pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_subprim_horizontal(new pcl::PointCloud<pcl::PointXYZ>()), cloud_subprim_horizontal_(new pcl::PointCloud<pcl::PointXYZ>());
 		for (auto c : arr_cloud_subprim_horizontal) { *cloud_subprim_horizontal += *c; }
 		for (auto c : arr_cloud_subprim_horizontal_) { *cloud_subprim_horizontal_ += *c; }
-		if (cloud_subprim_horizontal_->size() > cloud_subprim_horizontal->size()) {
+		if (cloud_subprim_horizontal_->size() > cloud_subprim_horizontal->size()) {*/
+		float max_subprim_horizontal(0.0), max_subprim_horizontal_(0.0);
+		for (auto c : arr_cloud_subprim_horizontal) {
+			std::array<float, 6> bounds_temp(getPointCloudBoundaries(*c));
+			if ((bounds_temp[0] <= 0 && bounds_temp[1] > 0) && c->points.size() > max_subprim_horizontal) {
+				max_subprim_horizontal = c->points.size();
+			}
+		}
+		for (auto c : arr_cloud_subprim_horizontal_) {
+			std::array<float, 6> bounds_temp(getPointCloudBoundaries(*c));
+			if ((bounds_temp[0] <= 0 && bounds_temp[1] > 0) && c->points.size() > max_subprim_horizontal_) {
+				max_subprim_horizontal_ = c->points.size();
+			}
+		}
+		if (max_subprim_horizontal_ > max_subprim_horizontal) {
 			arr_coeffs_subprim_horizontal = arr_coeffs_subprim_horizontal_;
 			arr_inliers_subprim_horizontal = arr_inliers_subprim_horizontal_;
 			arr_cloud_subprim_horizontal = arr_cloud_subprim_horizontal_;
@@ -2014,8 +2136,7 @@ bool michelangelo::segmentPrimitive(const michelangelo::Primitive primitive, pcl
 	case michelangelo::PRIMITIVE_CYLINDER:
 		michelangelo::heuristicCylinder(coefficients_primitive, arr_cloud_subprim_vertical, arr_cloud_subprim_horizontal, arr_coeffs_subprim_vertical, arr_coeffs_subprim_horizontal);
 		break;
-	}
-	
+	}	
 
 	return true;
 }
@@ -2065,10 +2186,24 @@ bool michelangelo::segmentGuess(michelangelo::Primitive& primitive, pcl::ModelCo
 	t_h2.join();
 
 	// Pick the biggest cloud that corresponds to the correct subprimitive
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_subprim_vertical(new pcl::PointCloud<pcl::PointXYZ>()), cloud_subprim_vertical_(new pcl::PointCloud<pcl::PointXYZ>());
+	/*pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_subprim_vertical(new pcl::PointCloud<pcl::PointXYZ>()), cloud_subprim_vertical_(new pcl::PointCloud<pcl::PointXYZ>());
 	for (auto c : arr_cloud_subprim_vertical) { *cloud_subprim_vertical += *c; }
 	for (auto c : arr_cloud_subprim_vertical_) { *cloud_subprim_vertical_ += *c; }
-	if (cloud_subprim_vertical_->size() > cloud_subprim_vertical->size()) {
+	if (cloud_subprim_vertical_->size() > cloud_subprim_vertical->size()) {*/
+	float max_subprim_vertical(0.0), max_subprim_vertical_(0.0);
+	for (auto c : arr_cloud_subprim_vertical) {
+		std::array<float, 6> bounds_temp(getPointCloudBoundaries(*c));
+		if ((bounds_temp[2] <= 0 && bounds_temp[3] > 0) && c->points.size() > max_subprim_vertical) {
+			max_subprim_vertical = c->points.size();
+		}
+	}
+	for (auto c : arr_cloud_subprim_vertical_) {
+		std::array<float, 6> bounds_temp(getPointCloudBoundaries(*c));
+		if ((bounds_temp[2] <= 0 && bounds_temp[3] > 0) && c->points.size() > max_subprim_vertical_) {
+			max_subprim_vertical_ = c->points.size();
+		}
+	}
+	if (max_subprim_vertical_ > max_subprim_vertical) {
 		arr_coeffs_subprim_vertical = arr_coeffs_subprim_vertical_;
 		arr_inliers_subprim_vertical = arr_inliers_subprim_vertical_;
 		arr_cloud_subprim_vertical = arr_cloud_subprim_vertical_;
@@ -2077,10 +2212,24 @@ bool michelangelo::segmentGuess(michelangelo::Primitive& primitive, pcl::ModelCo
 	else {
 		subprim_vertical = michelangelo::SUBPRIMITIVE_LINE;
 	}
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_subprim_horizontal(new pcl::PointCloud<pcl::PointXYZ>()), cloud_subprim_horizontal_(new pcl::PointCloud<pcl::PointXYZ>());
+	/*pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_subprim_horizontal(new pcl::PointCloud<pcl::PointXYZ>()), cloud_subprim_horizontal_(new pcl::PointCloud<pcl::PointXYZ>());
 	for (auto c : arr_cloud_subprim_horizontal) { *cloud_subprim_horizontal += *c; }
 	for (auto c : arr_cloud_subprim_horizontal_) { *cloud_subprim_horizontal_ += *c; }
-	if (cloud_subprim_horizontal_->size() > cloud_subprim_horizontal->size()) {
+	if (cloud_subprim_horizontal_->size() > cloud_subprim_horizontal->size()) {*/
+	float max_subprim_horizontal(0.0), max_subprim_horizontal_(0.0);
+	for (auto c : arr_cloud_subprim_horizontal) {
+		std::array<float, 6> bounds_temp(getPointCloudBoundaries(*c));
+		if ((bounds_temp[0] <= 0 && bounds_temp[1] > 0) && c->points.size() > max_subprim_horizontal) {
+			max_subprim_horizontal = c->points.size();
+		}
+	}
+	for (auto c : arr_cloud_subprim_horizontal_) {
+		std::array<float, 6> bounds_temp(getPointCloudBoundaries(*c));
+		if ((bounds_temp[0] <= 0 && bounds_temp[1] > 0) && c->points.size() > max_subprim_horizontal_) {
+			max_subprim_horizontal_ = c->points.size();
+		}
+	}
+	if (max_subprim_horizontal_ > max_subprim_horizontal) {
 		arr_coeffs_subprim_horizontal = arr_coeffs_subprim_horizontal_;
 		arr_inliers_subprim_horizontal = arr_inliers_subprim_horizontal_;
 		arr_cloud_subprim_horizontal = arr_cloud_subprim_horizontal_;
