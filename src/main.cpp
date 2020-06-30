@@ -4,6 +4,7 @@
 #include "../src/solver3.h"
 #include "../src/realsense_d400.h"
 #include "../src/primitive3_sphere.h"
+#include "../src/primitive3_cylinder.h"
 
 /*
 #include <ctime>
@@ -85,12 +86,12 @@ int main(int argc, char** argv)
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
 	mycam->printInfo();
 	mycam->setCrop(-0.100, 0.100, -0.100, 0.100, 0.050, 0.200);
-	mycam->setDownsample(0.005);
+	mycam->setDownsample(0.0025);//0.005
 
 	mysolver.addSensor(mycam);
 
-	robin::Primitive3Sphere sphere;
-	mysolver.setPrimitive(sphere);
+	robin::Primitive3Cylinder prim;
+	mysolver.setPrimitive(prim);
 
 	// Dummy Segmentation object
 	mysolver.setSegmentation(robin::Method3::SEGMENTATION_RANSAC);
@@ -98,8 +99,8 @@ int main(int argc, char** argv)
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
 	seg->setMaxIterations(100);
-	seg->setDistanceThreshold(0.001);
-	seg->setRadiusLimits(0.005, 0.040);
+	seg->setDistanceThreshold(0.01);//0.001
+	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 
 	/*mysolver.setSegmentation(robin::Method3::SEGMENTATION_RANSAC);
