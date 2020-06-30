@@ -4,7 +4,7 @@ namespace robin
 {
 	void Primitive3Sphere::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
-		viewer->addSphere(*coefficients_, "cylinder");
+		viewer->addSphere(*coefficients_, "sphere");
 	}
 
 
@@ -18,13 +18,7 @@ namespace robin
 		}
 
 		/* 1. Validate the fit. */
-		if (!this->is_fit_valid()) {
-			coefficients_->values[0] = -0.001;
-			coefficients_->values[1] = -0.001;
-			coefficients_->values[2] = -0.001;
-			coefficients_->values[3] = 0.001;
-		}
-		else {
+		if (this->is_fit_valid()) {
 			/* 2. Correct model coeffficients. */
 			this->correct_coefficients();
 		}
