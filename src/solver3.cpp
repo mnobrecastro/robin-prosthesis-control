@@ -80,6 +80,9 @@ namespace robin
 
 		while (true) { //!Hand::iskeypressed(1)			
 
+			// Reset the solver's (temp) PointCloud 
+			cloud_->clear();
+
 			for (Sensor3* s : sensors_) {
 				s->captureFrame();
 				s->crop();
@@ -87,12 +90,18 @@ namespace robin
 				*cloud_ += *s->getPointCloud();
 			}
 
-			// Clean existing point clouds
+			// Check whether the PointCloud has enough points to proceed
+			if (cloud_->points.size() < MIN_POINTS_PROCEED_) {
+				std::cerr << "* Not enough points to perform segmentation." << std::endl;
+				//std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
+				continue;
+			}
+
+			// Clean any previously rendered objects
 			viewer_->removeAllShapes();
 			viewer_->removeAllPointClouds();
 
 			for (Sensor3* s : sensors_) {
-				//pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>(s->getPointCloud()));
 				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h((int)255 * 1.0, (int)255 * 1.0, (int)255 * 1.0);
 				cloud_color_h.setInputCloud(s->getPointCloud());
 				viewer_->addPointCloud(s->getPointCloud(), cloud_color_h);
@@ -100,7 +109,7 @@ namespace robin
 
 			this->segment();
 
-			viewer_->spinOnce(100, true);
+			viewer_->spinOnce(1, true);
 		}
 	}
 
@@ -121,10 +130,9 @@ namespace robin
 
 	void Solver3::segmentSAC()
 	{
+		// Check whether a Primitive3 has been provided
 		if (primitive_ != nullptr) {
-				
-			//pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
-			//seg_method_	seg_normals_ seg_plane_removal_
+			// Perform initial plane removal
 			if (seg_plane_removal_) {
 				robin::Primitive3Plane plane;
 				if (seg_obj_ != nullptr) {					
@@ -133,20 +141,23 @@ namespace robin
 				else{
 					plane.fit(cloud_, seg_normals_);
 				}
-				// Temporary plot
+				// (temporary plot)
 				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> plane_color_h(0, 255, 0);
 				plane_color_h.setInputCloud(plane.getPointCloud());
 				viewer_->addPointCloud(plane.getPointCloud(), plane_color_h, "plane");
 				plane.visualize(viewer_);
 			}
 
+			// Check whether an instance of Segmentation has been provided.
 			if (seg_obj_ != nullptr) {
 				primitive_->fit(cloud_, seg_obj_);
+				std::cout << "Segmentation object has been provided!" << std::endl;
 			}
 			else {
 				primitive_->fit(cloud_, seg_normals_);
+				std::cout << "NO segmentation object has been provided." << std::endl;
 			}
-			// Temporary plot
+			// (temporary plot)
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 			primitive_color_h.setInputCloud(primitive_->getPointCloud());
 			viewer_->addPointCloud(primitive_->getPointCloud(), primitive_color_h, "primitive");
@@ -156,6 +167,6 @@ namespace robin
 
 	void Solver3::segmentLCCP()
 	{
-
+		/* Not yet implemented. */
 	}
 }

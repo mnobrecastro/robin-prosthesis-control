@@ -51,6 +51,30 @@ namespace robin
 
 		void fit_sample_consensus_with_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, const static int SAC_METHOD, pcl::SacModel SAC_MODEL);
 		void fit_sample_consensus_with_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal> seg);
+
+		/* Checks if the fit is valid. */
+		virtual bool is_fit_valid() { return false; }
+
+		/* Correct the obtained coefficients if necessary. */
+		virtual void correct_coefficients() {}
+
+		/* Update the properties of the Primitive3. */
+		virtual void update_properties() {}
+
+
+		/**** PCL utils ****/
+
+		/* Calculates the dot product between two PointXYZ objects. */
+		float dotPointXYZ(pcl::PointXYZ a, pcl::PointXYZ b);
+
+		/* Calculates the norm of a PointXYZ object. */
+		float normPointXYZ(pcl::PointXYZ c);
+
+		/* Calculates the extreme projection values of all PointXYZ in the PointCloud along a given axis. */
+		std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointXYZ center, pcl::PointXYZ axis);
+
+		/* Calculates the ranges (min,max) of PointCloud along the x-, y- and z-axis. */
+		std::array<float, 6> getPointCloudRanges(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 	};
 
 	class Primitive3d1 :

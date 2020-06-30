@@ -25,8 +25,8 @@ namespace robin {
 				return 1;
 			}
 		}*/
-		limits_ = { x0, x1, y0, y1, z0, z1 };
 		filterOnOff_ = true;
+		limits_ = { x0, x1, y0, y1, z0, z1 };		
 	}
 
 	void CameraDepth::setDownsample(float voxel_size = 0.005)

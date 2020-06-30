@@ -52,6 +52,8 @@ namespace robin
 		/* Point cloud (temp) that can be manipulated */
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
 
+		unsigned int MIN_POINTS_PROCEED_ = 100;
+
 		pcl::visualization::PCLVisualizer::Ptr viewer_;
 		pcl::visualization::PCLVisualizer::Ptr initVisualizer();
 

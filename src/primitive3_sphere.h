@@ -15,7 +15,21 @@ namespace robin
 		
 		void fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg);
 
-	private:
+	protected:
+		struct Properties {
+			float radius = 0.0;
+			float center_x = 0.0;
+			float center_y = 0.0;
+			float center_z = 0.0;
+		} properties_;
 
+		/* Checks if the fit is valid. */
+		bool is_fit_valid();
+
+		/* Correct the obtained coefficients if necessary. */
+		void correct_coefficients();
+
+		/* Update the properties of the Primitive3. */
+		void update_properties();
 	};
 }
