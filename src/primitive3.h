@@ -31,9 +31,11 @@ namespace robin
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr getPointCloud() const;
 
-
+		/* Rendering of a Primitive3 on a PCLVisualizer. */
 		virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const {}
 
+		/* Variable to enable the control over the visualization of primitives. */
+		void setVisualizeOnOff(bool);
 
 		/* Receives a PointCloud object by reference and extracts/segments it by fitting to it. */
 		virtual void fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool seg_normals) {}
@@ -61,6 +63,8 @@ namespace robin
 		/* Update the properties of the Primitive3. */
 		virtual void update_properties() {}
 
+		/* Variable to enable the control over the visualization of primitives. */
+		bool visualizeOnOff_ = true;
 
 		/**** PCL utils ****/
 

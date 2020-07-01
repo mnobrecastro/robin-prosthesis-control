@@ -131,6 +131,12 @@ namespace robin
 	}
 
 
+	void Primitive3::setVisualizeOnOff(bool visual)
+	{
+		visualizeOnOff_ = visual;
+	}
+
+
 
 	/* PointCloud utils */
 
