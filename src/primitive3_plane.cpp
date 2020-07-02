@@ -38,13 +38,13 @@ namespace robin
 
 	void Primitive3Plane::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg)
 	{
-		seg->setModelType(pcl::SACMODEL_NORMAL_PLANE);
-		if (typeid(seg) == typeid(pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*)) {
-			//seg->setModelType(pcl::SACMODEL_NORMAL_PLANE);
+		pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* from_normals = dynamic_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg);
+		if (from_normals != nullptr) {
+			seg->setModelType(pcl::SACMODEL_NORMAL_PLANE);
 			fit_sample_consensus_with_normals(cloud, seg);
 		}
 		else {
-			//seg->setModelType(pcl::SACMODEL_PLANE);
+			seg->setModelType(pcl::SACMODEL_PLANE);
 			fit_sample_consensus(cloud, seg);
 		}
 

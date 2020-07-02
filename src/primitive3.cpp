@@ -19,32 +19,36 @@ namespace robin
 
 	void Primitive3::fit_sample_consensus(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, const static int SAC_METHOD, pcl::SacModel SAC_MODEL)
 	{
-		//time.tic();
+		std::cout << "Using default instance of 'sample consensus'." << std::endl;
 		// Create the segmentation object
-		pcl::SACSegmentation<pcl::PointXYZ> seg;
-		seg.setOptimizeCoefficients(true);
-		seg.setModelType(SAC_MODEL);
-		seg.setMethodType(SAC_METHOD);
-		seg.setMaxIterations(100);
-		seg.setDistanceThreshold(0.0025);
-		//if (SAC_MODEL == pcl::SACMODEL_CYLINDER || SAC_MODEL == pcl::SACMODEL_SPHERE) {
-		seg.setRadiusLimits(0.005, 0.050);
-		//}
+		pcl::SACSegmentation<pcl::PointXYZ>* seg;
+		seg->setOptimizeCoefficients(true);
+		seg->setModelType(SAC_MODEL);
+		seg->setMethodType(SAC_METHOD);
+		seg->setMaxIterations(100);
+		seg->setDistanceThreshold(0.0025);
+		if (SAC_MODEL == pcl::SACMODEL_CYLINDER || SAC_MODEL == pcl::SACMODEL_SPHERE) {
+			seg->setRadiusLimits(0.005, 0.050);
+		}
 
 		this-> fit_sample_consensus(cloud, seg);
-
-		/**** 1. Update/correct model coeffficients ****/
-		/**** 2. Update object properties (incl. cloud boundaries? "bounds_plane") ****/
 	}
 
-	void Primitive3::fit_sample_consensus(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ> seg)
+	void Primitive3::fit_sample_consensus(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg_obj)
 	{
-		//time.tic();
+		std::cout << "Running 'sample consensus'...";
+
 		// Copy the segmentation object
+		pcl::SACSegmentation<pcl::PointXYZ> seg;
+		seg.setOptimizeCoefficients(seg_obj->getOptimizeCoefficients());
+		seg.setModelType(seg_obj->getModelType());
+		seg.setMethodType(seg_obj->getMethodType());
+		seg.setMaxIterations(seg_obj->getMaxIterations());
+		seg.setDistanceThreshold(seg_obj->getDistanceThreshold());
+		double min_radius, max_radius;
+		seg_obj->getRadiusLimits(min_radius, max_radius);
+		seg.setRadiusLimits(min_radius, max_radius);
 		seg.setInputCloud(cloud);
-		//if (seg.getModelType() == pcl::SACMODEL_CYLINDER || seg.getModelType() == pcl::SACMODEL_SPHERE) {
-		//seg.setRadiusLimits(0.005, 0.050); /* Can be read from the hand object*/
-		//}
 
 		// Obtain the plane inliers and coefficients
 		pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
@@ -63,44 +67,53 @@ namespace robin
 		extract.setNegative(true);
 		extract.filter(*cloud);
 
-		/**** 1. Update/correct model coeffficients ****/
-		/**** 2. Update object properties (incl. cloud boundaries? "bounds_plane") ****/
+		std::cout << " done." << std::endl;
 	}
 
 	void Primitive3::fit_sample_consensus_with_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, const static int SAC_METHOD, pcl::SacModel SAC_MODEL)
 	{
-		//time.tic();
+		std::cout << "Using default instance of 'sample consensus from normals'." << std::endl;
 		// Create the segmentation object
-		pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal> seg;
-		seg.setOptimizeCoefficients(true);
-		seg.setModelType(SAC_MODEL);
-		seg.setNormalDistanceWeight(0.1);
-		seg.setMethodType(SAC_METHOD);
-		seg.setMaxIterations(100);
-		seg.setDistanceThreshold(0.0025);
+		pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg;
+		seg->setOptimizeCoefficients(true);
+		seg->setModelType(SAC_MODEL);
+		seg->setNormalDistanceWeight(0.1);
+		seg->setMethodType(SAC_METHOD);
+		seg->setMaxIterations(100);
+		seg->setDistanceThreshold(0.0025);
 		if (SAC_MODEL == pcl::SACMODEL_CYLINDER || SAC_MODEL == pcl::SACMODEL_SPHERE) {
-			seg.setRadiusLimits(0.005, 0.050);
+			seg->setRadiusLimits(0.005, 0.050);
 		}
 
 		this->fit_sample_consensus_with_normals(cloud, seg);
 	}
 
-	void Primitive3::fit_sample_consensus_with_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal> seg)
+	void Primitive3::fit_sample_consensus_with_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg_obj)
 	{
+		std::cout << "Running 'sample consensus from normals'...";
+
 		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
 		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
 
 		// Estimate point normals
-		pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-		std::cout << "Computing normals...";
+		pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;		
 		ne.setSearchMethod(tree);
 		ne.setInputCloud(cloud);
 		ne.setKSearch(50);
-		ne.compute(*cloud_normals);
-		std::cout << " done." << std::endl;
+		ne.compute(*cloud_normals);		
 
 		//time.tic();
 		// Copy the segmentation object
+		pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal> seg;
+		seg.setNormalDistanceWeight(static_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg_obj)->getNormalDistanceWeight());
+		seg.setOptimizeCoefficients(static_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg_obj)->getOptimizeCoefficients());
+		seg.setModelType(static_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg_obj)->getModelType());
+		seg.setMethodType(static_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg_obj)->getMethodType());
+		seg.setMaxIterations(static_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg_obj)->getMaxIterations());
+		seg.setDistanceThreshold(static_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg_obj)->getDistanceThreshold());
+		double min_radius, max_radius;
+		static_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg_obj)->getRadiusLimits(min_radius, max_radius);
+		seg.setRadiusLimits(min_radius, max_radius);
 		seg.setInputCloud(cloud);
 		seg.setInputNormals(cloud_normals);
 		//if (seg.getModelType() == pcl::SACMODEL_CYLINDER || seg.getModelType() == pcl::SACMODEL_SPHERE) {
@@ -128,6 +141,8 @@ namespace robin
 		//extract_normals.setInputCloud(cloud_normals);
 		//extract_normals.setIndices(inliers_plane);
 		//extract_normals.filter(*cloud_normals2);
+
+		std::cout << " done." << std::endl;
 	}
 
 

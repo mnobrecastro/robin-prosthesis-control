@@ -16,7 +16,7 @@
 namespace robin
 {
 	enum class Method3 {
-		SEGMENTATION_RANSAC,
+		SEGMENTATION_SAC,
 		SEGMENTATION_LCCP
 	};
 
@@ -62,7 +62,7 @@ namespace robin
 		robin::Method3 seg_method_;
 		bool seg_normals_ = false;
 		bool seg_plane_removal_ = false;
-		pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_ = nullptr;
+		pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_ptr_ = nullptr;
 
 
 		void segment();

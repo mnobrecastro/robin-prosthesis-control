@@ -29,7 +29,7 @@ namespace robin
 	void Primitive3Sphere::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg)
 	{
 		seg->setModelType(pcl::SACMODEL_SPHERE);
-		if (typeid(seg) == typeid(pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*)) {
+		if (typeid(*seg) == typeid(pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>)) {
 			fit_sample_consensus_with_normals(cloud, seg);
 		}
 		else {

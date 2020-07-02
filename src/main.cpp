@@ -87,7 +87,7 @@ int main(int argc, char** argv)
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
 	mycam->printInfo();
 	mycam->setCrop(-0.100, 0.100, -0.100, 0.100, 0.050, 0.200);
-	mycam->setDownsample(0.0075);//0.005 //0.0025 //0.010
+	mycam->setDownsample(0.0025);//0.005 //0.0025 //0.010
 
 	mysolver.addSensor(mycam);
 
@@ -96,7 +96,9 @@ int main(int argc, char** argv)
 	prim.setVisualizeOnOff(false);
 
 	// Dummy Segmentation object
-	mysolver.setSegmentation(robin::Method3::SEGMENTATION_RANSAC);
+	mysolver.setSegmentation(robin::Method3::SEGMENTATION_SAC);	
+	//pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
+	//seg->setNormalDistanceWeight(0.1);
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);

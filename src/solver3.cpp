@@ -47,7 +47,7 @@ namespace robin
 
 	void Solver3::setSegmentation(pcl::SACSegmentation<pcl::PointXYZ>* seg_obj)
 	{
-		seg_obj_ = seg_obj;
+		seg_obj_ptr_ = seg_obj;
 	}
 
 	void Solver3::setSegmentation(robin::Method3 seg_method)
@@ -116,7 +116,7 @@ namespace robin
 	void Solver3::segment()
 	{
 		switch (seg_method_) {
-		case Method3::SEGMENTATION_RANSAC:
+		case Method3::SEGMENTATION_SAC:
 			this->segmentSAC();
 			break;
 		case Method3::SEGMENTATION_LCCP:
@@ -135,8 +135,8 @@ namespace robin
 			// Perform initial plane removal
 			if (seg_plane_removal_) {
 				robin::Primitive3Plane plane;
-				if (seg_obj_ != nullptr) {					
-					plane.fit(cloud_, seg_obj_);
+				if (seg_obj_ptr_ != nullptr) {					
+					plane.fit(cloud_, seg_obj_ptr_);
 				}
 				else{
 					plane.fit(cloud_, seg_normals_);
@@ -149,13 +149,13 @@ namespace robin
 			}
 
 			// Check whether an instance of Segmentation has been provided.
-			if (seg_obj_ != nullptr) {
-				primitive_->fit(cloud_, seg_obj_);
+			if (seg_obj_ptr_ != nullptr) {
 				std::cout << "Segmentation object has been provided!" << std::endl;
+				primitive_->fit(cloud_, seg_obj_ptr_);				
 			}
 			else {
-				primitive_->fit(cloud_, seg_normals_);
 				std::cout << "NO segmentation object has been provided." << std::endl;
+				primitive_->fit(cloud_, seg_normals_);				
 			}
 			// (temporary plot)
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);

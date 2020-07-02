@@ -29,10 +29,13 @@ namespace robin
 	void Primitive3Cylinder::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg)
 	{
 		seg->setModelType(pcl::SACMODEL_CYLINDER);
-		if (typeid(seg) == typeid(pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*)) {
+		if (typeid(*seg) == typeid(pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>)) {
 			fit_sample_consensus_with_normals(cloud, seg);
 		}
 		else {
+			/* NOT IMPLEMENTED IN THE POINT CLOUD LIBRARY!
+			 * pcl\segmentation\impl\sac_segmentation.hpp */
+			std::cout << "Primitive3Cylinder only working with 'pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>'." << std::endl; exit(-1);
 			fit_sample_consensus(cloud, seg);
 		}
 

@@ -1,6 +1,8 @@
 #pragma once
 #include "primitive3.h"
 
+#include <typeinfo>
+
 namespace robin
 {
 	class Primitive3Cylinder :
