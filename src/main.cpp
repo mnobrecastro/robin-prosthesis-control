@@ -5,7 +5,7 @@
 #include "../src/realsense_d400.h"
 #include "../src/primitive3_sphere.h"
 #include "../src/primitive3_cylinder.h"
-#include "../src/primitive3_cube.h"
+#include "../src/primitive3_cuboid.h"
 
 /*
 #include <ctime>
@@ -91,7 +91,7 @@ int main(int argc, char** argv)
 
 	mysolver.addSensor(mycam);
 
-	robin::Primitive3Plane prim;
+	robin::Primitive3Cuboid prim;
 	mysolver.setPrimitive(prim);
 	prim.setVisualizeOnOff(false);
 

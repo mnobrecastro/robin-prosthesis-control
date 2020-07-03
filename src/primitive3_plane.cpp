@@ -4,18 +4,19 @@ namespace robin
 {
 	void Primitive3Plane::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
-		if(visualizeOnOff_)
-			viewer->addPlane(*coefficients_, "plane");
+
+		if (visualizeOnOff_)
+			viewer->addPlane(*coefficients_, "plane" + std::to_string(std::rand()));
 
 		pcl::PointXYZ center(properties_.center_x, properties_.center_y, properties_.center_z);
 		pcl::PointXYZ center_e0(properties_.center_x + properties_.width / 2.0 * properties_.e0_x,
 								properties_.center_y + properties_.width / 2.0 * properties_.e0_y,
 								properties_.center_z + properties_.width / 2.0 * properties_.e0_z);
-		viewer->addLine(center, center_e0, "plane_e0");
+		viewer->addLine(center, center_e0, "plane_e0" + std::to_string(std::rand()));
 		pcl::PointXYZ center_e1(properties_.center_x + properties_.height / 2.0 * properties_.e1_x,
 								properties_.center_y + properties_.height / 2.0 * properties_.e1_y,
 								properties_.center_z + properties_.height / 2.0 * properties_.e1_z);
-		viewer->addLine(center, center_e1, "plane_e1");
+		viewer->addLine(center, center_e1, "plane_e1" + std::to_string(std::rand()));
 	}
 
 	void Primitive3Plane::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals)
@@ -24,7 +25,7 @@ namespace robin
 			fit_sample_consensus_with_normals(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_NORMAL_PLANE);
 		}
 		else {
-			fit_sample_consensus(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_NORMAL_PLANE); //pcl::SACMODEL_NORMAL_PLANE ?
+			fit_sample_consensus(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_PLANE); //pcl::SACMODEL_NORMAL_PLANE ?
 		}
 
 		/* 1. Validate the fit. */

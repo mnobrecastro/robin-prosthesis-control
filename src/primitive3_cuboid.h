@@ -1,17 +1,14 @@
 #pragma once
 #include "primitive3.h"
+#include "primitive3_plane.h"
 
-#include <string>
-#include <cstdlib>
-
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/common/pca.h>
+#include <vector>
+#include <typeinfo>
 
 namespace robin
 {
-	class Primitive3Plane :
-		public Primitive3d2
+	class Primitive3Cuboid :
+		public Primitive3d3
 	{
 	public:
 		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;
@@ -25,18 +22,15 @@ namespace robin
 			float center_x = 0.0;
 			float center_y = 0.0;
 			float center_z = 0.0;
-			float normal_x = 0.0;
-			float normal_y = 0.0;
-			float normal_z = 0.0;
-			float e0_x = 0.0;
-			float e0_y = 0.0;
-			float e0_z = 0.0;
-			float e1_x = 0.0;
-			float e1_y = 0.0;
-			float e1_z = 0.0;
 			float width = 0.0;
 			float height = 0.0;
+			float depth = 0.0;
+			float axis_x = 0.0;
+			float axis_y = 0.0;
+			float axis_z = 0.0;
 		} properties_;
+
+		std::vector<Primitive3Plane*> planes_;
 
 		/* Checks if the fit is valid. */
 		bool is_fit_valid();
@@ -45,6 +39,6 @@ namespace robin
 		void correct_coefficients();
 
 		/* Update the properties of the Primitive3. */
-		void update_properties();
+		void update_properties();		
 	};
 }
