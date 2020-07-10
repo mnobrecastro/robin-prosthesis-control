@@ -12,7 +12,7 @@ namespace robin
 			~HandDirect();
 
 		protected:
-
+			/* To be implemented. */
 		};
 	}
 }

@@ -40,7 +40,10 @@ namespace robin
 			virtual void close() {}
 
 		protected:
-			std::vector<float> configstate_;
+			struct ConfigState {
+				CONTROL ctrl;
+				GRASP grasp;
+			} configstate_;
 
 			void rotate();
 

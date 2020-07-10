@@ -8,27 +8,10 @@ namespace robin
 
 		Hand::~Hand() {}
 
-		void Hand::setControlMode(CONTROL ctrl)
-		{
-			switch (ctrl) {
-			case CONTROL::POSITION:
-				break;
-			case CONTROL::VELOCITY:
-				break;
-			case CONTROL::FORCE:
-				break;
-			}
-		}
+		void Hand::setControlMode(CONTROL ctrl) { configstate_.ctrl = ctrl;	}
 
-		void Hand::setGrasp(GRASP grasp)
-		{
-			switch (grasp) {
-			case GRASP::PALMAR:
-				break;
-			case GRASP::LATERAL:
-				break;
-			}
-		}
+		void Hand::setGrasp(GRASP grasp) { configstate_.grasp = grasp; }
+		
 	}
 	
 }

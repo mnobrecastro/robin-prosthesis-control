@@ -6,6 +6,7 @@
 #include "../src/primitive3_sphere.h"
 #include "../src/primitive3_cylinder.h"
 #include "../src/primitive3_cuboid.h"
+#include "../src/hand_michelangelo.h"
 
 /*
 #include <ctime>
@@ -82,6 +83,10 @@
 
 int main(int argc, char** argv)
 {
+	robin::hand::HandUDP myhand;
+	uint8_t packet[9] = { 1, 20,0,0,0, 0,0,0,0 };
+	myhand.send_packet(packet);
+	
 	robin::Solver3 mysolver;
 
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
@@ -91,9 +96,9 @@ int main(int argc, char** argv)
 
 	mysolver.addSensor(mycam);
 
-	robin::Primitive3Cuboid prim;
+	robin::Primitive3Sphere prim;
 	mysolver.setPrimitive(prim);
-	prim.setVisualizeOnOff(false);
+	//prim.setVisualizeOnOff(false);
 
 	// Dummy Segmentation object
 	mysolver.setSegmentation(robin::Method3::SEGMENTATION_SAC);	
