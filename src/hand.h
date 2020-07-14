@@ -21,11 +21,37 @@ namespace robin
 		{
 		public:
 
-			Hand();
+			Hand(bool right_hand);
 			~Hand();
+
+			bool isRightHand();
+
+			void updateConfigState();
+
+			/* Set a configuration state for the prosthesis. */
+			virtual void setConfigState();
+
+			/* Read the current configuration state of the prosthesis. */
+			virtual std::vector<float> getConfigState() {}
 
 			void setControlMode(CONTROL ctrl);
 			void setGrasp(GRASP grasp);
+
+			virtual float getFlexionAngle() {}
+			virtual float getExtensionAngle() {}
+			virtual float getWristFleExtAngle() {}
+
+			virtual float getAbductionAngle() {}
+			virtual float getAdductionAngle() {}
+			virtual float getWristAbdAddAngle() {}
+
+			virtual float getSupinationAngle() {}
+			virtual float getPronationAngle() {}
+			virtual float getWristSupProAngle() {}
+
+			virtual float getOpenSize() {}
+			virtual float getCloseSize() {}
+			virtual float getGraspSize() {}
 
 			virtual void flex() {}
 			virtual void extend() {}
@@ -38,12 +64,15 @@ namespace robin
 			
 			virtual void open() {}
 			virtual void close() {}
+			
 
 		protected:
 			struct ConfigState {
 				CONTROL ctrl;
 				GRASP grasp;
 			} configstate_;
+
+			bool right_hand_;
 
 			void rotate();
 

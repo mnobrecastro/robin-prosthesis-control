@@ -4,9 +4,14 @@ namespace robin
 {	
 	namespace hand
 	{
-		Hand::Hand() {}
+		Hand::Hand(bool right_hand=true)
+		{
+			right_hand_ = right_hand;
+		}
 
 		Hand::~Hand() {}
+
+		bool Hand::isRightHand() { return right_hand_; }
 
 		void Hand::setControlMode(CONTROL ctrl) { configstate_.ctrl = ctrl;	}
 

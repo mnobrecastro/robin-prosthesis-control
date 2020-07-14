@@ -44,7 +44,20 @@ namespace robin
 		virtual void fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg) {}
 
 	protected:
-		struct Properties {} properties_;
+		//struct Properties {} properties_;
+
+		struct Properties {
+			float center_x = 0.0;
+			float center_y = 0.0;
+			float center_z = 0.0;
+			float width = 0.0;
+			float height = 0.0;
+			float depth = 0.0;
+			float axis_x = 0.0;
+			float axis_y = 0.0;
+			float axis_z = 0.0;
+		} properties_;
+
 		pcl::ModelCoefficients::Ptr coefficients_;
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
 				
