@@ -68,21 +68,21 @@ namespace robin
 			float grasp_size;
 			switch (find_primitive3_type(prim)){
 			case Primitive3Type::PRIMITIVE3_SPHERE:
-				grasp_size = prim->getProperties().radius;
+				grasp_size = prim->getProperty_radius();
 				break;
 			case Primitive3Type::PRIMITIVE3_CUBOID:
-				if (prim->getProperties().width > 0.001) {
-					grasp_size = prim->getProperties().width;
+				if (prim->getProperty_width() > 0.001) {
+					grasp_size = prim->getProperty_width();
 				}
-				if (prim->getProperties().height > 0.001 && grasp_size > prim->getProperties().height) {
-					grasp_size = prim->getProperties().height;
+				if (prim->getProperty_height() > 0.001 && grasp_size > prim->getProperty_height()) {
+					grasp_size = prim->getProperty_height();
 				}
-				if (prim->getProperties().depth > 0.001 && grasp_size > prim->getProperties().depth) {
-					grasp_size = prim->getProperties().depth;
+				if (prim->getProperty_depth() > 0.001 && grasp_size > prim->getProperty_depth()) {
+					grasp_size = prim->getProperty_depth();
 				}
 				break;
 			case Primitive3Type::PRIMITIVE3_CYLINDER:
-				grasp_size = prim->getProperties().radius;
+				grasp_size = prim->getProperty_radius();
 				break;
 			}
 			grasp_size_.buffer.push_back(grasp_size);
@@ -112,7 +112,7 @@ namespace robin
 			else if(prim3_type == Primitive3Type::PRIMITIVE3_CUBOID || prim3_type == Primitive3Type::PRIMITIVE3_CYLINDER)
 			{				
 				// Angle of the projection of the Primitive3 axis into the xOy plane of the camera.
-				float projected_angle(std::atan2(prim->getProperties().axis_y, prim->getProperties().axis_x));				
+				float projected_angle(std::atan2(prim->getProperty_axis_y(), prim->getProperty_axis_x()));
 				
 				// Current absolute supination angle
 				float supination_angle(hand_->getSupinationAngle());

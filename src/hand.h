@@ -29,29 +29,29 @@ namespace robin
 			void updateConfigState();
 
 			/* Set a configuration state for the prosthesis. */
-			virtual void setConfigState();
+			virtual void setConfigState() {}
 
 			/* Read the current configuration state of the prosthesis. */
-			virtual std::vector<float> getConfigState() {}
+			virtual std::vector<float> getConfigState() { return std::vector<float>(); }
 
 			void setControlMode(CONTROL ctrl);
 			void setGrasp(GRASP grasp);
 
-			virtual float getFlexionAngle() {}
-			virtual float getExtensionAngle() {}
-			virtual float getWristFleExtAngle() {}
+			virtual float getFlexionAngle() { return 0.0; }
+			virtual float getExtensionAngle() { return 0.0; }
+			virtual float getWristFleExtAngle() { return 0.0; }
 
-			virtual float getAbductionAngle() {}
-			virtual float getAdductionAngle() {}
-			virtual float getWristAbdAddAngle() {}
+			virtual float getAbductionAngle() { return 0.0; }
+			virtual float getAdductionAngle() { return 0.0; }
+			virtual float getWristAbdAddAngle() { return 0.0; }
 
-			virtual float getSupinationAngle() {}
-			virtual float getPronationAngle() {}
-			virtual float getWristSupProAngle() {}
+			virtual float getSupinationAngle() { return 0.0; }
+			virtual float getPronationAngle() { return 0.0; }
+			virtual float getWristSupProAngle() { return 0.0; }
 
-			virtual float getOpenSize() {}
-			virtual float getCloseSize() {}
-			virtual float getGraspSize() {}
+			virtual float getOpenSize() { return 0.0; }
+			virtual float getCloseSize() { return 0.0; }
+			virtual float getGraspSize() { return 0.0; }
 
 			virtual void flex() {}
 			virtual void extend() {}
