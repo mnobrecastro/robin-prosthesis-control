@@ -83,17 +83,18 @@
 
 int main(int argc, char** argv)
 {
-	robin::hand::HandUDP myhand;
-	uint8_t packet[9] = { 1, 20,0,0,0, 0,0,0,0 };
-	myhand.send_packet(packet);
-	
+	// Declare a hand
+	robin::hand::HandUDP myhand(false, "127.0.0.1", 8052, 8051);
+	uint8_t packet[9] = { 1, 20,0,0,0, 20,0,0,0 };
+	myhand.send_packet(packet, sizeof(packet)/sizeof(uint8_t));
+
+	// Declare a solver3
 	robin::Solver3 mysolver;
 
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
 	mycam->printInfo();
 	mycam->setCrop(-0.100, 0.100, -0.100, 0.100, 0.050, 0.200);
-	mycam->setDownsample(0.0025);//0.005 //0.0025 //0.010
-
+	mycam->setDownsample(0.0025);//0.005 //0.0025 //0.010	
 	mysolver.addSensor(mycam);
 
 	robin::Primitive3Sphere prim;
@@ -112,12 +113,14 @@ int main(int argc, char** argv)
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 
-	/*mysolver.setSegmentation(robin::Method3::SEGMENTATION_RANSAC);
-	mysolver.setUseNormals(true);*/
+	//solver.setUseNormals(true);
 	
 	mysolver.setPlaneRemoval(false);
 
-	mysolver.activate();
+	while (true) {
+		mysolver.activate();
+	}
+	
 }
 
 //int main (int argc, char** argv)

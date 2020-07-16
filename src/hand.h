@@ -20,7 +20,7 @@ namespace robin
 		class Hand
 		{
 		public:
-
+			Hand() = delete;
 			Hand(bool right_hand);
 			~Hand();
 

@@ -4,10 +4,8 @@ namespace robin
 {	
 	namespace hand
 	{
-		Hand::Hand(bool right_hand=true)
-		{
-			right_hand_ = right_hand;
-		}
+		Hand::Hand(bool right_hand) :
+			right_hand_(right_hand) {}
 
 		Hand::~Hand() {}
 

@@ -15,11 +15,12 @@ namespace robin
 {
 	namespace hand
 	{
-		class HandUDP
+		class HandUDP :
+			public Hand
 		{
 		public:
-			HandUDP();
-			HandUDP(const char* ip, short port_in, short port_out);
+			HandUDP() = delete;
+			HandUDP(bool right_hand, const char* ip, short port_in, short port_out);
 			~HandUDP();
 
 			/**/
@@ -37,7 +38,7 @@ namespace robin
 
 			/* Sends a packet of data to the prosthesis
 			 * (Subclasses of HandUDP should not have access to this member function since it is meant to be "developers only")  */
-			virtual void send_packet(uint8_t* packet);
+			virtual void send_packet(const uint8_t* packet, size_t packet_byte_length);
 
 			/**/
 			virtual void set_state() {}
@@ -47,7 +48,7 @@ namespace robin
 
 		protected:
 			const char* ip_address_; // IPv4
-			short port_in_; // Receiver Port 
+			short port_in_; // Receiver Port
 			short port_out_; // Transmission Port
 			size_t packet_in_length_;
 			size_t packet_out_length_;

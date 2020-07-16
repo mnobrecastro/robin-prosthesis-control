@@ -4,15 +4,9 @@ namespace robin
 {
 	namespace hand
 	{
-		HandUDP::HandUDP() {}
-
-		HandUDP::HandUDP(const char* ip, short port_in, short port_out)
+		HandUDP::HandUDP(bool right_hand, const char* ip, short port_in, short port_out) :
+			Hand(right_hand), ip_address_(ip), port_in_(port_in), port_out_(port_out)
 		{
-			this->set_ip_address(ip);
-			this->set_port_in(port_in);
-			this->set_port_out(port_out);
-			std::cout << "IP address: " << ip_address_ << " (in:" << port_in_ << ",out:" << port_out_ << ")" << std::endl;
-
 			this->open_socket();
 		}
 
@@ -47,6 +41,8 @@ namespace robin
 
 			socket_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 			bind(socket_, (sockaddr*)&local_ipv4_, sizeof(local_ipv4_));
+
+			std::cout << "A socket was oppened at " << ip_address_ << " (in:" << port_in_ << ",out:" << port_out_ << ")" << std::endl;
 		}
 
 		/* Closes the socket for UDP communication. */
@@ -61,7 +57,8 @@ namespace robin
 		{
 			uint8_t packet[1024];
 			int local_addr_size = sizeof(local_ipv4_);
-			int nbytes = recvfrom(socket_, (char*)packet, sizeof(packet[0]) * (sizeof(packet) / sizeof(uint8_t)), 0, (sockaddr*)&local_ipv4_, &local_addr_size);
+			int packet_byte_length = sizeof(packet[0]) * (sizeof(packet) / sizeof(uint8_t));
+			int nbytes = recvfrom(socket_, (char*)packet, packet_byte_length, 0, (sockaddr*)&local_ipv4_, &local_addr_size);
 			if (nbytes <= 1) {
 				std::cerr << "The UDP connection failed to receive a packet." << std::endl;
 				return nullptr;
@@ -71,14 +68,17 @@ namespace robin
 			}
 		}
 
-		/* Closes the socket for UDP communication. */
-		void HandUDP::send_packet(uint8_t* packet)
+		/* Sends a packet of data to the prosthesis. */
+		void HandUDP::send_packet(const uint8_t* packet, size_t packet_byte_length)
 		{
 			int dest_addr_size = sizeof(dest_ipv4_);
-			int nbytes = sendto(socket_, (char*)packet, sizeof(packet[0]) * (sizeof(packet) / sizeof(uint8_t)), 0, (sockaddr*)&dest_ipv4_, dest_addr_size);
+			int nbytes = sendto(socket_, (char*)packet, packet_byte_length, 0, (sockaddr*)&dest_ipv4_, dest_addr_size);
 			if (nbytes <= 1) {
 				std::cerr << "The UDP connection failed to send a packet." << std::endl;
 				return;
+			}
+			else {
+				std::cout << "A packet (" << nbytes << " bytes) was sent through UDP connection." << std::endl;
 			}
 		}
 	}

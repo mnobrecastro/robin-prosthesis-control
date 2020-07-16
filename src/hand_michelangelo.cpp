@@ -4,15 +4,9 @@ namespace robin
 {
 	namespace hand
 	{
-		Michelangelo::Michelangelo()
-		{
-			HandUDP(IP_ADDRESS, PORT_IN, PORT_OUT);
-		}
 
-		Michelangelo::Michelangelo(const char* ip, short port_in, short port_out)
-		{
-			HandUDP(ip, port_in, port_out);
-		}
+		Michelangelo::Michelangelo(bool right_hand, const char* ip=IP_ADDRESS, short port_in=PORT_IN, short port_out=PORT_OUT)
+			: HandUDP(right_hand, ip, port_in, port_out) {}
 
 		Michelangelo::~Michelangelo() {}
 
@@ -43,13 +37,13 @@ namespace robin
 			};
 		}
 
-		void Michelangelo::send_packet(uint8_t* packet)
+		void Michelangelo::send_packet(const uint8_t* packet, size_t packet_byte_length)
 		{
-			if (sizeof(packet) / sizeof(packet[0]) != PACKET_OUT_LENGTH) {
+			if (packet_byte_length != PACKET_OUT_LENGTH) {
 				std::cerr << "Wrong packet size. Correct size is " << PACKET_OUT_LENGTH << " bytes." << std::endl;
 			}
 			else {
-				HandUDP::send_packet(packet);
+				HandUDP::send_packet(packet, packet_byte_length);
 			}
 		}
 

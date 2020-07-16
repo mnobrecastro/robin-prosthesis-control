@@ -15,8 +15,8 @@ namespace robin
 			public HandUDP
 		{
 		public:
-			Michelangelo();
-			Michelangelo(const char* ip, short port_in, short port_out);
+			Michelangelo() = delete;
+			Michelangelo(bool right_hand, const char* ip, short port_in, short port_out);
 			~Michelangelo();
 
 			/* Set a configuration state for the prosthesis. */
@@ -26,16 +26,16 @@ namespace robin
 			void get_state();
 
 			/* Suppressed Commands */
-			void flex() = delete;
+			/*void flex() = delete;
 			void extend() = delete;
 			void abduct() = delete;
-			void adduct() = delete;
+			void adduct() = delete;*/
 
-			void pronate();
+			/*void pronate();
 			void supinate();
 
 			void open();
-			void close();
+			void close();*/
 
 		protected:
 			/* Receive sensor data from the hand.
@@ -78,10 +78,10 @@ namespace robin
 			 * ---------
 			 * control_command : array_like
 			 *		8-dimensional array of speeds for the different signals */
-			void send_packet(uint8_t* packet);
+			void send_packet(const uint8_t* packet, size_t packet_byte_length);
 
-			void grasp_palmar();
-			void grasp_lateral();
+			//void grasp_palmar();
+			//void grasp_lateral();
 		};
 	}
 }
