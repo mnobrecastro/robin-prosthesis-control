@@ -19,6 +19,8 @@ namespace robin
 
 		void printInfo();
 
+		void setDisparity(bool);
+
 		void start(bool);// override;
 
 		void captureFrame();
@@ -28,15 +30,15 @@ namespace robin
 
 	private:
 
-		rs2::device _dev;
+		rs2::device dev_;
+		bool DISPARITY_ = false;
 
-		// RealSense2 pointcloud, points and pipeline objects
-		rs2::pointcloud _pc;
-		rs2::points _points;
+		// RealSense2 pipeline objects and pointcloud, points.
+		rs2::pipeline pipe_;
+		rs2::config cfg_;
+		std::string serialnumber_;
 
-		// Wait for the next set of frames from the camera
-		rs2::pipeline _pipe;
-		rs2::config _cfg;
-		std::string _serialnumber;
+		rs2::pointcloud pc_;
+		rs2::points points_;
 	};
 }

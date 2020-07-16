@@ -31,9 +31,6 @@ namespace robin
 
 		void addSensor(robin::Sensor3*);
 
-		void setPrimitive(robin::Primitive3&);
-
-
 		void setSegmentation(pcl::SACSegmentation<pcl::PointXYZ>* seg_obj);
 
 		void setSegmentation(robin::Method3 seg_method);
@@ -42,8 +39,9 @@ namespace robin
 
 		void setPlaneRemoval(bool seg_plane_removal);
 
+		std::vector<robin::Sensor3*> getSensors() const;
 
-		void activate();
+		void solve(robin::Primitive3& prim);
 
 	protected:
 		std::vector<robin::Sensor3*> sensors_;
@@ -53,11 +51,6 @@ namespace robin
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
 
 		unsigned int MIN_POINTS_PROCEED_ = 100;
-
-		pcl::visualization::PCLVisualizer::Ptr viewer_;
-		pcl::visualization::PCLVisualizer::Ptr initVisualizer();
-
-		void startSensors(bool);
 
 		robin::Method3 seg_method_;
 		bool seg_normals_ = false;

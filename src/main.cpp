@@ -83,14 +83,18 @@
 
 int main(int argc, char** argv)
 {
-	// Declare a hand
-	robin::hand::HandUDP myhand(false, "127.0.0.1", 8052, 8051);
+	// Create a hand
+	/*robin::hand::HandUDP myhand(false, "127.0.0.1", 8052, 8051);
 	uint8_t packet[9] = { 1, 20,0,0,0, 20,0,0,0 };
-	myhand.send_packet(packet, sizeof(packet)/sizeof(uint8_t));
+	myhand.send_packet(packet, sizeof(packet)/sizeof(uint8_t));*/
+	robin::hand::Michelangelo myhand(false);
 
 	// Declare a solver3
 	robin::Solver3 mysolver;
+	mysolver.setPlaneRemoval(false);
+	//solver.setUseNormals(true);
 
+	// Create a sensor from a camera
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
 	mycam->printInfo();
 	mycam->setCrop(-0.100, 0.100, -0.100, 0.100, 0.050, 0.200);
@@ -98,7 +102,6 @@ int main(int argc, char** argv)
 	mysolver.addSensor(mycam);
 
 	robin::Primitive3Sphere prim;
-	mysolver.setPrimitive(prim);
 	//prim.setVisualizeOnOff(false);
 
 	// Dummy Segmentation object
@@ -112,13 +115,42 @@ int main(int argc, char** argv)
 	seg->setDistanceThreshold(0.001);//0.001 //0.005 //0.001
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
+		
 
-	//solver.setUseNormals(true);
-	
-	mysolver.setPlaneRemoval(false);
+	// Create a PCL visualizer
+	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+	int vp(0);
+	viewer->createViewPort(0.0, 0.0, 1.0, 1.0, vp);
+	viewer->setCameraPosition(0.0, 0.0, -0.5, 0.0, -1.0, 0.0, vp);
+	viewer->setSize(800, 600);
+	float bckgr_gray_level = 0.0;  // Black:=0.0
+	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
+	viewer->addCoordinateSystem(0.25);
 
 	while (true) {
-		mysolver.activate();
+
+		mysolver.solve(prim);
+
+
+
+		//---- RENDERING ----
+
+		// Clean any previously rendered objects
+		viewer->removeAllShapes();
+		viewer->removeAllPointClouds();
+
+		for (auto s : mysolver.getSensors()) {
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h((int)255 * 1.0, (int)255 * 1.0, (int)255 * 1.0);
+			cloud_color_h.setInputCloud(s->getPointCloud());
+			viewer->addPointCloud(s->getPointCloud(), cloud_color_h);
+		}
+
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
+		primitive_color_h.setInputCloud(prim.getPointCloud());
+		viewer->addPointCloud(prim.getPointCloud(), primitive_color_h, "primitive");
+		prim.visualize(viewer);
+
+		viewer->spinOnce(1, true);
 	}
 	
 }
