@@ -16,14 +16,15 @@ namespace robin
 		enum class Primitive3Type {
 			PRIMITIVE3_CUBOID,
 			PRIMITIVE3_CYLINDER,
-			PRIMITIVE3_SPHERE
+			PRIMITIVE3_SPHERE,
+			UNKNOWN
 		};
 
 		class ControlSimple :
 			public Control
 		{
 		public:
-			ControlSimple(robin::hand::Hand* hand);
+			ControlSimple(robin::hand::Hand& hand);
 
 			/* Evaluates the controller at a new time instant. */
 			void evaluate(robin::Primitive3* prim);

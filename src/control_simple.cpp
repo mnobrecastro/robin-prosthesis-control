@@ -4,9 +4,9 @@ namespace robin
 {
 	namespace control
 	{
-		ControlSimple::ControlSimple(robin::hand::Hand* hand)
+		ControlSimple::ControlSimple(robin::hand::Hand& hand)
 		{
-			hand_ = hand;
+			hand_ = &hand;
 		}
 
 		void ControlSimple::evaluate(robin::Primitive3* prim)
@@ -18,24 +18,24 @@ namespace robin
 
 			float grasp_size_error(grasp_size_.value - hand_->getGraspSize());
 			if (grasp_size_error > 0) {
-				hand_->open();
+				hand_->open(0.0);
 			}
 			else {
-				hand_->close();
+				hand_->close(0.0);
 			}
 
 			float tilt_angle_error;
 			if (hand_->isRightHand()) {
 				// Right-hand prosthesis (positive tilt angle)
 				tilt_angle_error = tilt_angle_.value - hand_->getSupinationAngle();
-				if (grasp_size_error > 0) { hand_->supinate(); }
-				else { hand_->pronate(); }
+				if (grasp_size_error > 0) { hand_->supinate(0.0); }
+				else { hand_->pronate(0.0); }
 			}
 			else {
 				// Left-hand prosthesis (negative tilt angle)
 				tilt_angle_error = tilt_angle_.value + hand_->getSupinationAngle();
-				if (grasp_size_error > 0) { hand_->supinate(); }
-				else { hand_->pronate(); }
+				if (grasp_size_error > 0) { hand_->supinate(0.0); }
+				else { hand_->pronate(0.0); }
 			}		
 		}
 
@@ -53,13 +53,17 @@ namespace robin
 		Primitive3Type ControlSimple::find_primitive3_type(robin::Primitive3* prim)
 		{
 			if (typeid(*prim) == typeid(robin::Primitive3Sphere)) {
-				return Primitive3Type::PRIMITIVE3_SPHERE;
+				return Primitive3Type::PRIMITIVE3_SPHERE;				
 			}
-			if (typeid(*prim) == typeid(robin::Primitive3Cuboid)) {
-				return Primitive3Type::PRIMITIVE3_CUBOID;
+			else if (typeid(*prim) == typeid(robin::Primitive3Cuboid)) {
+				return Primitive3Type::PRIMITIVE3_CUBOID;				
 			}
-			if (typeid(*prim) == typeid(robin::Primitive3Cylinder)) {
-				return Primitive3Type::PRIMITIVE3_CYLINDER;
+			else if (typeid(*prim) == typeid(robin::Primitive3Cylinder)) {
+				return Primitive3Type::PRIMITIVE3_CYLINDER;				
+			}
+			else {
+				std::cout << "Problem indentifying the primitive3!" << std::endl;
+				return Primitive3Type::UNKNOWN;
 			}
 		}
 
@@ -86,6 +90,7 @@ namespace robin
 				break;
 			}
 			grasp_size_.buffer.push_back(grasp_size);
+			std::cout << "Estimated grasp_size: " << grasp_size;
 
 			// Calculate and use the median value
 			std::vector<float> temp;
@@ -96,7 +101,8 @@ namespace robin
 				temp = std::vector<float>(grasp_size_.buffer.end() - n_samples, grasp_size_.buffer.end());
 			}
 			std::sort(temp.begin(), temp.begin());
-			grasp_size_.value = temp[(int) temp.size()/2];							
+			grasp_size_.value = temp[(int) temp.size()/2];
+			std::cout << " with median: " << grasp_size_.value << std::endl;
 		}
 
 		void ControlSimple::estimate_tilt_angle(robin::Primitive3* prim)
@@ -130,6 +136,7 @@ namespace robin
 				}
 			}
 			tilt_angle_.buffer.push_back(tilt_angle);
+			std::cout << "Estimated tilt_angle: " << tilt_angle;
 
 			// Calculate and use the median value
 			std::vector<float> temp;
@@ -142,6 +149,7 @@ namespace robin
 			}
 			std::sort(temp.begin(), temp.begin());
 			tilt_angle_.value = temp[(int) temp.size()/2];
+			std::cout << " with median: " << tilt_angle_.value << std::endl;
 		}
 	}
 }

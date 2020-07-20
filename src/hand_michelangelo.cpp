@@ -6,10 +6,16 @@ namespace robin
 	{
 
 		Michelangelo::Michelangelo(bool right_hand)
-			: HandUDP(right_hand, IP_ADDRESS, PORT_IN, PORT_OUT) {}
+			: HandUDP(right_hand, IP_ADDRESS, PORT_IN, PORT_OUT)
+		{
+			this->updateConfigState();
+		}
 		
 		Michelangelo::Michelangelo(bool right_hand, const char* ip, short port_in, short port_out)
-			: HandUDP(right_hand, ip, port_in, port_out) {}
+			: HandUDP(right_hand, ip, port_in, port_out)
+		{
+			this->updateConfigState();
+		}
 
 		Michelangelo::~Michelangelo() {}
 
@@ -25,7 +31,7 @@ namespace robin
 		size_t Michelangelo::receive_packet(uint8_t packet[])
 		{
 			size_t packet_byte_length = HandUDP::receive_packet(packet);
-			if (packet_byte_length == PACKET_IN_LENGTH) {
+			if (packet_byte_length != PACKET_IN_LENGTH) {
 				std::cerr << "Problem receiving a packet." << std::endl;
 				return -1;
 			}
@@ -102,7 +108,7 @@ namespace robin
 
 		void Michelangelo::updateConfigState()
 		{
-			uint8_t* packet;
+			uint8_t packet[1024];
 			size_t byte_length(this->receive_packet(packet));
 
 			// byte5: "Grasp Type" (int8), 0 for palmar and 1 for lateral

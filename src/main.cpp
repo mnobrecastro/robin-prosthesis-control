@@ -85,19 +85,19 @@
 int main(int argc, char** argv)
 {
 	// Create a hand
-	robin::hand::HandUDP myhand(false, "127.0.0.1", 8052, 8051);
+	//robin::hand::HandUDP myhand(false, "127.0.0.1", 8052, 8051);
 	//system("C:\\Users\\MMC\\Documents\\AAU\\Projects\\Robin\\Software\\Mikey\\DLLs\\MichelangeloGUI.exe");
 
 	//uint8_t packet[9] = { 1, 20,0,0,0, 20,0,0,0 };
 	//uint8_t packet[1] = { 0 };
 	//myhand.send_packet(packet, sizeof(packet)/sizeof(uint8_t));		
 	
-	uint8_t packpack[1024];
-	int byte_len = myhand.receive_packet(packpack);
-	myhand.print_recv_packet(packpack, byte_len);
+	//uint8_t packpack[1024];
+	//int byte_len = myhand.receive_packet(packpack);
+	//myhand.print_recv_packet(packpack, byte_len);
 
 
-	//robin::hand::Michelangelo myhand(false);
+	robin::hand::Michelangelo myhand(false);
 
 	robin::control::ControlSimple controller(myhand);
 
@@ -110,21 +110,21 @@ int main(int argc, char** argv)
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
 	mycam->printInfo();
 	mycam->setCrop(-0.100, 0.100, -0.100, 0.100, 0.050, 0.200);
-	mycam->setDownsample(0.0025);//0.005 //0.0025 //0.010	
+	mycam->setDownsample(0.005);//0.0025 //0.010	
 	mysolver.addSensor(mycam);
 
-	robin::Primitive3Sphere* prim(new robin::Primitive3Sphere);
+	robin::Primitive3Cylinder* prim(new robin::Primitive3Cylinder);
 	//prim.setVisualizeOnOff(false);
 
 	// Dummy Segmentation object
 	mysolver.setSegmentation(robin::Method3::SEGMENTATION_SAC);	
-	//pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
-	//seg->setNormalDistanceWeight(0.1);
-	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
+	pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
+	seg->setNormalDistanceWeight(0.1);
+	//pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
 	seg->setMaxIterations(100);
-	seg->setDistanceThreshold(0.001);//0.001 //0.005 //0.001
+	seg->setDistanceThreshold(0.005);//0.001 //0.005 //0.001
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 		
@@ -139,12 +139,12 @@ int main(int argc, char** argv)
 	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
 	viewer->addCoordinateSystem(0.25);
 
-	while (false) {
+	while (true) {
 
 		mysolver.solve(*prim);
 
 		controller.evaluate(prim);
-		std::cout << "Grasp_size: " << controller.getGraspSize() << "Cylinder: " << controller.getTiltAngle() << std::endl;
+		std::cout << "Grasp_size: " << controller.getGraspSize() << " Tilt_angle: " << controller.getTiltAngle() << std::endl;
 
 
 		//---- RENDERING ----

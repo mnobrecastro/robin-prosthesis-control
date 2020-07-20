@@ -23,16 +23,16 @@ namespace robin
 		Primitive3();
 		~Primitive3();
 
-		virtual float getProperty_center_x() { return properties_.center_x; }
-		virtual float getProperty_center_y() { return properties_.center_y; }
-		virtual float getProperty_center_z() { return properties_.center_z; }
-		virtual float getProperty_width() { return properties_.width; }
-		virtual float getProperty_height() { return properties_.height; }
-		virtual float getProperty_depth() { return properties_.depth; }
-		virtual float getProperty_axis_x() { return properties_.axis_x; }
-		virtual float getProperty_axis_y() { return properties_.axis_y; }
-		virtual float getProperty_axis_z() { return properties_.axis_z; }
-		virtual float getProperty_radius() { return properties_.radius; }
+		float getProperty_center_x() { return properties_.center_x; }
+		float getProperty_center_y() { return properties_.center_y; }
+		float getProperty_center_z() { return properties_.center_z; }
+		float getProperty_width() { return properties_.width; }
+		float getProperty_height() { return properties_.height; }
+		float getProperty_depth() { return properties_.depth; }
+		float getProperty_axis_x() { return properties_.axis_x; }
+		float getProperty_axis_y() { return properties_.axis_y; }
+		float getProperty_axis_z() { return properties_.axis_z; }
+		float getProperty_radius() { return properties_.radius; }
 
 		void setCoefficients();
 
@@ -52,16 +52,16 @@ namespace robin
 
 	protected:
 		struct Properties {
-			float center_x;
-			float center_y;
-			float center_z;
-			float width;
-			float height;
-			float depth;
-			float axis_x;
-			float axis_y;
-			float axis_z;
-			float radius;
+			float center_x = 0.0;
+			float center_y = 0.0;
+			float center_z = 0.0;
+			float width = 0.0;
+			float height = 0.0;
+			float depth = 0.0;
+			float axis_x = 0.0;
+			float axis_y = 0.0;
+			float axis_z = 0.0;
+			float radius = 0.0;
 		} properties_;
 
 		pcl::ModelCoefficients::Ptr coefficients_;
