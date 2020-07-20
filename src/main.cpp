@@ -7,6 +7,7 @@
 #include "../src/primitive3_cylinder.h"
 #include "../src/primitive3_cuboid.h"
 #include "../src/hand_michelangelo.h"
+#include "../src/control_simple.h"
 
 /*
 #include <ctime>
@@ -84,10 +85,21 @@
 int main(int argc, char** argv)
 {
 	// Create a hand
-	/*robin::hand::HandUDP myhand(false, "127.0.0.1", 8052, 8051);
-	uint8_t packet[9] = { 1, 20,0,0,0, 20,0,0,0 };
-	myhand.send_packet(packet, sizeof(packet)/sizeof(uint8_t));*/
-	robin::hand::Michelangelo myhand(false);
+	robin::hand::HandUDP myhand(false, "127.0.0.1", 8052, 8051);
+	//system("C:\\Users\\MMC\\Documents\\AAU\\Projects\\Robin\\Software\\Mikey\\DLLs\\MichelangeloGUI.exe");
+
+	//uint8_t packet[9] = { 1, 20,0,0,0, 20,0,0,0 };
+	//uint8_t packet[1] = { 0 };
+	//myhand.send_packet(packet, sizeof(packet)/sizeof(uint8_t));		
+	
+	uint8_t packpack[1024];
+	int byte_len = myhand.receive_packet(packpack);
+	myhand.print_recv_packet(packpack, byte_len);
+
+
+	//robin::hand::Michelangelo myhand(false);
+
+	robin::control::ControlSimple controller(myhand);
 
 	// Declare a solver3
 	robin::Solver3 mysolver;
@@ -101,7 +113,7 @@ int main(int argc, char** argv)
 	mycam->setDownsample(0.0025);//0.005 //0.0025 //0.010	
 	mysolver.addSensor(mycam);
 
-	robin::Primitive3Sphere prim;
+	robin::Primitive3Sphere* prim(new robin::Primitive3Sphere);
 	//prim.setVisualizeOnOff(false);
 
 	// Dummy Segmentation object
@@ -127,10 +139,12 @@ int main(int argc, char** argv)
 	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
 	viewer->addCoordinateSystem(0.25);
 
-	while (true) {
+	while (false) {
 
-		mysolver.solve(prim);
+		mysolver.solve(*prim);
 
+		controller.evaluate(prim);
+		std::cout << "Grasp_size: " << controller.getGraspSize() << "Cylinder: " << controller.getTiltAngle() << std::endl;
 
 
 		//---- RENDERING ----
@@ -146,13 +160,12 @@ int main(int argc, char** argv)
 		}
 
 		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
-		primitive_color_h.setInputCloud(prim.getPointCloud());
-		viewer->addPointCloud(prim.getPointCloud(), primitive_color_h, "primitive");
-		prim.visualize(viewer);
+		primitive_color_h.setInputCloud(prim->getPointCloud());
+		viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
+		prim->visualize(viewer);
 
 		viewer->spinOnce(1, true);
-	}
-	
+	}	
 }
 
 //int main (int argc, char** argv)

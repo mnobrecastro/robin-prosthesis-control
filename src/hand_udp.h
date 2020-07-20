@@ -32,19 +32,16 @@ namespace robin
 			/**/
 			void set_port_out(short port);
 
-			/* Receives a packet of data from the prosthesis
+			/* Receive a packet of data from the prosthesis
 			* (Subclasses of HandUDP should not have access to this member function since it is meant to be "developers only")  */
-			virtual uint8_t* receive_packet();
+			virtual size_t receive_packet(uint8_t packet[]);
 
-			/* Sends a packet of data to the prosthesis
+			/* Send a packet of data to the prosthesis
 			 * (Subclasses of HandUDP should not have access to this member function since it is meant to be "developers only")  */
 			virtual void send_packet(const uint8_t* packet, size_t packet_byte_length);
 
-			/**/
-			virtual void set_state() {}
-
-			/**/
-			virtual void get_state() {}
+			/* Print a received packet. */
+			virtual void print_recv_packet(const uint8_t* packet, size_t packet_byte_length);
 
 		protected:
 			const char* ip_address_; // IPv4
@@ -65,10 +62,10 @@ namespace robin
 			SOCKET socket_;
 
 			/* Opens/initializes a socket for UDP communication with the hand prosthesis. */
-			void HandUDP::open_socket();
+			void open_socket();
 
 			/* Closes the socket for UDP communication. */
-			void HandUDP::close_socket();
+			void close_socket();
 
 		};
 	}

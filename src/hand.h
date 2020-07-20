@@ -26,8 +26,6 @@ namespace robin
 
 			bool isRightHand();
 
-			void updateConfigState();
-
 			/* Set a configuration state for the prosthesis. */
 			virtual void setConfigState() {}
 
@@ -53,26 +51,33 @@ namespace robin
 			virtual float getCloseSize() { return 0.0; }
 			virtual float getGraspSize() { return 0.0; }
 
-			virtual void flex() {}
-			virtual void extend() {}
+			virtual void flex(float vel) {}
+			virtual void extend(float vel) {}
 
-			virtual void abduct() {}
-			virtual void adduct() {}
+			virtual void abduct(float vel) {}
+			virtual void adduct(float vel) {}
 
-			virtual void pronate() {}
-			virtual void supinate() {}
+			virtual void pronate(float vel) {}
+			virtual void supinate(float vel) {}
 			
-			virtual void open() {}
-			virtual void close() {}
+			virtual void open(float vel) {}
+			virtual void close(float vel) {}
 			
 
 		protected:
 			struct ConfigState {
-				CONTROL ctrl;
-				GRASP grasp;
+				CONTROL ctrl_type;
+				GRASP grasp_type;
+				float fle_ext_angle;
+				float abd_add_angle;
+				float sup_pro_angle;
+				float grasp_size;
+				float grasp_force;
 			} configstate_;
 
 			bool right_hand_;
+
+			virtual void updateConfigState() {}
 
 			void rotate();
 

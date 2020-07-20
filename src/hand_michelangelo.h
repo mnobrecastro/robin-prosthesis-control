@@ -16,26 +16,21 @@ namespace robin
 		{
 		public:
 			Michelangelo() = delete;
+			Michelangelo(bool right_hand);
 			Michelangelo(bool right_hand, const char* ip, short port_in, short port_out);
 			~Michelangelo();
 
 			/* Set a configuration state for the prosthesis. */
-			void set_state();
+			void setConfigState() {}
 
 			/* Read the current configuration state of the prosthesis. */
-			void get_state();
+			std::vector<float> getConfigState() { return std::vector<float>(); }
 
-			/* Suppressed Commands */
-			/*void flex() = delete;
-			void extend() = delete;
-			void abduct() = delete;
-			void adduct() = delete;*/
+			void pronate(float vel) {}
+			void supinate(float vel) {}
 
-			/*void pronate();
-			void supinate();
-
-			void open();
-			void close();*/
+			void open(float vel) {}
+			void close(float vel) {}
 
 		protected:
 			/* Receive sensor data from the hand.
@@ -54,34 +49,43 @@ namespace robin
 			 * byte08 : int8,  flexion/extension [-100, 100]
 			 * byte09 : int8,  force [-100, 100] #TODO: doesn't make sense!
 			 * byte10 - byte35 : Controller state, EMG data and overhead. */
-			uint8_t* receive_packet();
-
-			/* Protect the capability of sending an arbitrarily sized packet. */
-			//using HandUDP::send_packet;
+			size_t receive_packet(uint8_t packet[]);
 
 			/* Send velocity commands to the prosthesis.
 			 *
 			 * Only supported control mode: `Velocity control`. Data packet to be sent should have
 			 * 9 bytes all of type uint8, in the following scheme:
 			 *
-			 * byte00 = 1,     velocity mode indicator
-			 * byte01 : uint8, palmar grip closing [0, 255]
-			 * byte02 : uint8, palmar grip opening [0, 255]
-			 * byte03 : uint8, lateral grip closing [0, 255]
-			 * byte04 : uint8, lateral grip opening [0, 255]
-			 * byte05 : uint8, pronation velocity [0, 255]
-			 * byte06 : uint8, supination velocity [0, 255]
-			 * byte07 : uint8, flexion velocity [0, 255]
-			 * byte08 : uint8, extension velocity [0, 255]
-
+			 * byte0 = 1: to indicate velocity-control mode
+			 * byte1 = uint8: Palmar Grip Closing command in range [0, 255]
+			 * byte2 = uint8: Palmar Grip Opening command in range [0, 255]
+			 * byte3 = uint8: Lateral Grip Closing command in range [0, 255]
+			 * byte4 = uint8: Lateral Grip Opening command in range [0, 255]
+			 * byte5 = uint8: Pronation Velocity in range [0, 255]
+			 * byte6 = uint8: Supination Velocity in range [0, 255]
+			 * byte7 = uint8: Flexion Velocity in range [0, 255]
+			 * byte8 = uint8: Extension Velocity in range [0, 255]
+			 *
 			 * Input Arguments
 			 * ---------
 			 * control_command : array_like
-			 *		8-dimensional array of speeds for the different signals */
+			 *	8-dimensional array of speeds for the different signals */
 			void send_packet(const uint8_t* packet, size_t packet_byte_length);
+
+			/* Print a received packet (variables according to the manufacturer). */
+			void print_recv_packet(const uint8_t* packet, size_t packet_byte_length);
+
+			void updateConfigState();
 
 			//void grasp_palmar();
 			//void grasp_lateral();
+
+		private:
+			/* Suppressed Commands */
+			using Hand::flex;
+			using Hand::extend;
+			using Hand::abduct;
+			using Hand::adduct;
 		};
 	}
 }
