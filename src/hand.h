@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <vector>
 
 namespace robin
@@ -35,21 +36,11 @@ namespace robin
 			void setControlMode(CONTROL ctrl);
 			void setGrasp(GRASP grasp);
 
-			virtual float getFlexionAngle() { return 0.0; }
-			virtual float getExtensionAngle() { return 0.0; }
-			virtual float getWristFleExtAngle() { return 0.0; }
-
-			virtual float getAbductionAngle() { return 0.0; }
-			virtual float getAdductionAngle() { return 0.0; }
-			virtual float getWristAbdAddAngle() { return 0.0; }
-
-			virtual float getSupinationAngle() { return 0.0; }
-			virtual float getPronationAngle() { return 0.0; }
-			virtual float getWristSupProAngle() { return 0.0; }
-
-			virtual float getOpenSize() { return 0.0; }
-			virtual float getCloseSize() { return 0.0; }
-			virtual float getGraspSize() { return 0.0; }
+			float getWristFleExtAngle();
+			float getWristAbdAddAngle();
+			float getWristSupProAngle();
+			float getGraspSize();
+			float getGraspForce();
 
 			virtual void flex(float vel) {}
 			virtual void extend(float vel) {}
@@ -68,16 +59,16 @@ namespace robin
 			struct ConfigState {
 				CONTROL ctrl_type;
 				GRASP grasp_type;
-				float fle_ext_angle;
-				float abd_add_angle;
-				float sup_pro_angle;
-				float grasp_size;
-				float grasp_force;
+				float fle_ext_angle = 0.0; //[rad]
+				float abd_add_angle = 0.0; //[rad]
+				float sup_pro_angle = 0.0; //[rad]
+				float grasp_size = 0.0; //[m]
+				float grasp_force = 0.0; //[N]
 			} configstate_;
 
 			bool right_hand_;
 
-			virtual void updateConfigState() {}
+			virtual void updateConfigState() { std::cout << "SHOULD NOT READ THIS!" << std::endl; }
 
 			void rotate();
 

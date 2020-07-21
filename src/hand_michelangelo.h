@@ -1,11 +1,15 @@
 #pragma once
 #include "hand_udp.h"
 
+#include <iostream>
+
 #define IP_ADDRESS "127.0.0.1"
 #define PORT_IN 8052
 #define PORT_OUT 8051
 #define PACKET_IN_LENGTH 35
 #define PACKET_OUT_LENGTH 9
+
+#define M_PI	3.14159265358979323846   // pi
 
 namespace robin
 {
@@ -26,11 +30,11 @@ namespace robin
 			/* Read the current configuration state of the prosthesis. */
 			std::vector<float> getConfigState() { return std::vector<float>(); }
 
-			void pronate(float vel) {}
-			void supinate(float vel) {}
-
-			void open(float vel) {}
-			void close(float vel) {}
+			/* Prothesis commands available. */
+			void pronate(float vel);
+			void supinate(float vel);
+			void open(float vel);
+			void close(float vel);
 
 		protected:
 			/* Receive sensor data from the hand.
@@ -71,6 +75,11 @@ namespace robin
 			 * control_command : array_like
 			 *	8-dimensional array of speeds for the different signals */
 			void send_packet(const uint8_t* packet, size_t packet_byte_length);
+
+			/* Array to keep track of the command variables */
+			std::array<float, 9> command_buffer_ = { 1/255, 0.0,0.0, 0.0,0.0, 0.0,0.0, 0.0,0.0 };
+
+			void send_command();
 
 			/* Print a received packet (variables according to the manufacturer). */
 			void print_recv_packet(const uint8_t* packet, size_t packet_byte_length);

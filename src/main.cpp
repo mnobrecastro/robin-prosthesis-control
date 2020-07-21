@@ -99,6 +99,8 @@ int main(int argc, char** argv)
 
 	robin::hand::Michelangelo myhand(false);
 
+	//robin::hand::Hand myhand(TRUE);
+
 	robin::control::ControlSimple controller(myhand);
 
 	// Declare a solver3
@@ -119,12 +121,12 @@ int main(int argc, char** argv)
 	// Dummy Segmentation object
 	mysolver.setSegmentation(robin::Method3::SEGMENTATION_SAC);	
 	pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
-	seg->setNormalDistanceWeight(0.1);
+	seg->setNormalDistanceWeight(0.001); //0.1
 	//pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
 	seg->setMaxIterations(100);
-	seg->setDistanceThreshold(0.005);//0.001 //0.005 //0.001
+	seg->setDistanceThreshold(0.001);//0.001 //0.005 //0.001
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 		
@@ -144,7 +146,16 @@ int main(int argc, char** argv)
 		mysolver.solve(*prim);
 
 		controller.evaluate(prim);
-		std::cout << "Grasp_size: " << controller.getGraspSize() << " Tilt_angle: " << controller.getTiltAngle() << std::endl;
+		std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
+		std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
+
+		if (myhand.isRightHand()) {
+			// Right-hand prosthesis (positive tilt angle)
+			std::cout << "Hand tilt_angle: " << myhand.getWristSupProAngle() << " (" << myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
+		} else {
+			// Left-hand prosthesis (negative tilt angle)
+			std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
+		}
 
 
 		//---- RENDERING ----

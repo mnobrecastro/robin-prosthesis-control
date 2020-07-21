@@ -17,26 +17,30 @@ namespace robin
 			this->estimate_tilt_angle(prim);
 
 			float grasp_size_error(grasp_size_.value - hand_->getGraspSize());
-			if (grasp_size_error > 0) {
-				hand_->open(0.0);
-			}
-			else {
-				hand_->close(0.0);
+			if (std::abs(grasp_size_error) > 5 * M_PI / 180) {
+				if (grasp_size_error > 0) {
+					hand_->open(0.5);
+				}
+				else {
+					hand_->close(0.5);
+				}
 			}
 
-			float tilt_angle_error;
+			float tilt_angle_error(tilt_angle_.value - hand_->getWristSupProAngle());
 			if (hand_->isRightHand()) {
-				// Right-hand prosthesis (positive tilt angle)
-				tilt_angle_error = tilt_angle_.value - hand_->getSupinationAngle();
-				if (grasp_size_error > 0) { hand_->supinate(0.0); }
-				else { hand_->pronate(0.0); }
+				// Right-hand prosthesis (positive tilt angle)				
+				if (std::abs(tilt_angle_error) > 5 * M_PI / 180) {
+					if (tilt_angle_error > 0) { hand_->supinate(0.01); }
+					else { hand_->pronate(0.01); }
+				}
 			}
 			else {
 				// Left-hand prosthesis (negative tilt angle)
-				tilt_angle_error = tilt_angle_.value + hand_->getSupinationAngle();
-				if (grasp_size_error > 0) { hand_->supinate(0.0); }
-				else { hand_->pronate(0.0); }
-			}		
+				if (std::abs(tilt_angle_error) > 5 * M_PI / 180) {
+					if (tilt_angle_error < 0) { hand_->supinate(0.01); }
+					else { hand_->pronate(0.01); }
+				}
+			}
 		}
 
 		float ControlSimple::getGraspSize()
@@ -72,7 +76,7 @@ namespace robin
 			float grasp_size;
 			switch (find_primitive3_type(prim)){
 			case Primitive3Type::PRIMITIVE3_SPHERE:
-				grasp_size = prim->getProperty_radius();
+				grasp_size = 2 * prim->getProperty_radius();
 				break;
 			case Primitive3Type::PRIMITIVE3_CUBOID:
 				if (prim->getProperty_width() > 0.001) {
@@ -86,7 +90,7 @@ namespace robin
 				}
 				break;
 			case Primitive3Type::PRIMITIVE3_CYLINDER:
-				grasp_size = prim->getProperty_radius();
+				grasp_size = 2 * prim->getProperty_radius();
 				break;
 			}
 			grasp_size_.buffer.push_back(grasp_size);
@@ -94,7 +98,7 @@ namespace robin
 
 			// Calculate and use the median value
 			std::vector<float> temp;
-			size_t n_samples(100);
+			size_t n_samples(1);
 			if (grasp_size_.buffer.size() < n_samples) {
 				temp = grasp_size_.buffer;
 			} else {
@@ -113,34 +117,28 @@ namespace robin
 			if (prim3_type == Primitive3Type::PRIMITIVE3_SPHERE)
 			{
 				/* To be further implemented. */
-				tilt_angle = hand_->getSupinationAngle(); // Hand stays as it is.
+				tilt_angle = hand_->getWristSupProAngle(); // Hand stays as it is.
 			}
 			else if(prim3_type == Primitive3Type::PRIMITIVE3_CUBOID || prim3_type == Primitive3Type::PRIMITIVE3_CYLINDER)
 			{				
 				// Angle of the projection of the Primitive3 axis into the xOy plane of the camera.
 				float projected_angle(std::atan2(prim->getProperty_axis_y(), prim->getProperty_axis_x()));
-				
+				// Correction of the projectio angle w.r.t. the hand-side
+				if (hand_->isRightHand() && projected_angle < 0) { projected_angle += M_PI; }
+				else if (!hand_->isRightHand() && projected_angle > 0) { projected_angle -= M_PI; }
+
 				// Current absolute supination angle
-				float supination_angle(hand_->getSupinationAngle());
-				if (hand_->isRightHand()) {
-					// Right-hand prosthesis (positive tilt angle)
-					tilt_angle = supination_angle + projected_angle;
-					if (tilt_angle < 0) { tilt_angle += M_PI; }
-					else if (tilt_angle > M_PI) { tilt_angle -= M_PI; }
-				}
-				else {
-					// Left-hand prosthesis (negative tilt angle)
-					tilt_angle = -supination_angle + projected_angle;
-					if (tilt_angle < -M_PI) { tilt_angle += M_PI; }
-					else if (tilt_angle > M_PI) { tilt_angle -= M_PI; }
-				}
+				float supination_angle(hand_->getWristSupProAngle());
+				tilt_angle = supination_angle + projected_angle;
+				if (hand_->isRightHand() && tilt_angle > M_PI) { tilt_angle -= M_PI; }
+				else if(!hand_->isRightHand() && tilt_angle < -M_PI) { tilt_angle += M_PI; }
 			}
 			tilt_angle_.buffer.push_back(tilt_angle);
 			std::cout << "Estimated tilt_angle: " << tilt_angle;
 
 			// Calculate and use the median value
 			std::vector<float> temp;
-			size_t n_samples(100);
+			size_t n_samples(1);
 			if (tilt_angle_.buffer.size() < n_samples) {
 				temp = tilt_angle_.buffer;
 			}

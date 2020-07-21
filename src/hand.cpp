@@ -15,6 +15,36 @@ namespace robin
 
 		void Hand::setGrasp(GRASP grasp) { configstate_.grasp_type = grasp; }
 
+		float Hand::getWristFleExtAngle()
+		{
+			this->updateConfigState();
+			return configstate_.fle_ext_angle;
+		}
+
+		float Hand::getWristAbdAddAngle()
+		{
+			this->updateConfigState();
+			return configstate_.abd_add_angle;
+		}
+
+		float Hand::getWristSupProAngle()
+		{
+			this->updateConfigState();
+			return configstate_.sup_pro_angle;
+		}
+
+		float Hand::getGraspSize()
+		{
+			this->updateConfigState();
+			return configstate_.grasp_size;
+		}
+
+		float Hand::getGraspForce()
+		{
+			this->updateConfigState();
+			return configstate_.grasp_force;
+		}
+
 	}
 	
 }

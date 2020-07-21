@@ -9,21 +9,59 @@ namespace robin
 			: HandUDP(right_hand, IP_ADDRESS, PORT_IN, PORT_OUT)
 		{
 			this->updateConfigState();
+			do {
+				std::cout << '\n' << "Press any key to continue...";
+			} while (std::cin.get() != '\n');
 		}
 		
 		Michelangelo::Michelangelo(bool right_hand, const char* ip, short port_in, short port_out)
 			: HandUDP(right_hand, ip, port_in, port_out)
 		{
 			this->updateConfigState();
+			do {
+				std::cout << '\n' << "Press any key to continue...";
+			} while (std::cin.get() != '\n');
 		}
 
 		Michelangelo::~Michelangelo() {}
 
-		void pronate(float vel) {}
-		void supinate(float vel) {}
+		/* Prothesis commands available. */
+		/* byte0 = 1: to indicate velocity - control mode
+		 * byte1 = uint8 : Palmar Grip Closing command in range[0, 255]
+		 * byte2 = uint8 : Palmar Grip Opening command in range[0, 255]
+		 * byte3 = uint8 : Lateral Grip Closing command in range[0, 255]
+		 * byte4 = uint8 : Lateral Grip Opening command in range[0, 255]
+		 * byte5 = uint8 : Pronation Velocity in range[0, 255]
+		 * byte6 = uint8 : Supination Velocity in range[0, 255]
+		 * byte7 = uint8 : Flexion Velocity in range[0, 255]
+		 * byte8 = uint8 : Extension Velocity in range[0, 255]*/
+		void Michelangelo::pronate(float vel)
+		{
+			/* byte5 = uint8 : Pronation Velocity in range[0, 255]
+			 * byte6 = uint8 : Supination Velocity in range[0, 255]
+			 */
+			command_buffer_[5] = min(max(0.0, std::abs(vel)), 1.0);
+			command_buffer_[6] = 0.0;
+			this->send_command();
+		}
+		void Michelangelo::supinate(float vel)
+		{
+			/* byte5 = uint8 : Pronation Velocity in range[0, 255]
+			 * byte6 = uint8 : Supination Velocity in range[0, 255]
+			 */
+			command_buffer_[5] = 0.0;
+			command_buffer_[6] = min(max(0.0, std::abs(vel)), 1.0);
+			this->send_command();
+		}
 
-		void open(float vel) {}
-		void close(float vel) {}
+		void Michelangelo::open(float vel)
+		{
+			//command_buffer_
+		}
+		void Michelangelo::close(float vel)
+		{
+			//command_buffer_
+		}
 
 
 		/**** PROTECTED MEMBER FUNCTIONS ****/
@@ -48,6 +86,20 @@ namespace robin
 			else {
 				HandUDP::send_packet(packet, packet_byte_length);
 			}
+		}
+
+		void Michelangelo::send_command()
+		{
+			uint8_t packet[PACKET_OUT_LENGTH];
+			size_t packet_byte_length = sizeof(packet)/sizeof(uint8_t);
+
+			for (int i(0); i < packet_byte_length; ++i) {
+				*(packet + i) = int(command_buffer_[i] * 255);
+				std::cout << command_buffer_[i] << " (" << +*(packet + i) << ") ";
+			}
+			std::cout << std::endl;
+			
+			this->send_packet(packet, packet_byte_length);
 		}
 
 		void Michelangelo::print_recv_packet(const uint8_t* packet, size_t packet_byte_length)
@@ -131,7 +183,8 @@ namespace robin
 
 			// byte7: "Pronation/Supination" (int8), range [-100,100]% -> [-160,160]deg
 			int sup_pro_angle = +int8_t(*(packet + 7));
-			configstate_.sup_pro_angle = sup_pro_angle;
+			configstate_.sup_pro_angle = float(sup_pro_angle/100.0 * 160*M_PI/180);
+			std::cout << "ConfigState Sup/Pro: " << configstate_.sup_pro_angle << std::endl;
 
 			// byte8: "Flexion/Extension" (int8), range [-100,100]% -> [-45,75]deg
 			int fle_ext_angle = +int8_t(*(packet + 8));

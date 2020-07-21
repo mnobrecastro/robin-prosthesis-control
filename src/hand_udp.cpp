@@ -65,7 +65,7 @@ namespace robin
 			}
 			else {
 				std::cout << "A packet (" << packet_byte_length << " bytes) was received through UDP connection." << std::endl;
-				this->print_recv_packet(packet_temp, packet_byte_length);
+				HandUDP::print_recv_packet(packet_temp, packet_byte_length);
 				for (int i(0); i < packet_byte_length; ++i) {
 					*(packet + i) = *(packet_temp + i);
 				}
