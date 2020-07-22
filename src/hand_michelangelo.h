@@ -2,6 +2,10 @@
 #include "hand_udp.h"
 
 #include <iostream>
+#include <atomic>
+#include <chrono>
+#include <thread>
+#include <mutex>
 
 #define IP_ADDRESS "127.0.0.1"
 #define PORT_IN 8052
@@ -30,6 +34,13 @@ namespace robin
 			/* Read the current configuration state of the prosthesis. */
 			std::vector<float> getConfigState() { return std::vector<float>(); }
 
+			/* Prosthesis config state accessors. */
+			float getWristFleExtAngle();
+			float getWristAbdAddAngle();
+			float getWristSupProAngle();
+			float getGraspSize();
+			float getGraspForce();
+
 			/* Prothesis commands available. */
 			void pronate(float vel);
 			void supinate(float vel);
@@ -53,7 +64,7 @@ namespace robin
 			 * byte08 : int8,  flexion/extension [-100, 100]
 			 * byte09 : int8,  force [-100, 100] #TODO: doesn't make sense!
 			 * byte10 - byte35 : Controller state, EMG data and overhead. */
-			size_t receive_packet(uint8_t packet[]);
+			int receive_packet(uint8_t packet[]);
 
 			/* Send velocity commands to the prosthesis.
 			 *
@@ -84,7 +95,7 @@ namespace robin
 			/* Print a received packet (variables according to the manufacturer). */
 			void print_recv_packet(const uint8_t* packet, size_t packet_byte_length);
 
-			void updateConfigState();
+			void updateConfigState();// std::atomic<bool>& program_is_running, unsigned int update_interval_millisecs);//void updateConfigState();
 
 			//void grasp_palmar();
 			//void grasp_lateral();
@@ -95,6 +106,10 @@ namespace robin
 			using Hand::extend;
 			using Hand::abduct;
 			using Hand::adduct;
+
+			bool is_dumping_ = false;
+			std::thread thread_configstate_;
+			std::mutex mu_configstate_;
 		};
 	}
 }

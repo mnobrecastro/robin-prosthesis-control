@@ -30,15 +30,37 @@ namespace robin
 			if (hand_->isRightHand()) {
 				// Right-hand prosthesis (positive tilt angle)				
 				if (std::abs(tilt_angle_error) > 5 * M_PI / 180) {
-					if (tilt_angle_error > 0) { hand_->supinate(0.01); }
-					else { hand_->pronate(0.01); }
+					if (tilt_angle_error > 0) {
+						hand_->supinate(0.01);
+						//hand_->supinate(0.00);
+					}
+					else {
+						hand_->pronate(0.01);
+						//hand_->pronate(0.00);
+					}
 				}
 			}
 			else {
 				// Left-hand prosthesis (negative tilt angle)
 				if (std::abs(tilt_angle_error) > 5 * M_PI / 180) {
-					if (tilt_angle_error < 0) { hand_->supinate(0.01); }
-					else { hand_->pronate(0.01); }
+					if (tilt_angle_error < 0) {
+						hand_->supinate(0.01);
+						/*std::chrono::seconds t1(1);
+						std::this_thread::sleep_for(t1);
+
+						hand_->supinate(0.00);
+						std::chrono::seconds t2(3);
+						std::this_thread::sleep_for(t2);*/
+					}
+					else {
+						hand_->pronate(0.01);
+						/*std::chrono::seconds t1(1);
+						std::this_thread::sleep_for(t1);
+
+						hand_->pronate(0.00);
+						std::chrono::seconds t2(3);
+						std::this_thread::sleep_for(t2);*/
+					}
 				}
 			}
 		}

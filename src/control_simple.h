@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include <chrono>
+#include <thread>
+
 namespace robin
 {
 	namespace control

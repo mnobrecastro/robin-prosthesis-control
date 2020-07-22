@@ -34,7 +34,7 @@ namespace robin
 
 			/* Receive a packet of data from the prosthesis
 			* (Subclasses of HandUDP should not have access to this member function since it is meant to be "developers only")  */
-			virtual size_t receive_packet(uint8_t packet[]);
+			virtual int receive_packet(uint8_t packet[]);
 
 			/* Send a packet of data to the prosthesis
 			 * (Subclasses of HandUDP should not have access to this member function since it is meant to be "developers only")  */

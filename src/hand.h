@@ -36,11 +36,11 @@ namespace robin
 			void setControlMode(CONTROL ctrl);
 			void setGrasp(GRASP grasp);
 
-			float getWristFleExtAngle();
-			float getWristAbdAddAngle();
-			float getWristSupProAngle();
-			float getGraspSize();
-			float getGraspForce();
+			virtual float getWristFleExtAngle();
+			virtual float getWristAbdAddAngle();
+			virtual float getWristSupProAngle();
+			virtual float getGraspSize();
+			virtual float getGraspForce();
 
 			virtual void flex(float vel) {}
 			virtual void extend(float vel) {}

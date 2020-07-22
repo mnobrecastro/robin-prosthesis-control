@@ -5,25 +5,57 @@ namespace robin
 	namespace hand
 	{
 
-		Michelangelo::Michelangelo(bool right_hand)
-			: HandUDP(right_hand, IP_ADDRESS, PORT_IN, PORT_OUT)
-		{
-			this->updateConfigState();
-			do {
-				std::cout << '\n' << "Press any key to continue...";
-			} while (std::cin.get() != '\n');
-		}
-		
 		Michelangelo::Michelangelo(bool right_hand, const char* ip, short port_in, short port_out)
 			: HandUDP(right_hand, ip, port_in, port_out)
 		{
-			this->updateConfigState();
-			do {
-				std::cout << '\n' << "Press any key to continue...";
-			} while (std::cin.get() != '\n');
+			thread_configstate_ = std::thread(&Michelangelo::updateConfigState, this);
 		}
 
+		Michelangelo::Michelangelo(bool right_hand)
+			: Michelangelo(right_hand, IP_ADDRESS, PORT_IN, PORT_OUT) {}
+
 		Michelangelo::~Michelangelo() {}
+
+
+		float Michelangelo::getWristFleExtAngle()
+		{
+			mu_configstate_.lock();
+			float val(configstate_.fle_ext_angle);
+			mu_configstate_.unlock();
+			return val;
+		}
+
+		float Michelangelo::getWristAbdAddAngle()
+		{
+			mu_configstate_.lock();
+			float val(configstate_.abd_add_angle);
+			mu_configstate_.unlock();
+			return val;
+		}
+
+		float Michelangelo::getWristSupProAngle()
+		{
+			mu_configstate_.lock();
+			float val(configstate_.sup_pro_angle);
+			mu_configstate_.unlock();
+			return val;
+		}
+
+		float Michelangelo::getGraspSize()
+		{
+			mu_configstate_.lock();
+			float val(configstate_.grasp_size);
+			mu_configstate_.unlock();
+			return val;
+		}
+
+		float Michelangelo::getGraspForce()
+		{
+			mu_configstate_.lock();
+			float val(configstate_.grasp_force);
+			mu_configstate_.unlock();
+			return val;
+		}
 
 		/* Prothesis commands available. */
 		/* byte0 = 1: to indicate velocity - control mode
@@ -37,38 +69,46 @@ namespace robin
 		 * byte8 = uint8 : Extension Velocity in range[0, 255]*/
 		void Michelangelo::pronate(float vel)
 		{
-			/* byte5 = uint8 : Pronation Velocity in range[0, 255]
-			 * byte6 = uint8 : Supination Velocity in range[0, 255]
-			 */
-			command_buffer_[5] = min(max(0.0, std::abs(vel)), 1.0);
-			command_buffer_[6] = 0.0;
-			this->send_command();
+			if (is_dumping_) {
+				/* byte5 = uint8 : Pronation Velocity in range[0, 255]
+				 * byte6 = uint8 : Supination Velocity in range[0, 255]
+				 */
+				command_buffer_[5] = min(max(0.0, std::abs(vel)), 1.0);
+				command_buffer_[6] = 0.0;
+				this->send_command();
+			}
 		}
 		void Michelangelo::supinate(float vel)
 		{
-			/* byte5 = uint8 : Pronation Velocity in range[0, 255]
-			 * byte6 = uint8 : Supination Velocity in range[0, 255]
-			 */
-			command_buffer_[5] = 0.0;
-			command_buffer_[6] = min(max(0.0, std::abs(vel)), 1.0);
-			this->send_command();
+			if (is_dumping_) {
+				/* byte5 = uint8 : Pronation Velocity in range[0, 255]
+				 * byte6 = uint8 : Supination Velocity in range[0, 255]
+				 */
+				command_buffer_[5] = 0.0;
+				command_buffer_[6] = min(max(0.0, std::abs(vel)), 1.0);
+				this->send_command();
+			}
 		}
 
 		void Michelangelo::open(float vel)
 		{
-			//command_buffer_
+			if (is_dumping_) {
+				//command_buffer_
+			}
 		}
 		void Michelangelo::close(float vel)
 		{
-			//command_buffer_
+			if (is_dumping_) {
+				//command_buffer_
+			}
 		}
 
 
 		/**** PROTECTED MEMBER FUNCTIONS ****/
 
-		size_t Michelangelo::receive_packet(uint8_t packet[])
+		int Michelangelo::receive_packet(uint8_t packet[])
 		{
-			size_t packet_byte_length = HandUDP::receive_packet(packet);
+			int packet_byte_length = HandUDP::receive_packet(packet);
 			if (packet_byte_length != PACKET_IN_LENGTH) {
 				std::cerr << "Problem receiving a packet." << std::endl;
 				return -1;
@@ -159,51 +199,60 @@ namespace robin
 		}
 
 		void Michelangelo::updateConfigState()
-		{
-			uint8_t packet[1024];
-			size_t byte_length(this->receive_packet(packet));
+		{					
+			while (true) {
+				uint8_t packet[1024];
+				int byte_length(this->receive_packet(packet));
 
-			// byte5: "Grasp Type" (int8), 0 for palmar and 1 for lateral
-			int grasp_type = +*(packet + 5);
-			if (grasp_type == 0) { configstate_.grasp_type = GRASP::PALMAR; }
-			else if (grasp_type == 1) { configstate_.grasp_type = GRASP::LATERAL; }
+				if (byte_length > 0) {
+					if (!is_dumping_) { is_dumping_ = true; }
 
-			// byte6: "Aperture" (int8), range [0,100]%
-			// -> Palmar = [0.000,0.110]m
-			// -> Lateral = [0.000,0.070]m
-			int grasp_size = +int8_t(*(packet + 6));
-			switch (configstate_.grasp_type) {
-			case GRASP::PALMAR:
-				configstate_.grasp_size = grasp_size/100 * 0.110;
-				break;
-			case GRASP::LATERAL:
-				configstate_.grasp_size = grasp_size/100 * 0.070;
-				break;
+					mu_configstate_.lock();
+
+					// byte5: "Grasp Type" (int8), 0 for palmar and 1 for lateral
+					int grasp_type = +*(packet + 5);
+					if (grasp_type == 0) { configstate_.grasp_type = GRASP::PALMAR; }
+					else if (grasp_type == 1) { configstate_.grasp_type = GRASP::LATERAL; }
+
+					// byte6: "Aperture" (int8), range [0,100]%
+					// -> Palmar = [0.000,0.110]m
+					// -> Lateral = [0.000,0.070]m
+					int grasp_size = +int8_t(*(packet + 6));
+					switch (configstate_.grasp_type) {
+					case GRASP::PALMAR:
+						configstate_.grasp_size = grasp_size / 100 * 0.110;
+						break;
+					case GRASP::LATERAL:
+						configstate_.grasp_size = grasp_size / 100 * 0.070;
+						break;
+					}
+
+					// byte7: "Pronation/Supination" (int8), range [-100,100]% -> [-160,160]deg
+					int sup_pro_angle = +int8_t(*(packet + 7));
+					configstate_.sup_pro_angle = float(sup_pro_angle / 100.0 * 160 * M_PI / 180);
+					//std::cout << "ConfigState Sup/Pro: " << configstate_.sup_pro_angle << std::endl;
+
+					// byte8: "Flexion/Extension" (int8), range [-100,100]% -> [-45,75]deg
+					int fle_ext_angle = +int8_t(*(packet + 8));
+					configstate_.fle_ext_angle = fle_ext_angle; // :=0.0
+
+					// byte9: "Force" (int8), range [0, 100]%
+					// -> Gripping force in Opposition/Palmar Mode = 70 N (commercial) or 100 N (research)
+					// -> Gripping force in Lateral Mode = 60 N
+					// -> Gripping force in Neutral Mode = 15 N
+					int  grasp_force = +int8_t(*(packet + 9));
+					switch (configstate_.grasp_type) {
+					case GRASP::PALMAR:
+						configstate_.grasp_force = grasp_force / 100 * 100;
+						break;
+					case GRASP::LATERAL:
+						configstate_.grasp_force = grasp_force / 100 * 60;
+						break;
+					}
+
+					mu_configstate_.unlock();
+				}
 			}
-
-			// byte7: "Pronation/Supination" (int8), range [-100,100]% -> [-160,160]deg
-			int sup_pro_angle = +int8_t(*(packet + 7));
-			configstate_.sup_pro_angle = float(sup_pro_angle/100.0 * 160*M_PI/180);
-			std::cout << "ConfigState Sup/Pro: " << configstate_.sup_pro_angle << std::endl;
-
-			// byte8: "Flexion/Extension" (int8), range [-100,100]% -> [-45,75]deg
-			int fle_ext_angle = +int8_t(*(packet + 8));
-			configstate_.fle_ext_angle = fle_ext_angle; // :=0.0
-
-			// byte9: "Force" (int8), range [0, 100]%
-			// -> Gripping force in Opposition/Palmar Mode = 70 N (commercial) or 100 N (research)
-			// -> Gripping force in Lateral Mode = 60 N
-			// -> Gripping force in Neutral Mode = 15 N
-			int  grasp_force = +int8_t(*(packet + 9));
-			switch (configstate_.grasp_type) {
-			case GRASP::PALMAR:
-				configstate_.grasp_force = grasp_force/100 * 100;
-				break;
-			case GRASP::LATERAL:
-				configstate_.grasp_force = grasp_force/100 * 60;
-				break;
-			}
-			
 		}
 	}
 }

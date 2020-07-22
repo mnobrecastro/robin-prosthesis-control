@@ -141,6 +141,8 @@ int main(int argc, char** argv)
 	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
 	viewer->addCoordinateSystem(0.25);
 
+	bool RENDER(false);
+
 	while (true) {
 
 		mysolver.solve(*prim);
@@ -156,26 +158,28 @@ int main(int argc, char** argv)
 			// Left-hand prosthesis (negative tilt angle)
 			std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
 		}
+		std::cout << "\n\n" << std::endl;
 
 
 		//---- RENDERING ----
+		if (RENDER) {
+			// Clean any previously rendered objects
+			viewer->removeAllShapes();
+			viewer->removeAllPointClouds();
 
-		// Clean any previously rendered objects
-		viewer->removeAllShapes();
-		viewer->removeAllPointClouds();
+			for (auto s : mysolver.getSensors()) {
+				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h((int)255 * 1.0, (int)255 * 1.0, (int)255 * 1.0);
+				cloud_color_h.setInputCloud(s->getPointCloud());
+				viewer->addPointCloud(s->getPointCloud(), cloud_color_h);
+			}
 
-		for (auto s : mysolver.getSensors()) {
-			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h((int)255 * 1.0, (int)255 * 1.0, (int)255 * 1.0);
-			cloud_color_h.setInputCloud(s->getPointCloud());
-			viewer->addPointCloud(s->getPointCloud(), cloud_color_h);
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
+			primitive_color_h.setInputCloud(prim->getPointCloud());
+			viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
+			prim->visualize(viewer);
+
+			viewer->spinOnce(1, true);
 		}
-
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
-		primitive_color_h.setInputCloud(prim->getPointCloud());
-		viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
-		prim->visualize(viewer);
-
-		viewer->spinOnce(1, true);
 	}	
 }
 

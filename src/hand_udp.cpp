@@ -39,7 +39,7 @@ namespace robin
 			inet_pton(AF_INET, dest_ip_, &dest_ipv4_.sin_addr.s_addr);
 			dest_ipv4_.sin_port = htons(port_out_); //htons, converts a 16-bit quantity from host byte order to network byte order (Little-Endian to Big-Endian).
 
-			socket_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+			socket_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP); //SOCK_DGRAM, UDP=Datagram
 			bind(socket_, (sockaddr*)&local_ipv4_, sizeof(local_ipv4_));
 
 			std::cout << "A socket was oppened at " << ip_address_ << " (in:" << port_in_ << ",out:" << port_out_ << ")" << std::endl;
@@ -53,19 +53,19 @@ namespace robin
 		}
 
 		/* Receives a packet of data from the prosthesis. */
-		size_t HandUDP::receive_packet(uint8_t packet[])
+		int HandUDP::receive_packet(uint8_t packet[])
 		{
 			uint8_t packet_temp[1024];
 			size_t byte_length_temp(sizeof(packet_temp) / sizeof(uint8_t));
 			int local_addr_size = sizeof(local_ipv4_);
-			size_t packet_byte_length = recvfrom(socket_, (char*)packet_temp, byte_length_temp, 0, (sockaddr*)&local_ipv4_, &local_addr_size);
-			if (packet_byte_length <= 1) {
+			int packet_byte_length = recvfrom(socket_, (char*)packet_temp, byte_length_temp, 0, (sockaddr*)&local_ipv4_, &local_addr_size);
+			if (packet_byte_length < 0) {
 				std::cerr << "The UDP connection failed to receive a packet." << std::endl;
 				return -1;
 			}
 			else {
-				std::cout << "A packet (" << packet_byte_length << " bytes) was received through UDP connection." << std::endl;
-				HandUDP::print_recv_packet(packet_temp, packet_byte_length);
+				//std::cout << "A packet (" << packet_byte_length << " bytes) was received through UDP connection." << std::endl;
+				//HandUDP::print_recv_packet(packet_temp, packet_byte_length);
 				for (int i(0); i < packet_byte_length; ++i) {
 					*(packet + i) = *(packet_temp + i);
 				}
@@ -78,7 +78,7 @@ namespace robin
 		{
 			int dest_addr_size = sizeof(dest_ipv4_);
 			int n_bytes = sendto(socket_, (char*)packet, packet_byte_length, 0, (sockaddr*)&dest_ipv4_, dest_addr_size);
-			if (n_bytes < 1) {
+			if (n_bytes < 0) {
 				std::cerr << "The UDP connection failed to send a packet." << std::endl;
 				return;
 			}

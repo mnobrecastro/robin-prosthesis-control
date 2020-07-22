@@ -110,7 +110,7 @@ namespace robin {
 		this->points_to_pcl();
 
 		tf = std::time(0);
-		std::cout << "\nRead pointcloud from " << cloud_->size() << " data points (in " << std::difftime(t0, tf) / 1000 << " ms)." << std::endl;
+		std::cout << "Read pointcloud from " << cloud_->size() << " data points (in " << std::difftime(t0, tf) / 1000 << " ms)." << std::endl;
 	}
 
 	void RealsenseD400::points_to_pcl()
