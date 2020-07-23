@@ -144,7 +144,7 @@ int main(int argc, char** argv)
 	bool RENDER(false);
 
 	while (true) {
-
+		/*
 		mysolver.solve(*prim);
 
 		controller.evaluate(prim);
@@ -158,7 +158,21 @@ int main(int argc, char** argv)
 			// Left-hand prosthesis (negative tilt angle)
 			std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
 		}
-		std::cout << "\n\n" << std::endl;
+		std::cout << "\n" << std::endl;
+		*/
+
+
+		// --- test ---
+		std::chrono::seconds tsleep(1);
+		myhand.pronate(0.1);		
+		std::this_thread::sleep_for(tsleep);
+		myhand.stop();
+		std::this_thread::sleep_for(tsleep);
+		myhand.supinate(0.1);
+		std::this_thread::sleep_for(tsleep);
+		myhand.stop();
+		std::this_thread::sleep_for(tsleep);
+		// --- test ---
 
 
 		//---- RENDERING ----

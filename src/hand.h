@@ -54,6 +54,7 @@ namespace robin
 			virtual void open(float vel) {}
 			virtual void close(float vel) {}
 			
+			virtual void stop() {}
 
 		protected:
 			struct ConfigState {

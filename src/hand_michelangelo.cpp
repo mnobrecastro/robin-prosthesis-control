@@ -76,6 +76,7 @@ namespace robin
 				command_buffer_[5] = min(max(0.0, std::abs(vel)), 1.0);
 				command_buffer_[6] = 0.0;
 				this->send_command();
+				is_moving_ = true;
 			}
 		}
 		void Michelangelo::supinate(float vel)
@@ -87,6 +88,7 @@ namespace robin
 				command_buffer_[5] = 0.0;
 				command_buffer_[6] = min(max(0.0, std::abs(vel)), 1.0);
 				this->send_command();
+				is_moving_ = true;
 			}
 		}
 
@@ -103,6 +105,22 @@ namespace robin
 			}
 		}
 
+		void Michelangelo::stop()
+		{
+			if (is_dumping_) {
+				// Stop
+				command_buffer_[1] = 0.0;
+				command_buffer_[2] = 0.0;
+				command_buffer_[3] = 0.0;
+				command_buffer_[4] = 0.0;
+				command_buffer_[5] = 0.0;
+				command_buffer_[6] = 0.0;
+				command_buffer_[7] = 0.0;
+				command_buffer_[8] = 0.0;					
+				this->send_command();
+				is_moving_ = false;
+			}
+		}
 
 		/**** PROTECTED MEMBER FUNCTIONS ****/
 
@@ -133,7 +151,11 @@ namespace robin
 			uint8_t packet[PACKET_OUT_LENGTH];
 			size_t packet_byte_length = sizeof(packet)/sizeof(uint8_t);
 
-			for (int i(0); i < packet_byte_length; ++i) {
+			// 'Control mode' command entry/byte 0
+			*(packet + 0) = int(1.0);
+			std::cout << command_buffer_[0] << " (" << +*(packet + 0) << ") ";
+			// Velocity command entries/bytes 1-8
+			for (int i(1); i < packet_byte_length; ++i) {
 				*(packet + i) = int(command_buffer_[i] * 255);
 				std::cout << command_buffer_[i] << " (" << +*(packet + i) << ") ";
 			}
@@ -209,14 +231,14 @@ namespace robin
 
 					mu_configstate_.lock();
 
-					// byte5: "Grasp Type" (int8), 0 for palmar and 1 for lateral
+					/* byte5: "Grasp Type" (int8), 0 for palmar and 1 for lateral */
 					int grasp_type = +*(packet + 5);
 					if (grasp_type == 0) { configstate_.grasp_type = GRASP::PALMAR; }
 					else if (grasp_type == 1) { configstate_.grasp_type = GRASP::LATERAL; }
 
-					// byte6: "Aperture" (int8), range [0,100]%
-					// -> Palmar = [0.000,0.110]m
-					// -> Lateral = [0.000,0.070]m
+					/* byte6: "Aperture" (int8), range [0,100]%
+					 * -> Palmar = [0.000,0.110]m
+					 * -> Lateral = [0.000,0.070]m */
 					int grasp_size = +int8_t(*(packet + 6));
 					switch (configstate_.grasp_type) {
 					case GRASP::PALMAR:
@@ -227,19 +249,19 @@ namespace robin
 						break;
 					}
 
-					// byte7: "Pronation/Supination" (int8), range [-100,100]% -> [-160,160]deg
+					/* byte7: "Pronation/Supination" (int8), range [-100,100]% -> [-160,160]deg */
 					int sup_pro_angle = +int8_t(*(packet + 7));
 					configstate_.sup_pro_angle = float(sup_pro_angle / 100.0 * 160 * M_PI / 180);
 					//std::cout << "ConfigState Sup/Pro: " << configstate_.sup_pro_angle << std::endl;
 
-					// byte8: "Flexion/Extension" (int8), range [-100,100]% -> [-45,75]deg
+					/* byte8: "Flexion/Extension" (int8), range [-100,100]% -> [-45,75]deg */
 					int fle_ext_angle = +int8_t(*(packet + 8));
 					configstate_.fle_ext_angle = fle_ext_angle; // :=0.0
 
-					// byte9: "Force" (int8), range [0, 100]%
-					// -> Gripping force in Opposition/Palmar Mode = 70 N (commercial) or 100 N (research)
-					// -> Gripping force in Lateral Mode = 60 N
-					// -> Gripping force in Neutral Mode = 15 N
+					/* byte9: "Force" (int8), range [0, 100]%
+					 * -> Gripping force in Opposition/Palmar Mode = 70 N (commercial) or 100 N (research)
+					 * -> Gripping force in Lateral Mode = 60 N
+					 * -> Gripping force in Neutral Mode = 15 N */
 					int  grasp_force = +int8_t(*(packet + 9));
 					switch (configstate_.grasp_type) {
 					case GRASP::PALMAR:

@@ -46,6 +46,7 @@ namespace robin
 			void supinate(float vel);
 			void open(float vel);
 			void close(float vel);
+			void stop();
 
 		protected:
 			/* Receive sensor data from the hand.
@@ -107,6 +108,7 @@ namespace robin
 			using Hand::abduct;
 			using Hand::adduct;
 
+			bool is_moving_ = false;
 			bool is_dumping_ = false;
 			std::thread thread_configstate_;
 			std::mutex mu_configstate_;
