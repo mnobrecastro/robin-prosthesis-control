@@ -37,8 +37,13 @@ namespace robin
 			float getTiltAngle();
 
 		protected:
-			ControlVar grasp_size_;
-			ControlVar tilt_angle_;
+			ControlVar hand_supination_angle_;
+			ControlVar hand_grasp_size_;
+
+			ControlVar target_grasp_size_;
+			ControlVar target_tilt_angle_;
+
+			
 
 			/* Receives a Primitive3 object and evaluates its type. */
 			Primitive3Type find_primitive3_type(robin::Primitive3* prim);

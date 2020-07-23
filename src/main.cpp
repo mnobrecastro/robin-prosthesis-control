@@ -161,8 +161,8 @@ int main(int argc, char** argv)
 		std::cout << "\n" << std::endl;
 
 
-		std::chrono::seconds tsleep(5);
-		std::this_thread::sleep_for(tsleep);
+		/*std::chrono::seconds tsleep(5);
+		std::this_thread::sleep_for(tsleep);*/
 
 		//---- RENDERING ----
 		if (RENDER) {
