@@ -53,6 +53,8 @@ namespace robin
 				else {
 					hand_->close(0.01);
 				}
+			} else {
+				hand_->open(0.0); //stop()
 			}
 
 			float tilt_angle_error(target_tilt_angle_.value - hand_supination_angle_.value);
@@ -72,6 +74,9 @@ namespace robin
 						//hand_->stop();
 					}
 				}
+				else {
+					hand_->stop();
+				}
 			}
 			else {
 				// Left-hand prosthesis (negative tilt angle)
@@ -88,6 +93,9 @@ namespace robin
 						//std::this_thread::sleep_for(tsleep);
 						//hand_->stop();
 					}
+				}
+				else {
+					hand_->stop();
 				}
 			}
 			hand_->send_command();
