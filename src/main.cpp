@@ -153,9 +153,11 @@ int main(int argc, char** argv)
 
 		if (myhand.isRightHand()) {
 			// Right-hand prosthesis (positive tilt angle)
+			std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
 			std::cout << "Hand tilt_angle: " << myhand.getWristSupProAngle() << " (" << myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
 		} else {
 			// Left-hand prosthesis (negative tilt angle)
+			std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
 			std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
 		}
 		std::cout << "\n" << std::endl;

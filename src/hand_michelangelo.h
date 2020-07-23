@@ -42,13 +42,18 @@ namespace robin
 			float getGraspForce();
 
 			/* Prothesis commands available. */
-			void pronate(float vel);
-			void supinate(float vel);
-			void open(float vel);
-			void close(float vel);
+			void pronate(float vel, bool send = true);
+			void supinate(float vel, bool send = true);
+			void open(float vel, bool send = true);
+			void close(float vel, bool send = true);
 			void stop();
 
+			void send_command();
+
 		protected:
+			/* Array to keep track of the command variables */
+			std::array<float, 9> command_buffer_ = { 1 / 255, 0.0,0.0, 0.0,0.0, 0.0,0.0, 0.0,0.0 };
+
 			/* Receive sensor data from the hand.
 			 *
 			 * Only supported 'Dump Mode' = "100Hz, EMG + Sensors". In this case, the received
@@ -86,12 +91,7 @@ namespace robin
 			 * ---------
 			 * control_command : array_like
 			 *	8-dimensional array of speeds for the different signals */
-			void send_packet(const uint8_t* packet, size_t packet_byte_length);
-
-			/* Array to keep track of the command variables */
-			std::array<float, 9> command_buffer_ = { 1/255, 0.0,0.0, 0.0,0.0, 0.0,0.0, 0.0,0.0 };
-
-			void send_command();
+			void send_packet(const uint8_t* packet, size_t packet_byte_length);					
 
 			/* Print a received packet (variables according to the manufacturer). */
 			void print_recv_packet(const uint8_t* packet, size_t packet_byte_length);

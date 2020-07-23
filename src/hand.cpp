@@ -11,7 +11,7 @@ namespace robin
 
 		bool Hand::isRightHand() { return right_hand_; }
 
-		void Hand::setControlMode(CONTROL ctrl) { configstate_.ctrl_type = ctrl;	}
+		void Hand::setControlMode(CONTROL ctrl) { configstate_.ctrl_type = ctrl; }
 
 		void Hand::setGrasp(GRASP grasp) { configstate_.grasp_type = grasp; }
 

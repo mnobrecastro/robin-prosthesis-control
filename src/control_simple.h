@@ -43,8 +43,6 @@ namespace robin
 			ControlVar target_grasp_size_;
 			ControlVar target_tilt_angle_;
 
-			
-
 			/* Receives a Primitive3 object and evaluates its type. */
 			Primitive3Type find_primitive3_type(robin::Primitive3* prim);
 

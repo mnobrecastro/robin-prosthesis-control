@@ -35,19 +35,23 @@ namespace robin
 			hand_supination_angle_.value = supination_angle;
 			hand_supination_angle_.buffer.push_back(supination_angle);
 
+			// Current grasp size of the prosthesis
+			hand_grasp_size_.value = hand_->getGraspSize();
+			hand_grasp_size_.buffer.push_back(hand_->getGraspSize());
+
 
 
 			this->estimate_grasp_size(prim);
 			this->estimate_tilt_angle(prim);
 
 
-			float grasp_size_error(target_grasp_size_.value - hand_->getGraspSize());
-			if (std::abs(grasp_size_error) > 15 * M_PI / 180) {
+			float grasp_size_error(target_grasp_size_.value - hand_grasp_size_.value);
+			if (std::abs(grasp_size_error) > 0.01) {
 				if (grasp_size_error > 0) {
-					hand_->open(0.5);
+					hand_->open(0.01);
 				}
 				else {
-					hand_->close(0.5);
+					hand_->close(0.01);
 				}
 			}
 
@@ -56,13 +60,13 @@ namespace robin
 				// Right-hand prosthesis (positive tilt angle)				
 				if (std::abs(tilt_angle_error) > 15 * M_PI / 180) {
 					if (tilt_angle_error > 0) {
-						hand_->supinate(0.01);
+						hand_->supinate(0.01, false);
 						//std::chrono::seconds tsleep(1);
 						//std::this_thread::sleep_for(tsleep);
 						//hand_->stop();
 					}
 					else {
-						hand_->pronate(0.01);
+						hand_->pronate(0.01, false);
 						//std::chrono::seconds tsleep(1);
 						//std::this_thread::sleep_for(tsleep);
 						//hand_->stop();
@@ -73,19 +77,21 @@ namespace robin
 				// Left-hand prosthesis (negative tilt angle)
 				if (std::abs(tilt_angle_error) > 15 * M_PI / 180) {
 					if (tilt_angle_error < 0) {
-						hand_->supinate(0.01);
+						hand_->supinate(0.01, false);
 						//std::chrono::seconds tsleep(1);
 						//std::this_thread::sleep_for(tsleep);
 						//hand_->stop();
 					}
 					else {
-						hand_->pronate(0.01);
+						hand_->pronate(0.01, false);
 						//std::chrono::seconds tsleep(1);
 						//std::this_thread::sleep_for(tsleep);
 						//hand_->stop();
 					}
 				}
 			}
+			hand_->send_command();
+
 		}
 
 		float ControlSimple::getGraspSize()

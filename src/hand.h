@@ -42,19 +42,21 @@ namespace robin
 			virtual float getGraspSize();
 			virtual float getGraspForce();
 
-			virtual void flex(float vel) {}
-			virtual void extend(float vel) {}
+			virtual void flex(float vel, bool send = true) {}
+			virtual void extend(float vel, bool send = true) {}
 
-			virtual void abduct(float vel) {}
-			virtual void adduct(float vel) {}
+			virtual void abduct(float vel, bool send = true) {}
+			virtual void adduct(float vel, bool send = true) {}
 
-			virtual void pronate(float vel) {}
-			virtual void supinate(float vel) {}
+			virtual void pronate(float vel, bool send = true) {}
+			virtual void supinate(float vel, bool send = true) {}
 			
-			virtual void open(float vel) {}
-			virtual void close(float vel) {}
+			virtual void open(float vel, bool send = true) {}
+			virtual void close(float vel, bool send = true) {}
 			
 			virtual void stop() {}
+
+			virtual void send_command() {}
 
 		protected:
 			struct ConfigState {
