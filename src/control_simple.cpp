@@ -32,11 +32,15 @@ namespace robin
 				if (std::abs(tilt_angle_error) > 5 * M_PI / 180) {
 					if (tilt_angle_error > 0) {
 						hand_->supinate(0.01);
-						//hand_->supinate(0.00);
+						std::chrono::seconds tsleep(1);
+						std::this_thread::sleep_for(tsleep);
+						hand_->stop();
 					}
 					else {
 						hand_->pronate(0.01);
-						//hand_->pronate(0.00);
+						std::chrono::seconds tsleep(1);
+						std::this_thread::sleep_for(tsleep);
+						hand_->stop();
 					}
 				}
 			}
@@ -45,21 +49,15 @@ namespace robin
 				if (std::abs(tilt_angle_error) > 5 * M_PI / 180) {
 					if (tilt_angle_error < 0) {
 						hand_->supinate(0.01);
-						/*std::chrono::seconds t1(1);
-						std::this_thread::sleep_for(t1);
-
-						hand_->supinate(0.00);
-						std::chrono::seconds t2(3);
-						std::this_thread::sleep_for(t2);*/
+						std::chrono::seconds tsleep(1);
+						std::this_thread::sleep_for(tsleep);
+						hand_->stop();
 					}
 					else {
 						hand_->pronate(0.01);
-						/*std::chrono::seconds t1(1);
-						std::this_thread::sleep_for(t1);
-
-						hand_->pronate(0.00);
-						std::chrono::seconds t2(3);
-						std::this_thread::sleep_for(t2);*/
+						std::chrono::seconds tsleep(1);
+						std::this_thread::sleep_for(tsleep);
+						hand_->stop();
 					}
 				}
 			}
@@ -118,6 +116,7 @@ namespace robin
 			grasp_size_.buffer.push_back(grasp_size);
 			std::cout << "Estimated grasp_size: " << grasp_size;
 
+
 			// Calculate and use the median value
 			std::vector<float> temp;
 			size_t n_samples(1);
@@ -133,30 +132,59 @@ namespace robin
 
 		void ControlSimple::estimate_tilt_angle(robin::Primitive3* prim)
 		{			
-			// Tilt angle calculated as an absolute supination angle, i.e. measured fromt the full pronated wrist position.
+			// Current absolute supination angle of the prosthesis
+			// (measured from the full pronated wrist position ref frame).
+			//
+			//			                 (Z)
+			//                           /
+			//                          /
+			//		                   /_ _ _ _ (X)
+			//                         |
+			//                  A      |      A
+			// (Sup Right-hand) |__    |    __| (Sup Left-hand) 
+			//                        (Y)
+			//
+			float supination_angle;
+			if (hand_->isRightHand()) {
+				// Right-hand prosthesis (positive angle)
+				supination_angle = hand_->getWristSupProAngle();
+			}
+			else {
+				// Left-hand prosthesis (negative angle)
+				supination_angle = -hand_->getWristSupProAngle();
+			}
+			
+			// Tilt angle calculated as an absolute supination angle, i.e. measured from the full pronated wrist position.
 			float tilt_angle;
 			Primitive3Type prim3_type = find_primitive3_type(prim);
 			if (prim3_type == Primitive3Type::PRIMITIVE3_SPHERE)
 			{
 				/* To be further implemented. */
-				tilt_angle = hand_->getWristSupProAngle(); // Hand stays as it is.
+				tilt_angle = supination_angle; // Hand stays as it is.
 			}
 			else if(prim3_type == Primitive3Type::PRIMITIVE3_CUBOID || prim3_type == Primitive3Type::PRIMITIVE3_CYLINDER)
 			{				
 				// Angle of the projection of the Primitive3 axis into the xOy plane of the camera.
 				float projected_angle(std::atan2(prim->getProperty_axis_y(), prim->getProperty_axis_x()));
-				// Correction of the projectio angle w.r.t. the hand-side
-				if (hand_->isRightHand() && projected_angle < 0) { projected_angle += M_PI; }
-				else if (!hand_->isRightHand() && projected_angle > 0) { projected_angle -= M_PI; }
+				
+				// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
+				if (hand_->isRightHand()) {
+					// Right-hand prosthesis (positive angle)
+					if (supination_angle + projected_angle < 0) { projected_angle += M_PI; }
+					else if (supination_angle + projected_angle > M_PI) { projected_angle -= M_PI; }
 
-				// Current absolute supination angle
-				float supination_angle(hand_->getWristSupProAngle());
+				}else{
+					// Left-hand prosthesis (negative angle)
+					if (supination_angle + projected_angle > 0) { projected_angle -= M_PI; }
+					else if (supination_angle + projected_angle < -M_PI) { projected_angle += M_PI; }
+				}
+
+				// Current absolute tilt angle of the Primitive3
 				tilt_angle = supination_angle + projected_angle;
-				if (hand_->isRightHand() && tilt_angle > M_PI) { tilt_angle -= M_PI; }
-				else if(!hand_->isRightHand() && tilt_angle < -M_PI) { tilt_angle += M_PI; }
 			}
 			tilt_angle_.buffer.push_back(tilt_angle);
 			std::cout << "Estimated tilt_angle: " << tilt_angle;
+
 
 			// Calculate and use the median value
 			std::vector<float> temp;
