@@ -11,6 +11,9 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/extract_indices.h>
 
+#include <pcl/segmentation/supervoxel_clustering.h>
+#include <pcl/segmentation/lccp_segmentation.h>
+
 #include <pcl/visualization/pcl_visualizer.h>
 
 namespace robin
@@ -29,6 +32,8 @@ namespace robin
 		//Solver3(robin::Method3);
 		~Solver3();
 
+		pcl::PointCloud<pcl::PointXYZ>::Ptr getPointCloud() const;
+
 		void addSensor(robin::Sensor3*);
 
 		void setSegmentation(pcl::SACSegmentation<pcl::PointXYZ>* seg_obj);
@@ -37,7 +42,7 @@ namespace robin
 
 		void setUseNormals(bool seg_normals);
 
-		void setPlaneRemoval(bool seg_plane_removal);
+		void setPlaneRemoval(bool seg_plane_removal);		
 
 		std::vector<robin::Sensor3*> getSensors() const;
 
@@ -61,5 +66,10 @@ namespace robin
 		void segment();
 		void segmentSAC();
 		void segmentLCCP();
+
+		std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<float, 3>>& centroids);
+		uint32_t selectCentroidLCCP(const std::vector<uint32_t>& labels, const std::vector<std::array<float, 3>>& centroids);
+		void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl::PointCloud<pcl::PointXYZ>& cloud_seg, uint32_t label);
+		void visualizeCentroidsLCCP(std::vector<std::array<float, 3>> centroids, std::vector<uint32_t> labels, std::vector<int> label_count, pcl::visualization::PCLVisualizer::Ptr viewer) const;
 	};
 }

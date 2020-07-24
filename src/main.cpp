@@ -106,20 +106,10 @@ int main(int argc, char** argv)
 	// Declare a solver3
 	robin::Solver3 mysolver;
 	mysolver.setPlaneRemoval(false);
-	//solver.setUseNormals(true);
-
-	// Create a sensor from a camera
-	robin::RealsenseD400* mycam(new robin::RealsenseD400());
-	mycam->printInfo();
-	mycam->setCrop(-0.100, 0.100, -0.100, 0.100, 0.050, 0.200);
-	mycam->setDownsample(0.005);//0.0025 //0.010	
-	mysolver.addSensor(mycam);
-
-	robin::Primitive3Cylinder* prim(new robin::Primitive3Cylinder);
-	//prim.setVisualizeOnOff(false);
-
+	//solver.setUseNormals(true);		
+	mysolver.setSegmentation(robin::Method3::SEGMENTATION_LCCP);
+	
 	// Dummy Segmentation object
-	mysolver.setSegmentation(robin::Method3::SEGMENTATION_SAC);	
 	pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
 	seg->setNormalDistanceWeight(0.001); //0.1
 	//pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
@@ -129,7 +119,17 @@ int main(int argc, char** argv)
 	seg->setDistanceThreshold(0.001);//0.001 //0.005 //0.001
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
-		
+	
+	// Create a sensor from a camera
+	robin::RealsenseD400* mycam(new robin::RealsenseD400());
+	mycam->printInfo();
+	mycam->setCrop(-0.100, 0.100, -0.100, 0.100, 0.050, 0.200);
+	mycam->setDownsample(0.0025);//0.0025 //0.005
+	mysolver.addSensor(mycam);
+
+	// Create a Primitive
+	robin::Primitive3Cylinder* prim(new robin::Primitive3Cylinder);
+	//prim.setVisualizeOnOff(false);
 
 	// Create a PCL visualizer
 	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
@@ -147,6 +147,7 @@ int main(int argc, char** argv)
 
 		mysolver.solve(*prim);
 
+		/*
 		controller.evaluate(prim);
 		std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
 		std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
@@ -160,11 +161,8 @@ int main(int argc, char** argv)
 			std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
 			std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
 		}
-		std::cout << "\n" << std::endl;
-
-
-		/*std::chrono::seconds tsleep(5);
-		std::this_thread::sleep_for(tsleep);*/
+		std::cout << "\n" << std::endl;		
+		*/
 
 		//---- RENDERING ----
 		if (RENDER) {
@@ -173,15 +171,20 @@ int main(int argc, char** argv)
 			viewer->removeAllPointClouds();
 
 			for (auto s : mysolver.getSensors()) {
-				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h((int)255 * 1.0, (int)255 * 1.0, (int)255 * 1.0);
+				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h(255, 255, 255);
 				cloud_color_h.setInputCloud(s->getPointCloud());
 				viewer->addPointCloud(s->getPointCloud(), cloud_color_h);
 			}
 
+			//
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);
+			solver_color_h.setInputCloud(mysolver.getPointCloud());
+			viewer->addPointCloud(mysolver.getPointCloud(), solver_color_h, "solver");
+
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 			primitive_color_h.setInputCloud(prim->getPointCloud());
 			viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
-			prim->visualize(viewer);
+			//prim->visualize(viewer);
 
 			viewer->spinOnce(1, true);
 		}
