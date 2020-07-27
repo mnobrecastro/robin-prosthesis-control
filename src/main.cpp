@@ -123,7 +123,7 @@ int main(int argc, char** argv)
 	// Create a sensor from a camera
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
 	mycam->printInfo();
-	mycam->setCrop(-0.100, 0.100, -0.100, 0.100, 0.050, 0.200);
+	mycam->setCrop(-0.100, 0.100, -0.100, 0.100, 0.050, 0.250);
 	mycam->setDownsample(0.0025);//0.0025 //0.005
 	mysolver.addSensor(mycam);
 

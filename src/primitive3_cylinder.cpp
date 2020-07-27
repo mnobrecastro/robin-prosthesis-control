@@ -21,9 +21,9 @@ namespace robin
 		if (this->is_fit_valid()) {
 			/* 2. Correct model coeffficients. */
 			this->correct_coefficients();
+			/* 3. Update object properties. */
+			this->update_properties();
 		}
-		/* 3. Update object properties. */
-		this->update_properties();
 	}
 
 	void Primitive3Cylinder::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg)
@@ -43,9 +43,9 @@ namespace robin
 		if (this->is_fit_valid()) {
 			/* 2. Correct model coeffficients. */
 			this->correct_coefficients();
+			/* 3. Update object properties. */
+			this->update_properties();
 		}
-		/* 3. Update object properties. */
-		this->update_properties();
 	}
 
 	/* Checks if the fit is valid. */

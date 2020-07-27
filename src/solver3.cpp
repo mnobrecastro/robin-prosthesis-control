@@ -61,7 +61,6 @@ namespace robin
 		// Check whether the PointCloud has enough points to proceed
 		if (cloud_->points.size() < MIN_POINTS_PROCEED_) {
 			std::cerr << "* Not enough points to perform segmentation." << std::endl;
-			//std::cout << "** Total elapsed time: " << tloop.toc() << " ms." << std::endl;
 			return;
 		}
 
@@ -86,6 +85,12 @@ namespace robin
 
 	void Solver3::segmentSAC()
 	{
+		// Check whether the PointCloud has enough points to proceed
+		if (cloud_->points.size() < MIN_POINTS_PROCEED_) {
+			std::cerr << "* Not enough points to perform SAC segmentation." << std::endl;
+			return;
+		}
+		
 		// Check whether a Primitive3 has been provided
 		if (primitive_ != nullptr) {
 			// Perform initial plane removal
@@ -114,17 +119,17 @@ namespace robin
 	void Solver3::segmentLCCP()
 	{	
 		// Supervoxel Parameters
-		float voxel_resolution = 0.001f; //0.0075f;
-		float seed_resolution = 0.03f; //0.03f;
+		float voxel_resolution = 0.005f; //0.0075f;
+		float seed_resolution = 0.02f; //0.03f;
 		float color_importance = 0.0f; //0.0f;
-		float spatial_importance = 1.0f; //1.0f;
+		float spatial_importance = 2.0f; //1.0f;
 		float normal_importance = 4.0f; //4.0f;
 		bool use_single_cam_transform = false;
 		bool use_supervoxel_refinement = false;
 
 		// LCCPSegmentation object Parameters
-		float concavity_tolerance_threshold = 10;
-		float smoothness_threshold = 0.1;
+		float concavity_tolerance_threshold = 30; //10;
+		float smoothness_threshold = 0.1; //0.1;
 		std::uint32_t min_segment_size = 0;
 		bool use_extended_convexity = false;
 		bool use_sanity_criterion = false;
@@ -148,24 +153,24 @@ namespace robin
 		std::map<std::uint32_t, pcl::Supervoxel<pcl::PointXYZRGBA>::Ptr> supervoxel_clusters;
 
 		// Extract the supervoxels
-		PCL_INFO("Extracting supervoxels\n");
+		//PCL_INFO("Extracting supervoxels\n");
 		supervox.extract(supervoxel_clusters);
 
 		if (use_supervoxel_refinement) {
-			PCL_INFO("Refining supervoxels\n");
+			//PCL_INFO("Refining supervoxels\n");
 			supervox.refineSupervoxels(2, supervoxel_clusters);
 		}
-		std::stringstream temp;
-		temp << "  Nr. Supervoxels: " << supervoxel_clusters.size() << "\n";
-		PCL_INFO(temp.str().c_str());
+		//std::stringstream temp;
+		//temp << "  Nr. Supervoxels: " << supervoxel_clusters.size() << "\n";
+		//PCL_INFO(temp.str().c_str());
 
-		PCL_INFO("Getting supervoxel adjacency\n");
+		//PCL_INFO("Getting supervoxel adjacency\n");
 		std::multimap<std::uint32_t, std::uint32_t> supervoxel_adjacency;
 		supervox.getSupervoxelAdjacency(supervoxel_adjacency);
 
 		/// The Main Step: Perform LCCPSegmentation
 		pcl::LCCPSegmentation<pcl::PointXYZRGBA> lccp;
-		PCL_INFO("Starting Segmentation\n");
+		//PCL_INFO("Starting Segmentation\n");
 		lccp.setConcavityToleranceThreshold(concavity_tolerance_threshold);
 		lccp.setSanityCheck(use_sanity_criterion);
 		lccp.setSmoothnessCheck(true, voxel_resolution, seed_resolution, smoothness_threshold);
@@ -174,7 +179,7 @@ namespace robin
 		lccp.setMinSegmentSize(min_segment_size);
 		lccp.segment();
 
-		PCL_INFO("Interpolation voxel cloud -> input cloud and relabeling\n");
+		//PCL_INFO("Interpolation voxel cloud -> input cloud and relabeling\n");
 		pcl::PointCloud<pcl::PointXYZL>::Ptr sv_labeled_cloud(supervox.getLabeledCloud());
 		pcl::PointCloud<pcl::PointXYZL>::Ptr lccp_labeled_cloud(sv_labeled_cloud->makeShared());
 		lccp.relabelCloud(*lccp_labeled_cloud);
@@ -183,7 +188,7 @@ namespace robin
 		std::vector<uint32_t> labels;
 		std::vector<std::array<float, 3>> centroids;
 		std::vector<int> label_count = getCentroidsLCCP(*lccp_labeled_cloud, labels, centroids);
-		std::cout << "  Nr. Segments: " << labels.size() << std::endl;
+		//std::cout << "  Nr. Segments: " << labels.size() << std::endl;
 
 		//this->visualizeCentroidsLCCP(centroids, labels, label_count, viewer);
 		
@@ -194,7 +199,7 @@ namespace robin
 
 		cloud_->clear();
 		pcl::copyPointCloud(*cloud_segmented, *cloud_);
-		std::cout << "PointCloud after LCCP: [" << lbl << "] " << cloud_segmented->points.size() << " data points (in xx ms)." << std::endl;
+		std::cout << "PointCloud after LCCP: [" << supervoxel_clusters.size() << " sv -> " << lbl << "/" << labels.size() << "] " << cloud_segmented->points.size() << " data points (in xx ms)." << std::endl;
 	}
 
 	std::vector<int> Solver3::getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<float, 3>>& centroids)
