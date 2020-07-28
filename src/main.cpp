@@ -1,6 +1,3 @@
-//#include "../src/robinhand.hpp"
-
-
 #include "../src/solver3.h"
 #include "../src/realsense_d400.h"
 #include "../src/primitive3_sphere.h"
@@ -8,6 +5,8 @@
 #include "../src/primitive3_cuboid.h"
 #include "../src/hand_michelangelo.h"
 #include "../src/control_simple.h"
+
+#include <chrono>
 
 /*
 #include <ctime>
@@ -116,7 +115,7 @@ int main(int argc, char** argv)
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
 	seg->setMaxIterations(100);
-	seg->setDistanceThreshold(0.001);//0.001 //0.005 //0.001
+	seg->setDistanceThreshold(0.001);
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 	
@@ -142,8 +141,10 @@ int main(int argc, char** argv)
 	viewer->addCoordinateSystem(0.25);
 
 	bool RENDER(true);
+	std::vector<double> freq;
 
-	while (true) {
+	while(true){
+		auto tic = std::chrono::high_resolution_clock::now();
 
 		mysolver.solve(*prim);
 
@@ -180,6 +181,7 @@ int main(int argc, char** argv)
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);
 			solver_color_h.setInputCloud(mysolver.getPointCloud());
 			viewer->addPointCloud(mysolver.getPointCloud(), solver_color_h, "solver");
+			mysolver.visualizeLCCP(viewer); //"marker"
 
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 			primitive_color_h.setInputCloud(prim->getPointCloud());
@@ -188,6 +190,12 @@ int main(int argc, char** argv)
 
 			viewer->spinOnce(1, true);
 		}
+
+		//---- PROFILING ---
+		auto toc = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double, std::ratio<1>> t = toc - tic;
+		std::cout << "Cycle duration: " << 1.0/t.count() << " Hz (in " << t.count()*1000.0 << " ms).\n" << std::endl;
+		freq.push_back(t.count());
 	}	
 }
 

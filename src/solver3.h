@@ -48,6 +48,8 @@ namespace robin
 
 		void solve(robin::Primitive3& prim);
 
+		void Solver3::visualizeLCCP(pcl::visualization::PCLVisualizer::Ptr viewer, std::string draw="wireframe") const;
+
 	protected:
 		std::vector<robin::Sensor3*> sensors_;
 		Primitive3* primitive_ = nullptr;
@@ -62,14 +64,16 @@ namespace robin
 		bool seg_plane_removal_ = false;
 		pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_ptr_ = nullptr;
 
-
 		void segment();
 		void segmentSAC();
 		void segmentLCCP();
 
+		std::vector<int> lccp_segments_;
+		std::vector<uint32_t> lccp_labels_;
+		std::vector<std::array<float, 3>> lccp_centroids_;
+
 		std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<float, 3>>& centroids);
 		uint32_t selectCentroidLCCP(const std::vector<uint32_t>& labels, const std::vector<std::array<float, 3>>& centroids);
 		void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl::PointCloud<pcl::PointXYZ>& cloud_seg, uint32_t label);
-		void visualizeCentroidsLCCP(std::vector<std::array<float, 3>> centroids, std::vector<uint32_t> labels, std::vector<int> label_count, pcl::visualization::PCLVisualizer::Ptr viewer) const;
 	};
 }

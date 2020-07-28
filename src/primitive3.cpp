@@ -16,6 +16,11 @@ namespace robin
 		return cloud_;
 	}
 
+	void Primitive3::reset()
+	{
+		coefficients_->values.clear();
+		cloud_->clear();
+	}
 
 	void Primitive3::fit_sample_consensus(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, const static int SAC_METHOD, pcl::SacModel SAC_MODEL)
 	{
@@ -53,7 +58,6 @@ namespace robin
 		// Obtain the plane inliers and coefficients
 		pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
 		seg.segment(*inliers, *coefficients_);
-		//std::cerr << "Plane coefficients: " << *coefficients_ << std::endl;
 
 		// Extract the planar inliers from the input cloud
 		pcl::ExtractIndices<pcl::PointXYZ> extract;
@@ -61,7 +65,6 @@ namespace robin
 		extract.setIndices(inliers);
 		extract.setNegative(false);
 		extract.filter(*cloud_);
-		//std::cerr << "PointCloud representing the planar component: " << cloud_->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
 
 		// Remove the inliers, extract/subtract the rest
 		extract.setNegative(true);
@@ -102,7 +105,6 @@ namespace robin
 		ne.setKSearch(50);
 		ne.compute(*cloud_normals);		
 
-		//time.tic();
 		// Copy the segmentation object
 		pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal> seg;
 		seg.setNormalDistanceWeight(static_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg_obj)->getNormalDistanceWeight());
@@ -123,7 +125,6 @@ namespace robin
 		// Obtain the plane inliers and coefficients
 		pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
 		seg.segment(*inliers, *coefficients_);
-		//std::cerr << "Plane coefficients: " << *coefficients_ << std::endl;
 
 		// Extract the planar inliers from the input cloud
 		pcl::ExtractIndices<pcl::PointXYZ> extract;
@@ -131,8 +132,6 @@ namespace robin
 		extract.setIndices(inliers);
 		extract.setNegative(false);
 		extract.filter(*cloud_);
-		//std::cerr << "PointCloud representing the planar component: " << cloud_->points.size() << " data points (in " << time.toc() << " ms)." << std::endl;
-
 
 		// Remove the inliers, extract/subtract the rest
 		extract.setNegative(true);

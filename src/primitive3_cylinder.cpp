@@ -2,11 +2,40 @@
 
 namespace robin
 {
+	Primitive3Cylinder::Primitive3Cylinder()
+	{
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		cloud_ = cloud;
+		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+		coefficients_ = coefficients;
+		// Initialization of the 7-element cylinder coefficients
+		coefficients_->values.push_back(0.0); //0
+		coefficients_->values.push_back(0.0); //1
+		coefficients_->values.push_back(0.0); //2
+		coefficients_->values.push_back(0.0); //3
+		coefficients_->values.push_back(0.0); //4
+		coefficients_->values.push_back(0.0); //5
+		coefficients_->values.push_back(0.0); //6
+
+	}
+	Primitive3Cylinder::~Primitive3Cylinder() {}
+	
 	void Primitive3Cylinder::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
 		viewer->addCylinder(*coefficients_, "cylinder");
 	}
 
+	void Primitive3Cylinder::reset()
+	{
+		cloud_->points.clear();
+		coefficients_->values[0] = -0.001;
+		coefficients_->values[1] = -0.001;
+		coefficients_->values[2] = -0.001;
+		coefficients_->values[3] = 0.000;
+		coefficients_->values[4] = 0.000;
+		coefficients_->values[5] = 0.000;
+		coefficients_->values[6] = 0.001;
+	}
 
 	void Primitive3Cylinder::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals)
 	{
@@ -59,14 +88,7 @@ namespace robin
 				return true;
 			}
 		}
-		cloud_->points.clear();
-		coefficients_->values[0] = -0.001;
-		coefficients_->values[1] = -0.001;
-		coefficients_->values[2] = -0.001;
-		coefficients_->values[3] = 0.000;
-		coefficients_->values[4] = 0.000;
-		coefficients_->values[5] = 0.000;
-		coefficients_->values[6] = 0.001;
+		this->reset();
 		return false;
 	}
 
