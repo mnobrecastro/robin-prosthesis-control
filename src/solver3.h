@@ -68,12 +68,12 @@ namespace robin
 		void segmentSAC();
 		void segmentLCCP();
 
-		std::vector<int> lccp_segments_;
+		std::vector<int> lccp_pc_sizes_;
 		std::vector<uint32_t> lccp_labels_;
 		std::vector<std::array<float, 3>> lccp_centroids_;
 
 		std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<float, 3>>& centroids);
-		uint32_t selectCentroidLCCP(const std::vector<uint32_t>& labels, const std::vector<std::array<float, 3>>& centroids);
+		uint32_t selectCentroidLCCP(const std::vector<uint32_t>& labels, const std::vector<std::array<float, 3>>& centroids, const std::vector<int>& pc_sizes);
 		void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl::PointCloud<pcl::PointXYZ>& cloud_seg, uint32_t label);
 	};
 }

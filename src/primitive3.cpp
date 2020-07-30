@@ -18,8 +18,9 @@ namespace robin
 
 	void Primitive3::reset()
 	{
-		coefficients_->values.clear();
 		cloud_->clear();
+		coefficients_->values.clear();		
+		this->update_properties();
 	}
 
 	void Primitive3::fit_sample_consensus(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, const static int SAC_METHOD, pcl::SacModel SAC_MODEL)

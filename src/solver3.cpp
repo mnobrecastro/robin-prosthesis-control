@@ -113,7 +113,7 @@ namespace robin
 
 	void Solver3::segmentLCCP()
 	{	
-		lccp_segments_.clear();
+		lccp_pc_sizes_.clear();
 		lccp_labels_.clear();
 		lccp_centroids_.clear();
 
@@ -143,8 +143,8 @@ namespace robin
 		pcl::copyPointCloud(*cloud_, *cloud_rgba);
 
 		// Supervoxel Oversegmentation
-		float voxel_resolution = 0.0025f; //0.0075f;
-		float seed_resolution = 0.01f; //0.03f;
+		float voxel_resolution = 0.003f; //0.0075f;
+		float seed_resolution = 0.012f; //0.03f;
 		pcl::SupervoxelClustering<pcl::PointXYZRGBA> supervox(voxel_resolution, seed_resolution);
 		supervox.setInputCloud(cloud_rgba);
 		supervox.setUseSingleCameraTransform(false);		
@@ -181,16 +181,22 @@ namespace robin
 		lccp.relabelCloud(*lccp_labeled_cloud);
 
 		// Retrieve the number of labels and respective clouds
-		std::vector<int> label_count = getCentroidsLCCP(*lccp_labeled_cloud, lccp_labels_, lccp_centroids_);
-		uint32_t label = this->selectCentroidLCCP(lccp_labels_, lccp_centroids_);
+		std::vector<int> lccp_pc_sizes = getCentroidsLCCP(*lccp_labeled_cloud, lccp_labels_, lccp_centroids_);
+		uint32_t label = this->selectCentroidLCCP(lccp_labels_, lccp_centroids_, lccp_pc_sizes);
 
-		// Retrieve the PointCloud with the smallest centroid projection about the global Z-axis
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_segmented(new pcl::PointCloud<pcl::PointXYZ>);
-		this->getLabeledCloudLCCP(*lccp_labeled_cloud, *cloud_segmented, label);
-		cloud_->clear();
-		pcl::copyPointCloud(*cloud_segmented, *cloud_);
+		if (label != std::pow(2, 32) - 1) { 
+			// Retrieve the PointCloud with the smallest centroid projection about the global Z-axis
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_segmented(new pcl::PointCloud<pcl::PointXYZ>);
+			this->getLabeledCloudLCCP(*lccp_labeled_cloud, *cloud_segmented, label);
+			cloud_->clear();
+			pcl::copyPointCloud(*cloud_segmented, *cloud_);
 
-		std::cout << "PointCloud after LCCP: [" << supervoxel_clusters.size() << " sv -> " << label << "/" << lccp_labels_.size() << "] " << cloud_segmented->points.size() << " data points (in xx ms)." << std::endl;
+			std::cout << "PointCloud after LCCP: [" << supervoxel_clusters.size() << " sv -> " << label << "/" << lccp_labels_.size() << "] " << cloud_segmented->points.size() << " data points (in xx ms)." << std::endl;
+		}
+		else {
+			// Fails if no centroid was selected as the biggest uint32_t (2**32-1) is retrieved
+			std::cout << "LCCP failed to find a suitable point cloud among all labeled ones." << std::endl;
+		}
 	}
 
 	std::vector<int> Solver3::getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<float, 3>>& centroids)
@@ -225,15 +231,17 @@ namespace robin
 		return counts;
 	}
 
-	uint32_t Solver3::selectCentroidLCCP(const std::vector<uint32_t>& labels, const std::vector<std::array<float, 3>>& centroids)
+	uint32_t Solver3::selectCentroidLCCP(const std::vector<uint32_t>& labels, const std::vector<std::array<float, 3>>& centroids, const std::vector<int>& pc_sizes)
 	{
 		float d(10.0);
-		uint32_t label(std::pow(2, 32) - 1);
+		uint32_t label(std::pow(2, 32) - 1); // Needs a guard to verify if this maximum value is the output
 		for (size_t i(0); i < centroids.size(); ++i) {
-			float d_temp = std::sqrt(std::pow(centroids[i][0], 2) + std::pow(centroids[i][1], 2));
-			if (0.0001 < d_temp && d_temp < d) {
-				label = labels[i];
-				d = d_temp;
+			if (pc_sizes[i] > MIN_POINTS_PROCEED_) {
+				float d_temp = std::sqrt(std::pow(centroids[i][0], 2) + std::pow(centroids[i][1], 2));
+				if (0.0001 < d_temp && d_temp < d) {
+					label = labels[i];
+					d = d_temp;
+				}
 			}
 		}
 		return label;
