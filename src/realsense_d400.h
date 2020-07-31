@@ -19,14 +19,14 @@ namespace robin
 
 		void printInfo();
 
-		void setDisparity(bool);
+		void setDisparity(bool disparity=false);
 
 		void start(bool);// override;
 
 		void captureFrame();
 
 	protected:
-		void points_to_pcl();
+		void points_to_pcl(rs2::points pts);
 
 	private:
 
@@ -37,8 +37,5 @@ namespace robin
 		rs2::pipeline pipe_;
 		rs2::config cfg_;
 		std::string serialnumber_;
-
-		rs2::pointcloud pc_;
-		rs2::points points_;
 	};
 }

@@ -35,33 +35,16 @@ namespace robin {
 		voxel_size_ = voxel_size;
 	}
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr CameraDepth::trimPointCloud()/*char a = 'o', float width = 0.010)*/
+	pcl::PointCloud<pcl::PointXYZ>::Ptr CameraDepth::trimPointCloud()
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_trimmed(new pcl::PointCloud<pcl::PointXYZ>());
-		//if (a == 'o') {
-			for (auto p : cloud_->points) {
-				if (limits_[0] <= p.x && p.x <= limits_[1] &&
-					limits_[2] <= p.y && p.y <= limits_[3] &&
-					limits_[4] <= p.z && p.z <= limits_[5]) {
-					cloud_trimmed->push_back(pcl::PointXYZ(p.x, p.y, p.z));
-				}
+		for (auto p : cloud_->points) {
+			if (limits_[0] <= p.x && p.x <= limits_[1] &&
+				limits_[2] <= p.y && p.y <= limits_[3] &&
+				limits_[4] <= p.z && p.z <= limits_[5]) {
+				cloud_trimmed->push_back(pcl::PointXYZ(p.x, p.y, p.z));
 			}
-			/*} else if (a == '+') {
-			for (auto p : cloud_.points) {
-				if (//horizontal strip
-					(ranges[0][0] <= p.x && p.x <= ranges[0][1] &&
-					-width/2 <= p.y && p.y <= width/2 &&
-					ranges[2][0] <= p.z && p.z <= ranges[2][1]) ||
-					//vertical strip
-					(-width/2 <= p.x && p.x <= width/2 &&
-					ranges[1][0] <= p.y && p.y <= ranges[1][1] &&
-					ranges[2][0] <= p.z && p.z <= ranges[2][1])) {
-					cloud_trimmed.push_back(pcl::PointXYZ(p.x, p.y, p.z));
-				}
-			}
-		} else {
-			return 1;
-		}*/
+		}
 		return cloud_trimmed;
 	}
 
@@ -123,7 +106,5 @@ namespace robin {
 					  << " data points (in " << std::difftime(t0, tf) << " ms)." << std::endl;
 		}
 	}
-
-	pcl::PointCloud<pcl::PointXYZ>::Ptr CameraDepth::getFrame() { return cloud_; }
 
 }

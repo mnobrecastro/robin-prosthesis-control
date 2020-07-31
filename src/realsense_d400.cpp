@@ -3,7 +3,7 @@
 namespace robin {
 
 	RealsenseD400::RealsenseD400()
-	{
+	{		
 		dev_ = [] {
 			rs2::context ctx;
 			std::cout << "Waiting for device..." << std::endl;
@@ -94,7 +94,7 @@ namespace robin {
 
 	void RealsenseD400::captureFrame()
 	{
-		std::cout << "RealsenseD400.captureFrame()" << std::endl;
+		std::cout << "\nRealsenseD400.captureFrame()" << std::endl;
 
 		std::time_t t0, tf;
 		t0 = std::time(0);
@@ -104,32 +104,37 @@ namespace robin {
 		rs2::depth_frame depth(frames.get_depth_frame());
 
 		// Generate the pointcloud and texture mappings
-		points_ = pc_.calculate(depth);
+		rs2::pointcloud pc;
+		rs2::points pts = pc.calculate(depth);
 
 		// Transform rs2::pointcloud into pcl::PointCloud<PointT>::Ptr
-		this->points_to_pcl();
+		this->points_to_pcl(pts);
+
+		// Feed the children Sensors
+		this->feedChildren();
 
 		tf = std::time(0);
 		std::cout << "Read pointcloud from " << cloud_->size() << " data points (in " << std::difftime(t0, tf) / 1000 << " ms)." << std::endl;
 	}
 
-	void RealsenseD400::points_to_pcl()
+	void RealsenseD400::points_to_pcl(rs2::points pts)
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
 
-		auto sp = points_.get_profile().as<rs2::video_stream_profile>();
+		auto sp = pts.get_profile().as<rs2::video_stream_profile>();
 		cloud->width = sp.width();
 		cloud->height = sp.height();
 		cloud->is_dense = false;
-		cloud->points.resize(points_.size());
-		auto ptr = points_.get_vertices();
+		cloud->points.resize(pts.size());
+		auto ptr = pts.get_vertices();
 		for (auto& p : cloud->points) {
 			p.x = ptr->x;
 			p.y = ptr->y;
 			p.z = ptr->z;
 			ptr++;
 		}
+		mu_cloud_.lock();		
 		cloud_ = cloud;
+		mu_cloud_.unlock();
 	}
-
 }

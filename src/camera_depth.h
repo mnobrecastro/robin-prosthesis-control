@@ -27,8 +27,6 @@ namespace robin {
 
 		virtual void captureFrame();
 
-		pcl::PointCloud<pcl::PointXYZ>::Ptr getFrame();
-
 		void setCrop(float, float, float, float, float, float);
 		void setDownsample(float);
 

@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace robin {
 
@@ -19,6 +20,8 @@ namespace robin {
 		virtual void start(bool) { std::cout << "Wrong one!" << std::endl; }
 		virtual void captureFrame() {}
 
+		virtual void addChild(Sensor* s);
+
 		//virtual auto getFrame() {};
 
 		virtual void crop() {}
@@ -26,6 +29,9 @@ namespace robin {
 
 	protected:
 		std::string id_;
+		std::vector<Sensor*> children_;
+
+		virtual void feedChildren() {}
 	};
 
 }

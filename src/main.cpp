@@ -1,5 +1,6 @@
 #include "../src/solver3.h"
 #include "../src/realsense_d400.h"
+#include "../src/laser_scanner.h"
 #include "../src/primitive3_sphere.h"
 #include "../src/primitive3_cylinder.h"
 #include "../src/primitive3_cuboid.h"
@@ -126,6 +127,11 @@ int main(int argc, char** argv)
 	mycam->setDownsample(0.003);//0.0025 //0.005
 	mysolver.addSensor(mycam);
 
+	//-----
+	robin::LaserScanner* mylaser(new robin::LaserScanner(mycam, 0.0, 0.1, 0.0, 0.0, 0.001));
+	mycam->addChild(mylaser);
+	//-----
+
 	// Create a Primitive
 	robin::Primitive3Cylinder* prim(new robin::Primitive3Cylinder);
 	//prim.setVisualizeOnOff(false);
@@ -148,6 +154,7 @@ int main(int argc, char** argv)
 
 		mysolver.solve(*prim);
 
+		/*
 		controller.evaluate(prim);
 		std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
 		std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
@@ -162,7 +169,7 @@ int main(int argc, char** argv)
 			std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
 		}
 		std::cout << "\n" << std::endl;		
-		
+		*/
 
 		//---- RENDERING ----
 		if (RENDER) {
@@ -170,7 +177,7 @@ int main(int argc, char** argv)
 			viewer->removeAllShapes();
 			viewer->removeAllPointClouds();
 
-			for (auto s : mysolver.getSensors()) {
+			/*for (auto s : mysolver.getSensors()) {
 				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h(255, 255, 255);
 				cloud_color_h.setInputCloud(s->getPointCloud());
 				viewer->addPointCloud(s->getPointCloud(), cloud_color_h);
@@ -185,7 +192,14 @@ int main(int argc, char** argv)
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 			primitive_color_h.setInputCloud(prim->getPointCloud());
 			viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
-			prim->visualize(viewer);
+			prim->visualize(viewer);*/
+
+			//------
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h(255, 255, 255);
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_color(mylaser->getPointCloud());
+			cloud_color_h.setInputCloud(cloud_color);
+			viewer->addPointCloud(cloud_color, cloud_color_h);
+			//-----
 
 			viewer->spinOnce(1, true);
 		}
