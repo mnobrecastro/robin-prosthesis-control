@@ -4,6 +4,8 @@
 #include "../src/primitive3_sphere.h"
 #include "../src/primitive3_cylinder.h"
 #include "../src/primitive3_cuboid.h"
+#include "../src/primitive3_line.h"
+#include "../src/primitive3_circle.h"
 #include "../src/hand_michelangelo.h"
 #include "../src/control_simple.h"
 
@@ -107,12 +109,12 @@ int main(int argc, char** argv)
 	robin::Solver3 mysolver;
 	mysolver.setPlaneRemoval(false);
 	//solver.setUseNormals(true);		
-	mysolver.setSegmentation(robin::Method3::SEGMENTATION_LCCP);
+	mysolver.setSegmentation(robin::Method3::SEGMENTATION_SAC);
 	
 	// Dummy Segmentation object
-	pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
-	seg->setNormalDistanceWeight(0.001); //0.1
-	//pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
+	//pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
+	//seg->setNormalDistanceWeight(0.001); //0.1
+	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
 	seg->setMaxIterations(100);
@@ -133,7 +135,7 @@ int main(int argc, char** argv)
 	//-----
 
 	// Create a Primitive
-	robin::Primitive3Cylinder* prim(new robin::Primitive3Cylinder);
+	robin::Primitive3Circle* prim(new robin::Primitive3Circle);
 	//prim.setVisualizeOnOff(false);
 
 	// Create a PCL visualizer
@@ -177,7 +179,7 @@ int main(int argc, char** argv)
 			viewer->removeAllShapes();
 			viewer->removeAllPointClouds();
 
-			/*for (auto s : mysolver.getSensors()) {
+			for (auto s : mysolver.getSensors()) {
 				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h(255, 255, 255);
 				cloud_color_h.setInputCloud(s->getPointCloud());
 				viewer->addPointCloud(s->getPointCloud(), cloud_color_h);
@@ -192,13 +194,13 @@ int main(int argc, char** argv)
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 			primitive_color_h.setInputCloud(prim->getPointCloud());
 			viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
-			prim->visualize(viewer);*/
+			prim->visualize(viewer);
 
 			//------
-			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h(255, 255, 255);
+			/*pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h(255, 255, 255);
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_color(mylaser->getPointCloud());
 			cloud_color_h.setInputCloud(cloud_color);
-			viewer->addPointCloud(cloud_color, cloud_color_h);
+			viewer->addPointCloud(cloud_color, cloud_color_h);*/
 			//-----
 
 			viewer->spinOnce(1, true);

@@ -118,5 +118,8 @@ namespace robin
 		public Primitive3
 	{
 		/* Dummy Class */
+	protected:
+		std::vector<Primitive3d1*> subprims_;
+		
 	};
 }
