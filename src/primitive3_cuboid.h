@@ -11,7 +11,12 @@ namespace robin
 		public Primitive3d3
 	{
 	public:
-		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;
+		Primitive3Cuboid();
+		~Primitive3Cuboid();
+
+		void reset();
+
+		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;		
 
 		void fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals);
 

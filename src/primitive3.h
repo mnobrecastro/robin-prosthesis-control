@@ -32,7 +32,14 @@ namespace robin
 		float getProperty_axis_x() { return properties_.axis_x; }
 		float getProperty_axis_y() { return properties_.axis_y; }
 		float getProperty_axis_z() { return properties_.axis_z; }
+		float getProperty_d() { return properties_.d; }
 		float getProperty_radius() { return properties_.radius; }
+		float getProperty_e0_x() { return properties_.e0_x; }
+		float getProperty_e0_y() { return properties_.e0_y; }
+		float getProperty_e0_z() { return properties_.e0_z; }
+		float getProperty_e1_x() { return properties_.e1_x; }
+		float getProperty_e1_y() { return properties_.e1_y; }
+		float getProperty_e1_z() { return properties_.e1_z; }
 
 		void setCoefficients();
 
@@ -63,7 +70,14 @@ namespace robin
 			float axis_x = 0.0;
 			float axis_y = 0.0;
 			float axis_z = 0.0;
+			float d = 0.0;
 			float radius = 0.0;
+			float e0_x = 0.0;
+			float e0_y = 0.0;
+			float e0_z = 0.0;
+			float e1_x = 0.0;
+			float e1_y = 0.0;
+			float e1_z = 0.0;
 		} properties_;
 
 		pcl::ModelCoefficients::Ptr coefficients_;

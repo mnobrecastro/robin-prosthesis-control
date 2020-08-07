@@ -2,6 +2,30 @@
 
 namespace robin
 {
+	Primitive3Plane::Primitive3Plane()
+	{
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		cloud_ = cloud;
+		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+		coefficients_ = coefficients;
+		// Initialization of the 4-element plane coefficients
+		// {normal_x, normal_y, normal_z, d}
+		coefficients_->values.push_back(0.0); //0
+		coefficients_->values.push_back(0.0); //1
+		coefficients_->values.push_back(0.0); //2
+		coefficients_->values.push_back(0.0); //3
+	}
+	Primitive3Plane::~Primitive3Plane() {}
+	
+	void Primitive3Plane::reset()
+	{
+		cloud_->points.clear();
+		coefficients_->values[0] = 0.000;
+		coefficients_->values[1] = 0.000;
+		coefficients_->values[2] = 0.000;
+		coefficients_->values[3] = 0.000;
+	}
+	
 	void Primitive3Plane::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
 
@@ -18,6 +42,7 @@ namespace robin
 								properties_.center_z + properties_.height / 2.0 * properties_.e1_z);
 		viewer->addLine(center, center_e1, "plane_e1" + std::to_string(std::rand()));
 	}
+
 
 	void Primitive3Plane::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals)
 	{
@@ -67,7 +92,12 @@ namespace robin
 	/* Correct the obtained coefficients if necessary. */
 	void Primitive3Plane::correct_coefficients()
 	{
-		/* Nothing to correct. */
+		// Nomal points towards the camera (convex objects only)
+		if (coefficients_->values[2] < 0) {
+			coefficients_->values[0] = -coefficients_->values[0];
+			coefficients_->values[1] = -coefficients_->values[1];
+			coefficients_->values[2] = -coefficients_->values[2];
+		}
 	}
 
 	/* Update the properties of the Primitive3. */
@@ -93,9 +123,10 @@ namespace robin
 		properties_.center_x = mean.x();
 		properties_.center_y = mean.y();
 		properties_.center_z = mean.z();
-		properties_.normal_x = coefficients_->values[0];
-		properties_.normal_y = coefficients_->values[1];
-		properties_.normal_z = coefficients_->values[2];
+		properties_.axis_x = coefficients_->values[0];
+		properties_.axis_y = coefficients_->values[1];
+		properties_.axis_z = coefficients_->values[2];
+		properties_.d = coefficients_->values[3];
 		properties_.e0_x = e0.x();
 		properties_.e0_y = e0.y();
 		properties_.e0_z = e0.z();

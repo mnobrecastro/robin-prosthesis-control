@@ -109,7 +109,7 @@ int main(int argc, char** argv)
 	robin::Solver3 mysolver;
 	mysolver.setPlaneRemoval(false);
 	//solver.setUseNormals(true);		
-	mysolver.setSegmentation(robin::Method3::SEGMENTATION_SAC);
+	mysolver.setSegmentation(robin::Method3::SEGMENTATION_LCCP);
 	
 	// Dummy Segmentation object
 	//pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
@@ -135,8 +135,8 @@ int main(int argc, char** argv)
 	//-----
 
 	// Create a Primitive
-	robin::Primitive3Circle* prim(new robin::Primitive3Circle);
-	//prim.setVisualizeOnOff(false);
+	robin::Primitive3Cuboid* prim(new robin::Primitive3Cuboid);
+	prim->setVisualizeOnOff(true);
 
 	// Create a PCL visualizer
 	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
