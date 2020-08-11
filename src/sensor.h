@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <thread>
 
 namespace robin {
 
@@ -17,21 +18,24 @@ namespace robin {
 
 		virtual void printInfo() {}
 
-		virtual void start(bool) { std::cout << "Wrong one!" << std::endl; }
-		virtual void captureFrame() {}
-
 		virtual void addChild(Sensor* s);
 
 		//virtual auto getFrame() {};
 
-		virtual void crop() {}
-		virtual void downsample() {}
-
 	protected:
 		std::string id_;
+
+		Sensor* parent_ = nullptr;
 		std::vector<Sensor*> children_;
 
 		virtual void feedChildren() {}
+
+		virtual void start(bool) { std::cout << "Wrong one!" << std::endl; }
+		virtual void captureFrame() {}
+		std::thread thread_capture_;
+
+	private:
+
 	};
 
 }

@@ -42,7 +42,11 @@ namespace robin
 
 		void setUseNormals(bool seg_normals);
 
-		void setPlaneRemoval(bool seg_plane_removal);		
+		void setPlaneRemoval(bool seg_plane_removal);
+
+		void setCrop(float, float, float, float, float, float);
+
+		void setDownsample(float);
 
 		std::vector<robin::Sensor3*> getSensors() const;
 
@@ -56,6 +60,15 @@ namespace robin
 
 		/* Point cloud (temp) that can be manipulated */
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
+
+		bool filterOnOff_ = false;
+		std::array<float, 6> limits_;
+		bool downsampleOnOff_ = false;
+		float voxel_size_ = 0.005f;
+
+		pcl::PointCloud<pcl::PointXYZ>::Ptr trimPointCloud();
+		void crop();
+		void downsample();
 
 		unsigned int MIN_POINTS_PROCEED_ = 100;
 

@@ -107,14 +107,16 @@ int main(int argc, char** argv)
 
 	// Declare a solver3
 	robin::Solver3 mysolver;
+	mysolver.setCrop(-0.100, 0.100, -0.100, 0.100, 0.100, 0.300); //
+	mysolver.setDownsample(0.003);
 	mysolver.setPlaneRemoval(false);
 	//solver.setUseNormals(true);		
-	mysolver.setSegmentation(robin::Method3::SEGMENTATION_LCCP);
+	mysolver.setSegmentation(robin::Method3::SEGMENTATION_SAC);
 	
 	// Dummy Segmentation object
-	//pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
-	//seg->setNormalDistanceWeight(0.001); //0.1
-	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
+	pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
+	seg->setNormalDistanceWeight(0.001); //0.1
+	//pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
 	seg->setMaxIterations(100);
@@ -125,17 +127,18 @@ int main(int argc, char** argv)
 	// Create a sensor from a camera
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
 	mycam->printInfo();
-	mycam->setCrop(-0.100, 0.100, -0.100, 0.100, 0.050, 0.250);
-	mycam->setDownsample(0.003);//0.0025 //0.005
-	mysolver.addSensor(mycam);
+	//mysolver.addSensor(mycam);
 
 	//-----
-	robin::LaserScanner* mylaser(new robin::LaserScanner(mycam, 0.0, 0.1, 0.0, 0.0, 0.001));
-	mycam->addChild(mylaser);
+	// Create a sensor from another sensor
+	robin::LaserScanner* mylaser_h(new robin::LaserScanner(mycam, 0.0, 1.0, 0.0, 0.0, 0.001));
+	mysolver.addSensor(mylaser_h);
+	robin::LaserScanner* mylaser_v(new robin::LaserScanner(mycam, 1.0, 0.0, 0.0, 0.0, 0.001));
+	mysolver.addSensor(mylaser_v);
 	//-----
 
 	// Create a Primitive
-	robin::Primitive3Cuboid* prim(new robin::Primitive3Cuboid);
+	robin::Primitive3Cylinder* prim(new robin::Primitive3Cylinder);
 	prim->setVisualizeOnOff(true);
 
 	// Create a PCL visualizer
@@ -179,11 +182,11 @@ int main(int argc, char** argv)
 			viewer->removeAllShapes();
 			viewer->removeAllPointClouds();
 
-			for (auto s : mysolver.getSensors()) {
+			/*for (auto s : mysolver.getSensors()) {
 				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h(255, 255, 255);
 				cloud_color_h.setInputCloud(s->getPointCloud());
-				viewer->addPointCloud(s->getPointCloud(), cloud_color_h);
-			}
+				viewer->addPointCloud(s->getPointCloud(), cloud_color_h, std::to_string(std::rand()));
+			}*/
 
 			//
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);

@@ -22,6 +22,8 @@ namespace robin {
 		std::cout << "A new RealsenseD400 was created\n" << std::endl;
 
 		this->start(DISPARITY_);
+
+		thread_capture_ = std::thread(&RealsenseD400::captureFrame, this);
 	}
 
 	RealsenseD400::~RealsenseD400() {}
@@ -94,27 +96,29 @@ namespace robin {
 
 	void RealsenseD400::captureFrame()
 	{
-		std::cout << "\nRealsenseD400.captureFrame()" << std::endl;
+		while (true) {
+			//std::cout << "RealsenseD400.captureFrame()" << std::endl;
 
-		std::time_t t0, tf;
-		t0 = std::time(0);
+			std::time_t t0, tf;
+			t0 = std::time(0);
 
-		// Wait for the next set of frames from the camera
-		rs2::frameset frames(pipe_.wait_for_frames());
-		rs2::depth_frame depth(frames.get_depth_frame());
+			// Wait for the next set of frames from the camera
+			rs2::frameset frames(pipe_.wait_for_frames());
+			rs2::depth_frame depth(frames.get_depth_frame());
 
-		// Generate the pointcloud and texture mappings
-		rs2::pointcloud pc;
-		rs2::points pts = pc.calculate(depth);
+			// Generate the pointcloud and texture mappings
+			rs2::pointcloud pc;
+			rs2::points pts = pc.calculate(depth);
 
-		// Transform rs2::pointcloud into pcl::PointCloud<PointT>::Ptr
-		this->points_to_pcl(pts);
+			// Transform rs2::pointcloud into pcl::PointCloud<PointT>::Ptr
+			this->points_to_pcl(pts);
 
-		// Feed the children Sensors
-		this->feedChildren();
+			// Feed the children Sensors
+			this->feedChildren();
 
-		tf = std::time(0);
-		std::cout << "Read pointcloud from " << cloud_->size() << " data points (in " << std::difftime(t0, tf) / 1000 << " ms)." << std::endl;
+			tf = std::time(0);
+			//std::cout << "Read pointcloud from " << cloud_->size() << " data points (in " << std::difftime(t0, tf) / 1000 << " ms)." << std::endl;
+		}
 	}
 
 	void RealsenseD400::points_to_pcl(rs2::points pts)

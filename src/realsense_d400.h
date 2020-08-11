@@ -2,8 +2,8 @@
 #include "camera_depth.h"
 
 #include <iostream>
-#include <thread>
 #include <ctime>
+#include <thread>
 
 #include <librealsense2/rs.hpp>
 #include <librealsense2/rs_advanced_mode.hpp>
@@ -22,11 +22,10 @@ namespace robin
 		void setDisparity(bool disparity=false);
 
 		void start(bool);// override;
-
-		void captureFrame();
-
+		
 	protected:
 		void points_to_pcl(rs2::points pts);
+		void captureFrame();
 
 	private:
 

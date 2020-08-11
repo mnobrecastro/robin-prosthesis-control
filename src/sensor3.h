@@ -2,12 +2,19 @@
 #include "sensor.h"
 
 #include <iostream>
+#include <array>
 #include <mutex>
 #include <typeinfo>
+#include <ctime>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/common/io.h>
+
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/approximate_voxel_grid.h>
+#include <pcl/filters/random_sample.h>
 
 namespace robin {
 
@@ -34,9 +41,9 @@ namespace robin {
 		virtual void fromParent(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 
 	private:
-		static int counter;		
+		static int counter_;
 	};
 
-	//int Sensor::counter = 0;
+	//int Sensor3::counter_ = 0;
 
 }

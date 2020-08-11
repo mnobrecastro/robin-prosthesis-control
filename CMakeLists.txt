@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1.0)
 
-project(michelangelo-depth)
+project(robin-prosthesis-control)
 
 find_package(PCL 1.5 REQUIRED)
 

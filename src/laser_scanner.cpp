@@ -5,7 +5,8 @@ namespace robin {
 	LaserScanner::LaserScanner(CameraDepth* cam, float a, float b, float c, float d, float tol) :
 		camera_(cam)
 	{		
-		cam->addChild(this);
+		parent_ = cam;
+		parent_->addChild(this);
 		params_.a = a;
 		params_.b = b;
 		params_.c = c;
@@ -20,7 +21,6 @@ namespace robin {
 		float normal_y(std::sin(theta + M_PI / 2.0));
 		LaserScanner(cam, normal_x, normal_y, 0.0, -normal_y*b, tol);
 	}
-
 
 	void LaserScanner::fromParent(const pcl::PointCloud<pcl::PointXYZ>& cloud)
 	{

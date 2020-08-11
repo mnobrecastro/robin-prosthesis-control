@@ -12,9 +12,7 @@ namespace robin {
 
 	void Sensor3::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>& cloud)
 	{
-		if (false) {
-			pcl::copyPointCloud(cloud, *cloud_);
-		}
+		pcl::copyPointCloud(cloud, *cloud_);
 	}
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr Sensor3::getPointCloud()
@@ -25,6 +23,8 @@ namespace robin {
 		return cloud;
 	}
 
+	//
+
 	void Sensor3::addChild(Sensor3* s)
 	{
 		children_.push_back(s);
@@ -34,9 +34,7 @@ namespace robin {
 	{
 		mu_cloud_.lock();
 		for (Sensor3* s : children_) {
-			//if (this == s->parent_) {
 			s->fromParent(*cloud_);
-			//}
 		}
 		mu_cloud_.unlock();
 	}
