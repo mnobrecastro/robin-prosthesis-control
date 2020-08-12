@@ -21,7 +21,7 @@ namespace robin {
 
 		/* Create a LaserScanner from a depth camera by applying a planar cut to the PointCloud.
 		 * Params of the cut must follow the canonical form of a linear equation (a*x + b = 0) about the xOy plane. */
-		LaserScanner(CameraDepth* cam, float a, float b, float tol);
+		//LaserScanner(CameraDepth* cam, float a, float b, float tol);
 		
 		~LaserScanner() {}
 

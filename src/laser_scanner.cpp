@@ -14,13 +14,9 @@ namespace robin {
 		params_.tol = tol;
 	}
 
-	LaserScanner::LaserScanner(CameraDepth* cam, float a, float b, float tol)		
-	{
-		float theta(std::atan(a));
-		float normal_x(std::cos(theta + M_PI / 2.0));
-		float normal_y(std::sin(theta + M_PI / 2.0));
-		LaserScanner(cam, normal_x, normal_y, 0.0, -normal_y*b, tol);
-	}
+	//LaserScanner::LaserScanner(CameraDepth* cam, float a, float b, float tol) :
+	//	LaserScanner(cam, std::cos(std::atan(a) + M_PI / 2.0), std::sin(std::atan(a) + M_PI / 2.0), 0.0, -std::sin(std::atan(a) + M_PI / 2.0)*b, tol)
+	//{}
 
 	void LaserScanner::fromParent(const pcl::PointCloud<pcl::PointXYZ>& cloud)
 	{

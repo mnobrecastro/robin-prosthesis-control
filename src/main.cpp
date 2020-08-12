@@ -107,16 +107,16 @@ int main(int argc, char** argv)
 
 	// Declare a solver3
 	robin::Solver3 mysolver;
-	mysolver.setCrop(-0.100, 0.100, -0.100, 0.100, 0.100, 0.300); //
+	mysolver.setCrop(-0.100, 0.100, -0.100, 0.100, 0.160, 0.300); //0.106 or 0.160
 	mysolver.setDownsample(0.003);
 	mysolver.setPlaneRemoval(false);
 	//solver.setUseNormals(true);		
 	mysolver.setSegmentation(robin::Method3::SEGMENTATION_SAC);
 	
 	// Dummy Segmentation object
-	pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
-	seg->setNormalDistanceWeight(0.001); //0.1
-	//pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
+	//pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
+	//seg->setNormalDistanceWeight(0.001); //0.1
+	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
 	seg->setMaxIterations(100);
@@ -131,14 +131,23 @@ int main(int argc, char** argv)
 
 	//-----
 	// Create a sensor from another sensor
-	robin::LaserScanner* mylaser_h(new robin::LaserScanner(mycam, 0.0, 1.0, 0.0, 0.0, 0.001));
+	/*robin::LaserScanner* mylaser_h(new robin::LaserScanner(mycam, 0.0, 1.0, 0.0, 0.0, 0.001));
 	mysolver.addSensor(mylaser_h);
 	robin::LaserScanner* mylaser_v(new robin::LaserScanner(mycam, 1.0, 0.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(mylaser_v);
+	mysolver.addSensor(mylaser_v);*/
+
+	robin::LaserScanner* laser_0(new robin::LaserScanner(mycam, 0.0, 1.0, 0.0, 0.0, 0.001));
+	mysolver.addSensor(laser_0);
+	robin::LaserScanner* laser_1(new robin::LaserScanner(mycam, -1.0, 1.0, 0.0, 0.0, 0.001));
+	mysolver.addSensor(laser_1);
+	robin::LaserScanner* laser_2(new robin::LaserScanner(mycam, 1.0, 0.0, 0.0, 0.0, 0.001));
+	mysolver.addSensor(laser_2);
+	robin::LaserScanner* laser_3(new robin::LaserScanner(mycam, 1.0, 1.0, 0.0, 0.0, 0.001));
+	mysolver.addSensor(laser_3);
 	//-----
 
 	// Create a Primitive
-	robin::Primitive3Cylinder* prim(new robin::Primitive3Cylinder);
+	robin::Primitive3Line* prim(new robin::Primitive3Line);
 	prim->setVisualizeOnOff(true);
 
 	// Create a PCL visualizer
