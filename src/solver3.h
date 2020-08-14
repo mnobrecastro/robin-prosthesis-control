@@ -18,18 +18,11 @@
 
 namespace robin
 {
-	enum class Method3 {
-		SEGMENTATION_SAC,
-		SEGMENTATION_LCCP
-	};
-
 	class Solver3 :
 		public Solver
 	{
 	public:
 		Solver3();
-		//Solver3(robin::Primitive3*);
-		//Solver3(robin::Method3);
 		~Solver3();
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr getPointCloud() const;
@@ -37,8 +30,6 @@ namespace robin
 		void addSensor(robin::Sensor3*);
 
 		void setSegmentation(pcl::SACSegmentation<pcl::PointXYZ>* seg_obj);
-
-		void setSegmentation(robin::Method3 seg_method);
 
 		void setUseNormals(bool seg_normals);
 
@@ -52,7 +43,7 @@ namespace robin
 
 		void solve(robin::Primitive3& prim);
 
-		void Solver3::visualizeLCCP(pcl::visualization::PCLVisualizer::Ptr viewer, std::string draw="wireframe") const;
+		virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;
 
 	protected:
 		std::vector<robin::Sensor3*> sensors_;
@@ -64,7 +55,7 @@ namespace robin
 		bool filterOnOff_ = false;
 		std::array<float, 6> limits_;
 		bool downsampleOnOff_ = false;
-		float voxel_size_ = 0.005f;
+		float voxel_size_ = 0.0025f;
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr trimPointCloud();
 		void crop();
@@ -72,21 +63,10 @@ namespace robin
 
 		unsigned int MIN_POINTS_PROCEED_ = 100;
 
-		robin::Method3 seg_method_;
 		bool seg_normals_ = false;
 		bool seg_plane_removal_ = false;
 		pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_ptr_ = nullptr;
 
-		void segment();
-		void segmentSAC();
-		void segmentLCCP();
-
-		std::vector<int> lccp_pc_sizes_;
-		std::vector<uint32_t> lccp_labels_;
-		std::vector<std::array<float, 3>> lccp_centroids_;
-
-		std::vector<int> getCentroidsLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<float, 3>>& centroids);
-		uint32_t selectCentroidLCCP(const std::vector<uint32_t>& labels, const std::vector<std::array<float, 3>>& centroids, const std::vector<int>& pc_sizes);
-		void getLabeledCloudLCCP(const pcl::PointCloud<pcl::PointXYZL>& cloud_lccp, pcl::PointCloud<pcl::PointXYZ>& cloud_seg, uint32_t label);
+		virtual void segment();
 	};
 }
