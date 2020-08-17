@@ -80,7 +80,7 @@ namespace robin
 		if (!cloud_->points.empty()) {
 			/* x_min, x_max, y_min, y_max, z_min, z_max. */
 			std::array<float, 6> ranges(getPointCloudRanges(*cloud_));
-			/* Checks the z-coordinate of the Primitive3Sphere center. */
+			/* Checks the z-coordinate of the Primitive3Circle center. */
 			if (coefficients_->values[2] > ranges[4]) {
 				return true;
 			}

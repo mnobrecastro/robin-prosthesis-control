@@ -104,7 +104,6 @@ namespace robin
 	{
 		if (planes_.size() > 0) {
 			return true;
-			std::cout << "FLAG";
 		}
 		this->reset();
 		return false;
