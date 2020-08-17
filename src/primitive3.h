@@ -14,6 +14,10 @@
 
 #include <pcl/visualization/pcl_visualizer.h>
 
+#define LASER_ARRAY_SINGLE_SIZE 1
+#define LASER_ARRAY_CROSS_SIZE 2
+#define LASER_ARRAY_STAR_SIZE 4
+
 namespace robin
 {
 	class Primitive3 :
@@ -44,6 +48,7 @@ namespace robin
 		void setCoefficients();
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr getPointCloud() const;
+		pcl::ModelCoefficients::Ptr getCoefficients() const;
 
 		/* Rendering of a Primitive3 on a PCLVisualizer. */
 		virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const {}
@@ -82,6 +87,8 @@ namespace robin
 
 		pcl::ModelCoefficients::Ptr coefficients_;
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
+
+		//pcl::ModelCoefficients::Ptr getCoefficients() const;
 				
 		void fit_sample_consensus(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, const static int SAC_METHOD, pcl::SacModel SAC_MODEL);
 		void fit_sample_consensus(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg);
@@ -128,12 +135,40 @@ namespace robin
 		/* Dummy Class */
 	};
 
+	enum class HEURISTIC
+	{
+		LASER_ARRAY_SINGLE,
+		LASER_ARRAY_CROSS,
+		LASER_ARRAY_STAR
+	};
+
 	class Primitive3d3 :
 		public Primitive3
 	{
+	public:
 		/* Dummy Class */
+
+		void addSubPrimitive(Primitive3d1* p);
+
+		/* Reshapes a primitive based on an heuristic. */
+		void heuristic(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloud_arr, pcl::SACSegmentation<pcl::PointXYZ>* seg, HEURISTIC heu);
+
 	protected:
 		std::vector<Primitive3d1*> subprims_;
-		
+		bool are_subprims_custom_ = false;
+
+		/* Receives a PointCloud cut by reference and fits a sub-primitive to it. */
+		virtual void cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) { std::cout << "DO NOT SHOW THIS MESSAGE" << std::endl; }
+
+		/* Receives a PointCloud cut and a segmentation object by reference and extracts/segments it by fitting to it. */
+		virtual void cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg) { std::cout << "DO NOT SHOW THIS MESSAGE" << std::endl; }
+
+		bool heuristic_check(HEURISTIC heu);
+
+		void heuristic_prim(HEURISTIC heu);
+
+		virtual void heuristic_laser_array_single() {}
+		virtual void heuristic_laser_array_cross() {}
+		virtual void heuristic_laser_array_star() {}
 	};
 }

@@ -12,8 +12,14 @@ namespace robin
 	Primitive3::~Primitive3() {}
 
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr Primitive3::getPointCloud() const {
+	pcl::PointCloud<pcl::PointXYZ>::Ptr Primitive3::getPointCloud() const
+	{
 		return cloud_;
+	}
+
+	pcl::ModelCoefficients::Ptr Primitive3::getCoefficients() const
+	{
+		return coefficients_;
 	}
 
 	void Primitive3::reset()
@@ -202,4 +208,86 @@ namespace robin
 		}
 		return arr;
 	}
+
+
+
+	/// PRIMITIVE3D3
+
+	void Primitive3d3::addSubPrimitive(Primitive3d1* p)
+	{
+		subprims_.push_back(p);
+		are_subprims_custom_ = true;
+	}
+
+	/* Reshapes a primitive based on an heuristic. */
+	void Primitive3d3::heuristic(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloud_arr, pcl::SACSegmentation<pcl::PointXYZ>* seg, HEURISTIC heu)
+	{
+		if (!cloud_->points.empty()) {
+			cloud_->clear();
+		}
+		if (!subprims_.empty()) {
+			for (auto sp : subprims_) {
+				delete sp;
+			}
+			subprims_.clear();
+		}
+
+		for (auto cloud : cloud_arr) {
+			if (!are_subprims_custom_) {
+				this->cut(cloud, seg);
+			}
+		}		
+		
+		/*if (!this->heuristic_check(heu)) {
+			std::cout << "The number of sub-primitives does not match the Heuristic." << std::endl;
+			return;
+		}*/
+
+		this->heuristic_prim(heu);
+
+		/* 1. Validate the fit. */
+		if (this->is_fit_valid()) {
+			/* 2. Correct model coeffficients. */
+			this->correct_coefficients();
+		}
+		/* 3. Update object properties. */
+		this->update_properties();
+	}
+
+	bool Primitive3d3::heuristic_check(HEURISTIC heu)
+	{
+		size_t heu_size;
+		switch (heu) {
+		case robin::HEURISTIC::LASER_ARRAY_SINGLE:
+			heu_size = LASER_ARRAY_SINGLE_SIZE;
+			break;
+		case robin::HEURISTIC::LASER_ARRAY_CROSS:
+			heu_size = LASER_ARRAY_CROSS_SIZE;
+			break;
+		case robin::HEURISTIC::LASER_ARRAY_STAR:
+			heu_size = LASER_ARRAY_STAR_SIZE;
+			break;
+		}
+		if (subprims_.size() == heu_size) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	void Primitive3d3::heuristic_prim(HEURISTIC heu)
+	{
+		switch (heu) {
+		case robin::HEURISTIC::LASER_ARRAY_SINGLE:
+			this->heuristic_laser_array_single();
+			break;
+		case robin::HEURISTIC::LASER_ARRAY_CROSS:
+			this->heuristic_laser_array_cross();
+			break;
+		case robin::HEURISTIC::LASER_ARRAY_STAR:
+			this->heuristic_laser_array_star();
+			break;
+		}
+	}
+
 }

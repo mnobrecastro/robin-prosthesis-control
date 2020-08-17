@@ -6,7 +6,7 @@
 namespace robin {
 
 	class LaserArray :
-		public SensorArray
+		public Sensor3Array
 	{
 	public:
 		LaserArray() {}
@@ -15,6 +15,18 @@ namespace robin {
 	private:
 		/* Supressed method */
 		using SensorArray::addSensor;
+	};
+
+	class LaserArraySingle :
+		public LaserArray
+	{
+	public:
+		LaserArraySingle();
+		LaserArraySingle(CameraDepth* cam);
+		~LaserArraySingle();
+
+	protected:
+
 	};
 	
 	class LaserArrayCross :

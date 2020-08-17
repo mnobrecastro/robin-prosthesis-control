@@ -1,5 +1,4 @@
 #pragma once
-
 #include "sensor.h"
 
 #include <iostream>

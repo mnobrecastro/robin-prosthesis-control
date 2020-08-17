@@ -1,7 +1,9 @@
 #include "../src/solver3.h"
 #include "../src/solver3_lccp.h"
+#include "../src/solver3_lasers.h"
 #include "../src/realsense_d400.h"
 #include "../src/laser_scanner.h"
+#include "../src/laser_array.h"
 #include "../src/primitive3_sphere.h"
 #include "../src/primitive3_cylinder.h"
 #include "../src/primitive3_cuboid.h"
@@ -109,16 +111,17 @@ int main(int argc, char** argv)
 	robin::control::ControlSimple controller(myhand);
 
 	// Declare a solver3
-	robin::Solver3LCCP mysolver;
+	//robin::Solver3LCCP mysolver;
+	robin::Solver3Lasers mysolver;
 	mysolver.setCrop(-0.100, 0.100, -0.100, 0.100, 0.100, 0.200); //0.106 or 0.160
-	mysolver.setDownsample(0.0025); //0.0025
+	mysolver.setDownsample(0.001f); //0.0025f
 	mysolver.setPlaneRemoval(false);
 	//solver.setUseNormals(true);
 	
 	// Dummy Segmentation object
-	pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
-	seg->setNormalDistanceWeight(0.001);
-	//pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
+	//pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
+	//seg->setNormalDistanceWeight(0.001);
+	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
 	seg->setMaxIterations(100);
@@ -129,7 +132,7 @@ int main(int argc, char** argv)
 	// Create a sensor from a camera
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
 	mycam->printInfo();
-	mysolver.addSensor(mycam);
+	//mysolver.addSensor(mycam);
 
 	//-----
 	// Create a sensor from another sensor
@@ -146,10 +149,13 @@ int main(int argc, char** argv)
 	mysolver.addSensor(laser_2);
 	robin::LaserScanner* laser_3(new robin::LaserScanner(mycam, 1.0, 1.0, 0.0, 0.0, 0.001));
 	mysolver.addSensor(laser_3);*/
+
+	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam));
+	mysolver.addSensor(myarr);
 	//-----
 
 	// Create a Primitive
-	robin::Primitive3Cylinder* prim(new robin::Primitive3Cylinder);
+	robin::Primitive3Sphere* prim(new robin::Primitive3Sphere);
 	prim->setVisualizeOnOff(true);
 
 	// Create a PCL visualizer
@@ -162,7 +168,7 @@ int main(int argc, char** argv)
 	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
 	viewer->addCoordinateSystem(0.25);
 
-	bool RENDER(false);
+	bool RENDER(true);
 	std::vector<double> freq;
 
 	while(true){
@@ -203,7 +209,7 @@ int main(int argc, char** argv)
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);
 			solver_color_h.setInputCloud(mysolver.getPointCloud());
 			viewer->addPointCloud(mysolver.getPointCloud(), solver_color_h, "solver");
-			//mysolver.visualizeLCCP(viewer); //"marker"
+			//mysolver.visualize(viewer); //lccp:"marker"
 
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 			primitive_color_h.setInputCloud(prim->getPointCloud());
@@ -212,7 +218,7 @@ int main(int argc, char** argv)
 
 			//------
 			/*pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h(255, 255, 255);
-			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_color(mylaser->getPointCloud());
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_color(mycam->getPointCloud());
 			cloud_color_h.setInputCloud(cloud_color);
 			viewer->addPointCloud(cloud_color, cloud_color_h);*/
 			//-----

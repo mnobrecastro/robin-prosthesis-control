@@ -2,6 +2,18 @@
 
 namespace robin
 {
+	/// LASER_ARRAY_SINGLE
+
+	LaserArraySingle::LaserArraySingle() {}
+
+	LaserArraySingle::LaserArraySingle(CameraDepth* cam)
+	{
+		LaserScanner* laser_h(new LaserScanner(cam, 0.0, 1.0, 0.0, 0.0, 0.001)); // 0 deg
+		sensors_.push_back(laser_h);
+	}
+
+	LaserArraySingle::~LaserArraySingle() {}
+
 
 
 	/// LASER_ARRAY_CROSS
