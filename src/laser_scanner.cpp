@@ -30,8 +30,8 @@ namespace robin {
 		pcl::PointCloud<pcl::PointXYZ>::Ptr slice(new pcl::PointCloud<pcl::PointXYZ>());
 		for (auto p : cloud.points) {
 			if (std::abs(this->projectionDistance(p)) < params_.tol/2) {
-				//slice->push_back(pcl::PointXYZ(p.x, p.y, p.z));
-				slice->push_back(this->projectIntoPlane(p));
+				slice->push_back(pcl::PointXYZ(p.x, p.y, p.z));
+				//slice->push_back(this->projectIntoPlane(p));
 			}
 		}
 		pcl::copyPointCloud(*slice, cloud_slice);

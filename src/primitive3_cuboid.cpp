@@ -102,9 +102,26 @@ namespace robin
 	/* Checks if the fit is valid. */
 	bool Primitive3Cuboid::is_fit_valid()
 	{
+		/* Checks if all planes are valid. */
 		if (planes_.size() > 0) {
 			return true;
 		}
+
+		/* Checks if the cut sub-primitives are valid. */
+		bool valid_subprims(true);
+		if (!subprims_.empty()) {
+			for (auto arr : subprims_) {
+				for (auto sp : arr) {
+					if (sp->getPointCloud()->empty()) {
+						valid_subprims = false;
+						break;
+					}
+				}
+				if (!valid_subprims) { break; }
+			}
+			if (valid_subprims) { return true; }
+		}
+
 		this->reset();
 		return false;
 	}
@@ -112,125 +129,128 @@ namespace robin
 	/* Correct the obtained coefficients if necessary. */
 	void Primitive3Cuboid::correct_coefficients()
 	{
-		float width(0.0), height(0.0), depth(0.001);
-		Eigen::Matrix3f mori;
-		Eigen::Vector3f face_center, cube_center;
-		Eigen::Vector3f intersection_axis, point_on_axis;
+		if (planes_.size() > 0) {
+			float width(0.0), height(0.0), depth(0.001);
+			Eigen::Matrix3f mori;
+			Eigen::Vector3f face_center, cube_center;
+			Eigen::Vector3f intersection_axis, point_on_axis;
 
-		if (planes_.size() == 1) {
-			width = planes_[0]->getProperty_width();
-			height = planes_[0]->getProperty_height();
+			if (planes_.size() == 1) {
+				width = planes_[0]->getProperty_width();
+				height = planes_[0]->getProperty_height();
 
 
-			mori(0, 0) = planes_[0]->getProperty_e0_x();
-			mori(1, 0) = planes_[0]->getProperty_e0_y();
-			mori(2, 0) = planes_[0]->getProperty_e0_z();
+				mori(0, 0) = planes_[0]->getProperty_e0_x();
+				mori(1, 0) = planes_[0]->getProperty_e0_y();
+				mori(2, 0) = planes_[0]->getProperty_e0_z();
 
-			mori(0, 1) = planes_[0]->getProperty_e1_x();
-			mori(1, 1) = planes_[0]->getProperty_e1_y();
-			mori(2, 1) = planes_[0]->getProperty_e1_z();
+				mori(0, 1) = planes_[0]->getProperty_e1_x();
+				mori(1, 1) = planes_[0]->getProperty_e1_y();
+				mori(2, 1) = planes_[0]->getProperty_e1_z();
 
-			mori(0, 2) = planes_[0]->getProperty_axis_x();
-			mori(1, 2) = planes_[0]->getProperty_axis_y();
-			mori(2, 2) = planes_[0]->getProperty_axis_z();
+				mori(0, 2) = planes_[0]->getProperty_axis_x();
+				mori(1, 2) = planes_[0]->getProperty_axis_y();
+				mori(2, 2) = planes_[0]->getProperty_axis_z();
 
-			face_center(0) = planes_[0]->getProperty_center_x();
-			face_center(1) = planes_[0]->getProperty_center_y();
-			face_center(2) = planes_[0]->getProperty_center_z();
+				face_center(0) = planes_[0]->getProperty_center_x();
+				face_center(1) = planes_[0]->getProperty_center_y();
+				face_center(2) = planes_[0]->getProperty_center_z();
 
-			cube_center(0) = face_center.x() + mori(0, 2) * depth/2;
-			cube_center(1) = face_center.y() + mori(1, 2) * depth/2;
-			cube_center(2) = face_center.z() + mori(2, 2) * depth/2;
+				cube_center(0) = face_center.x() + mori(0, 2) * depth / 2;
+				cube_center(1) = face_center.y() + mori(1, 2) * depth / 2;
+				cube_center(2) = face_center.z() + mori(2, 2) * depth / 2;
 
-		} else {
-			// Case of 2 or 3
-			float a1(planes_[0]->getProperty_axis_x());
-			float b1(planes_[0]->getProperty_axis_y());
-			float c1(planes_[0]->getProperty_axis_z());
-			float d1(planes_[0]->getProperty_d());
-
-			float a2(planes_[1]->getProperty_axis_x());
-			float b2(planes_[1]->getProperty_axis_y());
-			float c2(planes_[1]->getProperty_axis_z());
-			float d2(planes_[1]->getProperty_d());
-
-			// Calculate the intersection axis between the two planes
-			intersection_axis(0) = b1/a1 * (c2-a2*c1/a1) / (b2-a2*b1/a1) - c1 / a1;
-			intersection_axis(1) = -(c2-a2*c1/a1) / (b2-a2*b1/a1);
-			intersection_axis(2) = 1;
-
-			// Calculate a point on the axis
-			point_on_axis(0) = intersection_axis(0) + b1/a1 * (d2-a2*d1/a1) / (b2-a2*b1/a1) - d1/a1;
-			point_on_axis(1) = intersection_axis(1) - (d2-a2*d1/a1) / (b2-a2*b1/a1);
-			point_on_axis(2) = 0;
-
-			// Calculate height from projecting all points from all planes
-			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-			for (auto plane : planes_) {
-				*cloud += *plane->getPointCloud();
 			}
-			std::array<float, 2> height_arr(getPointCloudExtremes(
-				*cloud,
-				pcl::PointXYZ(point_on_axis.x(),point_on_axis.y(),point_on_axis.z()),
-				pcl::PointXYZ(intersection_axis.x(),intersection_axis.y(),intersection_axis.z())
-			));
-			height = height_arr[1]- height_arr[0];
+			else if (planes_.size() > 1) {
+				// Case of 2 or 3
+				float a1(planes_[0]->getProperty_axis_x());
+				float b1(planes_[0]->getProperty_axis_y());
+				float c1(planes_[0]->getProperty_axis_z());
+				float d1(planes_[0]->getProperty_d());
 
-			// Calculate width
-			Eigen::Vector3f face0_axis = { planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z() };
-			Eigen::Vector3f face0_axis_new = intersection_axis.cross(face0_axis);
-			std::array<float, 2> width_arr(getPointCloudExtremes(
-				*planes_[0]->getPointCloud(),
-				pcl::PointXYZ(planes_[0]->getProperty_center_x(), planes_[0]->getProperty_center_y(), planes_[0]->getProperty_center_z()),
-				pcl::PointXYZ(intersection_axis.x(), intersection_axis.y(), intersection_axis.z())
-			));
-			width = width_arr[1] - width_arr[0];
+				float a2(planes_[1]->getProperty_axis_x());
+				float b2(planes_[1]->getProperty_axis_y());
+				float c2(planes_[1]->getProperty_axis_z());
+				float d2(planes_[1]->getProperty_d());
 
-			// Calculate depth
-			Eigen::Vector3f face1_axis = { planes_[1]->getProperty_axis_x(), planes_[1]->getProperty_axis_y(), planes_[1]->getProperty_axis_z() };
-			Eigen::Vector3f face1_axis_new = intersection_axis.cross(face1_axis);
-			std::array<float, 2> depth_arr(getPointCloudExtremes(
-				*planes_[1]->getPointCloud(),
-				pcl::PointXYZ(planes_[1]->getProperty_center_x(), planes_[1]->getProperty_center_y(), planes_[1]->getProperty_center_z()),
-				pcl::PointXYZ(intersection_axis.x(), intersection_axis.y(), intersection_axis.z())
-			));
-			depth = depth_arr[1] - depth_arr[0];
+				// Calculate the intersection axis between the two planes
+				intersection_axis(0) = b1 / a1 * (c2 - a2 * c1 / a1) / (b2 - a2 * b1 / a1) - c1 / a1;
+				intersection_axis(1) = -(c2 - a2 * c1 / a1) / (b2 - a2 * b1 / a1);
+				intersection_axis(2) = 1;
+
+				// Calculate a point on the axis
+				point_on_axis(0) = intersection_axis(0) + b1 / a1 * (d2 - a2 * d1 / a1) / (b2 - a2 * b1 / a1) - d1 / a1;
+				point_on_axis(1) = intersection_axis(1) - (d2 - a2 * d1 / a1) / (b2 - a2 * b1 / a1);
+				point_on_axis(2) = 0;
+
+				// Calculate height from projecting all points from all planes
+				pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+				for (auto plane : planes_) {
+					*cloud += *plane->getPointCloud();
+				}
+				std::array<float, 2> height_arr(getPointCloudExtremes(
+					*cloud,
+					pcl::PointXYZ(point_on_axis.x(), point_on_axis.y(), point_on_axis.z()),
+					pcl::PointXYZ(intersection_axis.x(), intersection_axis.y(), intersection_axis.z())
+				));
+				height = height_arr[1] - height_arr[0];
+
+				// Calculate width
+				Eigen::Vector3f face0_axis = { planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z() };
+				Eigen::Vector3f face0_axis_new = intersection_axis.cross(face0_axis);
+				std::array<float, 2> width_arr(getPointCloudExtremes(
+					*planes_[0]->getPointCloud(),
+					pcl::PointXYZ(planes_[0]->getProperty_center_x(), planes_[0]->getProperty_center_y(), planes_[0]->getProperty_center_z()),
+					pcl::PointXYZ(intersection_axis.x(), intersection_axis.y(), intersection_axis.z())
+				));
+				width = width_arr[1] - width_arr[0];
+
+				// Calculate depth
+				Eigen::Vector3f face1_axis = { planes_[1]->getProperty_axis_x(), planes_[1]->getProperty_axis_y(), planes_[1]->getProperty_axis_z() };
+				Eigen::Vector3f face1_axis_new = intersection_axis.cross(face1_axis);
+				std::array<float, 2> depth_arr(getPointCloudExtremes(
+					*planes_[1]->getPointCloud(),
+					pcl::PointXYZ(planes_[1]->getProperty_center_x(), planes_[1]->getProperty_center_y(), planes_[1]->getProperty_center_z()),
+					pcl::PointXYZ(intersection_axis.x(), intersection_axis.y(), intersection_axis.z())
+				));
+				depth = depth_arr[1] - depth_arr[0];
 
 
-			mori(0, 0) = face0_axis_new.x();
-			mori(1, 0) = face0_axis_new.y();
-			mori(2, 0) = face0_axis_new.z();
+				mori(0, 0) = face0_axis_new.x();
+				mori(1, 0) = face0_axis_new.y();
+				mori(2, 0) = face0_axis_new.z();
 
-			mori(0, 1) = intersection_axis.x();
-			mori(1, 1) = intersection_axis.y();
-			mori(2, 1) = intersection_axis.z();
+				mori(0, 1) = intersection_axis.x();
+				mori(1, 1) = intersection_axis.y();
+				mori(2, 1) = intersection_axis.z();
 
-			mori(0, 2) = planes_[0]->getProperty_axis_x();
-			mori(1, 2) = planes_[0]->getProperty_axis_y();
-			mori(2, 2) = planes_[0]->getProperty_axis_z();
+				mori(0, 2) = planes_[0]->getProperty_axis_x();
+				mori(1, 2) = planes_[0]->getProperty_axis_y();
+				mori(2, 2) = planes_[0]->getProperty_axis_z();
 
-			face_center(0) = planes_[0]->getProperty_center_x();
-			face_center(1) = planes_[0]->getProperty_center_y();
-			face_center(2) = planes_[0]->getProperty_center_z();
+				face_center(0) = planes_[0]->getProperty_center_x();
+				face_center(1) = planes_[0]->getProperty_center_y();
+				face_center(2) = planes_[0]->getProperty_center_z();
 
-			cube_center(0) = face_center.x() + mori(0, 2) * depth / 2;
-			cube_center(1) = face_center.y() + mori(1, 2) * depth / 2;
-			cube_center(2) = face_center.z() + mori(2, 2) * depth / 2;
+				cube_center(0) = face_center.x() + mori(0, 2) * depth / 2;
+				cube_center(1) = face_center.y() + mori(1, 2) * depth / 2;
+				cube_center(2) = face_center.z() + mori(2, 2) * depth / 2;
+			}
+
+			Eigen::Quaternionf quat(mori);
+
+			//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+			coefficients_->values[0] = cube_center.x(); //Tx
+			coefficients_->values[1] = cube_center.y(); //Ty
+			coefficients_->values[2] = cube_center.z(); //Tz
+			coefficients_->values[3] = quat.x(); //Qx
+			coefficients_->values[4] = quat.y(); //Qy
+			coefficients_->values[5] = quat.z(); //Qz
+			coefficients_->values[6] = quat.w(); //Qw
+			coefficients_->values[7] = width;
+			coefficients_->values[8] = height;
+			coefficients_->values[9] = depth;
 		}
-
-		Eigen::Quaternionf quat(mori);
-
-		//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
-		coefficients_->values[0] = cube_center.x(); //Tx
-		coefficients_->values[1] = cube_center.y(); //Ty
-		coefficients_->values[2] = cube_center.z(); //Tz
-		coefficients_->values[3] = quat.x(); //Qx
-		coefficients_->values[4] = quat.y(); //Qy
-		coefficients_->values[5] = quat.z(); //Qz
-		coefficients_->values[6] = quat.w(); //Qw
-		coefficients_->values[7] = width;
-		coefficients_->values[8] = height;
-		coefficients_->values[9] = depth;
 	}
 
 	/* Update the properties of the Primitive3. */
@@ -242,5 +262,185 @@ namespace robin
 		properties_.width = coefficients_->values[7];
 		properties_.height = coefficients_->values[8];
 		properties_.depth = coefficients_->values[9];
+	}
+
+	/* Receives a PointCloud cut by reference and fits a sub-primitive to it. */
+	void Primitive3Cuboid::cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+	{
+		std::vector<Primitive3d1*> subprim_arr;
+		size_t n_subprims(0), n_pts(cloud->points.size());
+		while (cloud->points.size() > 0.3 * n_pts && n_subprims < MAX_SUBPRIMS) {
+			size_t cur_size(cloud->points.size());
+
+			Primitive3Line* cut_prim(new Primitive3Line);
+			cut_prim->fit(cloud, false);
+			*cloud_ += *cut_prim->getPointCloud();
+			subprim_arr.push_back(cut_prim);
+			++n_subprims;
+			std::cout << "\t" << cut_prim->getPointCloud()->size() << "/" << cur_size << std::endl;
+		}
+		subprims_.push_back(subprim_arr);
+	}
+
+	/* Receives a PointCloud cut and a segmentation object by reference and extracts/segments it by fitting to it. */
+	void Primitive3Cuboid::cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg)
+	{
+		std::vector<Primitive3d1*> subprim_arr;
+		size_t n_subprims(0), n_pts(cloud->points.size());
+		while (cloud->points.size() > 0.3 * n_pts && n_subprims < MAX_SUBPRIMS) {
+			size_t cur_size(cloud->points.size());
+
+			Primitive3Line* cut_prim(new Primitive3Line);
+			cut_prim->fit(cloud, seg);
+			*cloud_ += *cut_prim->getPointCloud();
+			subprim_arr.push_back(cut_prim);
+			++n_subprims;
+			std::cout << "\t" << cut_prim->getPointCloud()->size() << "/" << cur_size << std::endl;
+		}
+		subprims_.push_back(subprim_arr);
+	}
+
+	void Primitive3Cuboid::heuristic_laser_array_single()
+	{
+		/* Not implemented yet. */
+	}
+
+	void Primitive3Cuboid::heuristic_laser_array_cross()
+	{
+		float cube_width(0.001), cube_height(0.001), cube_depth(0.001);
+		std::list<float> save_cube_width, save_cube_height, save_cube_depth;
+
+		size_t MOVING_AVG_SIZE(50);
+
+		// Computing the boundaries of the line primitives
+		//   [-]
+		//   [-]
+		// [-----][--------]
+		//   [-]
+		//   [-]
+		//   [-]
+		std::vector<std::array<float, 2>> bounds_horizontal; // 0 deg
+		for (int i(0); i < subprims_[0].size(); ++i) {
+			std::array<float, 6> bounds_temp(getPointCloudRanges(*subprims_[0][i]->getPointCloud()));
+			bounds_horizontal.push_back({ bounds_temp[0] ,bounds_temp[1] });
+		}
+		std::vector<std::array<float, 2>> bounds_vertical; // 90 deg
+		for (int i(0); i < subprims_[1].size(); ++i) {
+			std::array<float, 6> bounds_temp(getPointCloudRanges(*subprims_[1][i]->getPointCloud()));
+			bounds_vertical.push_back({ bounds_temp[2] ,bounds_temp[3] });
+		}
+
+
+		// Finding the front cube_face spaned by the intersection '+'
+		int vertical_idx(-1), horizontal_idx(-1);
+		for (int k1(0); k1 < bounds_vertical.size(); ++k1) {
+			for (int k2(0); k2 < bounds_horizontal.size(); ++k2) {
+				if (bounds_vertical[k1][0] <= 0.0 && 0.0 < bounds_vertical[k1][1] && bounds_horizontal[k2][0] <= 0.0 && 0.0 < bounds_horizontal[k2][1]) {
+					vertical_idx = k1;
+					horizontal_idx = k2;
+					break;
+				}
+			}
+		}
+
+		if (vertical_idx != -1 && horizontal_idx != -1) {
+			std::cout << "vert_idx: " << vertical_idx << " hori_idx: " << horizontal_idx << std::endl;
+
+			// Find the centroid of the points in the line primitive
+			Eigen::Vector3f h_point(
+				subprims_[0][horizontal_idx]->getCoefficients()->values[0],
+				subprims_[0][horizontal_idx]->getCoefficients()->values[1],
+				subprims_[0][horizontal_idx]->getCoefficients()->values[2]
+			);
+			Eigen::Vector3f h_dir(
+				subprims_[0][horizontal_idx]->getCoefficients()->values[3],
+				subprims_[0][horizontal_idx]->getCoefficients()->values[4],
+				subprims_[0][horizontal_idx]->getCoefficients()->values[5]
+			);
+			Eigen::Vector3f h_center(h_point.x() + h_dir.x() * 0.5, h_point.y() + h_dir.y() * 0.5, h_point.z() + h_dir.z() * 0.5);
+
+			Eigen::Vector3f v_point(
+				subprims_[1][vertical_idx]->getCoefficients()->values[0],
+				subprims_[1][vertical_idx]->getCoefficients()->values[1],
+				subprims_[1][vertical_idx]->getCoefficients()->values[2]
+			);
+			Eigen::Vector3f v_dir(
+				subprims_[1][vertical_idx]->getCoefficients()->values[3],
+				subprims_[1][vertical_idx]->getCoefficients()->values[4],
+				subprims_[1][vertical_idx]->getCoefficients()->values[5]
+			);
+			Eigen::Vector3f v_center(v_point.x() + v_dir.x() * 0.5, v_point.y() + v_dir.y() * 0.5, v_point.z() + v_dir.z() * 0.5);
+
+
+			// Find the cube_face center
+			Eigen::Vector3f vec(v_center.x() - h_center.x(), v_center.y() - h_center.y(), v_center.z() - h_center.z());
+			Eigen::Vector3f face_center(
+				h_center.x() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.x(),
+				h_center.y() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.y(),
+				h_center.z() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.z()
+			);
+			Eigen::Vector3f cube_center;
+
+			// Cube primitive parameters
+			cube_width = h_dir.norm();
+			//cube_width = moving_average(cube_width, save_cube_width, MOVING_AVG_SIZE, EXPONENTIAL);
+			cube_height = v_dir.norm();
+			//cube_height = moving_average(cube_height, save_cube_height, MOVING_AVG_SIZE, EXPONENTIAL);
+
+			Eigen::Vector3f face_normal(h_dir.cross(v_dir));
+			face_normal.normalize();
+			if (face_normal.z() < 0.0) {
+				face_normal[0] = -face_normal.x();
+				face_normal[1] = -face_normal.y();
+				face_normal[2] = -face_normal.z();
+			}
+
+			if (subprims_[0].size() == 2 && subprims_[1].size() == 1) {
+				Eigen::Vector3f d_dir(
+					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[3],
+					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[4],
+					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[5]
+				);
+				cube_depth = d_dir.norm();
+			}
+			else if (subprims_[0].size() == 1 && subprims_[1].size() == 2) {
+				Eigen::Vector3f d_dir(
+					subprims_[1][int(1) - vertical_idx]->getCoefficients()->values[3],
+					subprims_[1][int(1) - vertical_idx]->getCoefficients()->values[4],
+					subprims_[1][int(1) - vertical_idx]->getCoefficients()->values[5]
+				);
+				cube_depth = d_dir.norm();
+			}
+			else if (subprims_[0].size() == 2 && subprims_[1].size() == 2) {
+				Eigen::Vector3f d_dir( // Has to be reviewed base on weight of the number of points
+					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[3],
+					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[4],
+					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[5]
+				);
+				cube_depth = d_dir.norm();
+			}
+			//cube_depth = moving_average(cube_depth, save_cube_depth, MOVING_AVG_SIZE, EXPONENTIAL);
+			cube_center = face_center + face_normal * cube_depth / 2;
+
+			Eigen::Quaternionf quat;
+			quat.setFromTwoVectors(Eigen::Vector3f(0.0, 0.0, 1.0), face_normal);
+
+			//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+			coefficients_->values[0] = cube_center.x(); //Tx
+			coefficients_->values[1] = cube_center.y(); //Ty
+			coefficients_->values[2] = cube_center.z(); //Tz
+			coefficients_->values[3] = quat.x(); //Qx
+			coefficients_->values[4] = quat.y(); //Qy
+			coefficients_->values[5] = quat.z(); //Qz
+			coefficients_->values[6] = quat.w(); //Qw
+			coefficients_->values[7] = cube_width;
+			coefficients_->values[8] = cube_height;
+			coefficients_->values[9] = cube_depth;
+		}
+	}
+
+	void Primitive3Cuboid::heuristic_laser_array_star()
+	{
+		/* Not implemented yet. */
 	}
 }

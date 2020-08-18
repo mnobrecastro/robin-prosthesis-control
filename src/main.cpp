@@ -150,12 +150,12 @@ int main(int argc, char** argv)
 	robin::LaserScanner* laser_3(new robin::LaserScanner(mycam, 1.0, 1.0, 0.0, 0.0, 0.001));
 	mysolver.addSensor(laser_3);*/
 
-	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
+	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.001));
 	mysolver.addSensor(myarr);
 	//-----
 
 	// Create a Primitive
-	robin::Primitive3Sphere* prim(new robin::Primitive3Sphere);
+	robin::Primitive3Cuboid* prim(new robin::Primitive3Cuboid);
 	prim->setVisualizeOnOff(true);
 
 	// Create a PCL visualizer
