@@ -29,8 +29,9 @@ namespace robin {
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr slice(new pcl::PointCloud<pcl::PointXYZ>());
 		for (auto p : cloud.points) {
-			if (std::abs(projectionDistance(p)) < params_.tol) {
-				slice->push_back(pcl::PointXYZ(p.x, p.y, p.z));
+			if (std::abs(this->projectionDistance(p)) < params_.tol/2) {
+				//slice->push_back(pcl::PointXYZ(p.x, p.y, p.z));
+				slice->push_back(this->projectIntoPlane(p));
 			}
 		}
 		pcl::copyPointCloud(*slice, cloud_slice);
@@ -38,7 +39,17 @@ namespace robin {
 
 	float LaserScanner::projectionDistance(const pcl::PointXYZ& p)
 	{
-		return std::abs(params_.a * p.x + params_.b * p.y + params_.c * p.z + params_.d) / std::sqrt(std::pow(params_.a, 2) + std::pow(params_.b, 2) + std::pow(params_.c, 2)); 
+		return (params_.a * p.x + params_.b * p.y + params_.c * p.z + params_.d) / std::sqrt(std::pow(params_.a, 2) + std::pow(params_.b, 2) + std::pow(params_.c, 2)); 
+	}
+
+	pcl::PointXYZ LaserScanner::projectIntoPlane(const pcl::PointXYZ& p)
+	{
+		pcl::PointXYZ proj_p;
+		float d(projectionDistance(p));
+		proj_p.x = p.x - d * params_.a / std::sqrt(std::pow(params_.a, 2) + std::pow(params_.b, 2) + std::pow(params_.c, 2));
+		proj_p.y = p.y - d * params_.b / std::sqrt(std::pow(params_.a, 2) + std::pow(params_.b, 2) + std::pow(params_.c, 2));
+		proj_p.z = p.z - d * params_.c / std::sqrt(std::pow(params_.a, 2) + std::pow(params_.b, 2) + std::pow(params_.c, 2));
+		return proj_p;
 	}
 
 }

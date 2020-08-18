@@ -215,7 +215,9 @@ namespace robin
 
 	void Primitive3d3::addSubPrimitive(Primitive3d1* p)
 	{
-		subprims_.push_back(p);
+		std::vector<Primitive3d1*> arr;
+		arr.push_back(p);
+		subprims_.push_back(arr);
 		are_subprims_custom_ = true;
 	}
 
@@ -226,8 +228,11 @@ namespace robin
 			cloud_->clear();
 		}
 		if (!subprims_.empty()) {
-			for (auto sp : subprims_) {
-				delete sp;
+			for (auto arr : subprims_) {
+				for (auto sp : arr) {
+					delete sp;
+				}
+				arr.clear();
 			}
 			subprims_.clear();
 		}

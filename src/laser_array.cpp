@@ -6,9 +6,9 @@ namespace robin
 
 	LaserArraySingle::LaserArraySingle() {}
 
-	LaserArraySingle::LaserArraySingle(CameraDepth* cam)
+	LaserArraySingle::LaserArraySingle(CameraDepth* cam, float tol)
 	{
-		LaserScanner* laser_h(new LaserScanner(cam, 0.0, 1.0, 0.0, 0.0, 0.001)); // 0 deg
+		LaserScanner* laser_h(new LaserScanner(cam, 0.0, 1.0, 0.0, 0.0, tol)); // 0 deg
 		sensors_.push_back(laser_h);
 	}
 
@@ -20,11 +20,11 @@ namespace robin
 
 	LaserArrayCross::LaserArrayCross() {}
 
-	LaserArrayCross::LaserArrayCross(CameraDepth* cam)
+	LaserArrayCross::LaserArrayCross(CameraDepth* cam, float tol)
 	{
-		LaserScanner* laser_h(new LaserScanner(cam, 0.0, 1.0, 0.0, 0.0, 0.001)); // 0 deg
+		LaserScanner* laser_h(new LaserScanner(cam, 0.0, 1.0, 0.0, 0.0, tol)); // 0 deg
 		sensors_.push_back(laser_h);
-		LaserScanner* laser_v(new LaserScanner(cam, 1.0, 0.0, 0.0, 0.0, 0.001)); // 90 deg
+		LaserScanner* laser_v(new LaserScanner(cam, 1.0, 0.0, 0.0, 0.0, tol)); // 90 deg
 		sensors_.push_back(laser_v);
 	}
 
@@ -36,15 +36,15 @@ namespace robin
 
 	LaserArrayStar::LaserArrayStar() {}
 
-	LaserArrayStar::LaserArrayStar(CameraDepth* cam)
+	LaserArrayStar::LaserArrayStar(CameraDepth* cam, float tol)
 	{
-		LaserScanner* laser_0(new LaserScanner(cam, 0.0, 1.0, 0.0, 0.0, 0.001)); // 0 deg
+		LaserScanner* laser_0(new LaserScanner(cam, 0.0, 1.0, 0.0, 0.0, tol)); // 0 deg
 		sensors_.push_back(laser_0);
-		LaserScanner* laser_1(new LaserScanner(cam, -1.0, 1.0, 0.0, 0.0, 0.001)); // 45deg
+		LaserScanner* laser_1(new LaserScanner(cam, -1.0, 1.0, 0.0, 0.0, tol)); // 45deg
 		sensors_.push_back(laser_1);
-		LaserScanner* laser_2(new LaserScanner(cam, 1.0, 0.0, 0.0, 0.0, 0.001)); // 90 deg
+		LaserScanner* laser_2(new LaserScanner(cam, 1.0, 0.0, 0.0, 0.0, tol)); // 90 deg
 		sensors_.push_back(laser_2);
-		LaserScanner* laser_3(new LaserScanner(cam, 1.0, 1.0, 0.0, 0.0, 0.001)); // 135 deg
+		LaserScanner* laser_3(new LaserScanner(cam, 1.0, 1.0, 0.0, 0.0, tol)); // 135 deg
 		sensors_.push_back(laser_3);
 	}
 

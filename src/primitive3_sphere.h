@@ -4,6 +4,8 @@
 
 #include <typeinfo>
 
+#define MAX_SUBPRIMS 1
+
 namespace robin
 {
 	class Primitive3Sphere :
@@ -44,6 +46,8 @@ namespace robin
 		/* Receives a PointCloud cut and a segmentation object by reference and extracts/segments it by fitting to it. */
 		void cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg);
 
+		void heuristic_laser_array_single();
 		void heuristic_laser_array_cross();
+		void heuristic_laser_array_star();
 	};
 }

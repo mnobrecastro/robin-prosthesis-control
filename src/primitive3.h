@@ -154,7 +154,7 @@ namespace robin
 		void heuristic(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloud_arr, pcl::SACSegmentation<pcl::PointXYZ>* seg, HEURISTIC heu);
 
 	protected:
-		std::vector<Primitive3d1*> subprims_;
+		std::vector< std::vector<Primitive3d1*>> subprims_;
 		bool are_subprims_custom_ = false;
 
 		/* Receives a PointCloud cut by reference and fits a sub-primitive to it. */

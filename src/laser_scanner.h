@@ -46,6 +46,7 @@ namespace robin {
 		void fromParent(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 		void slicePointCloud(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointCloud<pcl::PointXYZ>& cloud_slice);
 		float projectionDistance(const pcl::PointXYZ& p);
+		pcl::PointXYZ projectIntoPlane(const pcl::PointXYZ& p);
 
 	private:
 		friend class RealsenseD400;

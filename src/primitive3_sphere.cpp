@@ -83,13 +83,14 @@ namespace robin
 		/* Checks if the cut sub-primitives are valid. */
 		bool valid_subprims(true);
 		if (!subprims_.empty()) {
-			int i(0);
-			while(valid_subprims) {
-				if (subprims_[i]->getPointCloud()->empty()) {
-					valid_subprims = false;
-					continue;
+			for (auto arr : subprims_) {
+				for (auto sp : arr) {
+					if (sp->getPointCloud()->empty()) {
+						valid_subprims = false;
+						break;
+					}
 				}
-				++i;
+				if (!valid_subprims) { break; }
 			}
 			if (valid_subprims) { return true; }
 		}
@@ -119,21 +120,41 @@ namespace robin
 	/* Receives a PointCloud cut by reference and fits a sub-primitive to it. */
 	void Primitive3Sphere::cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 	{
-		Primitive3Circle* cut_prim(new Primitive3Circle);
-		cut_prim->fit(cloud, false);
-		*cloud_ += *cut_prim->getPointCloud();
-		subprims_.push_back(cut_prim);
-		std::cout << "\t" << cut_prim->getPointCloud()->size() << "/" << cloud->size() << std::endl;
+		std::vector<Primitive3d1*> subprim_arr;
+		size_t n_subprims(0), n_pts(cloud->points.size());
+		while (cloud->points.size() > 0.3 * n_pts && n_subprims < MAX_SUBPRIMS) {
+			size_t cur_size(cloud->points.size());
+
+			Primitive3Circle* cut_prim(new Primitive3Circle);
+			cut_prim->fit(cloud, false);
+			*cloud_ += *cut_prim->getPointCloud();
+			subprim_arr.push_back(cut_prim);
+			++n_subprims;
+			std::cout << "\t" << cut_prim->getPointCloud()->size() << "/" << cloud->points.size() << std::endl;
+		}
+		subprims_.push_back(subprim_arr);
 	}
 
 	/* Receives a PointCloud cut and a segmentation object by reference and extracts/segments it by fitting to it. */
 	void Primitive3Sphere::cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg)
 	{
-		Primitive3Circle* cut_prim(new Primitive3Circle);
-		cut_prim->fit(cloud, seg);
-		*cloud_ += *cut_prim->getPointCloud();
-		subprims_.push_back(cut_prim);
-		std::cout << "\t" << cut_prim->getPointCloud()->size() << "/" << cloud->size() << std::endl;
+		std::vector<Primitive3d1*> subprim_arr;
+		size_t n_subprims(0), n_pts(cloud->points.size());
+		while (cloud->points.size() > 0.3 * n_pts && n_subprims < MAX_SUBPRIMS) {
+			size_t cur_size(cloud->points.size());
+			Primitive3Circle* cut_prim(new Primitive3Circle);
+			cut_prim->fit(cloud, seg);
+			*cloud_ += *cut_prim->getPointCloud();
+			subprim_arr.push_back(cut_prim);
+			++n_subprims;
+			std::cout << "\t" << cut_prim->getPointCloud()->size() << "/" << cloud->points.size() << std::endl;
+		}
+		subprims_.push_back(subprim_arr);
+	}
+
+	void Primitive3Sphere::heuristic_laser_array_single()
+	{
+		/* Not implemented yet. */
 	}
 
 	void Primitive3Sphere::heuristic_laser_array_cross()
@@ -151,10 +172,10 @@ namespace robin
 		//   [-]
 		//   [-]
 
-		std::array<float, 6> bounds_temp_h(getPointCloudRanges(*subprims_[0]->getPointCloud())); // 0 deg
+		std::array<float, 6> bounds_temp_h(getPointCloudRanges(*subprims_[0][0]->getPointCloud())); // 0 deg
 		std::array<float, 2> bounds_horizontal({ bounds_temp_h[0] ,bounds_temp_h[1] });
 
-		std::array<float, 6> bounds_temp_v(getPointCloudRanges(*subprims_[1]->getPointCloud())); // 90 deg
+		std::array<float, 6> bounds_temp_v(getPointCloudRanges(*subprims_[1][0]->getPointCloud())); // 90 deg
 		std::array<float, 2> bounds_vertical({ bounds_temp_v[2] ,bounds_temp_v[3] });		
 
 
@@ -169,19 +190,19 @@ namespace robin
 			std::cout << "vert_idx: " << vertical_idx << " hori_idx: " << horizontal_idx << std::endl;
 
 			Eigen::Vector3f h_center(
-				subprims_[0]->getCoefficients()->values[0],
-				subprims_[0]->getCoefficients()->values[1], //0.0, //arr_coeffs_subprim_horizontal[horizontal_idx]->values[1],
-				subprims_[0]->getCoefficients()->values[2]
+				subprims_[0][0]->getCoefficients()->values[0],
+				subprims_[0][0]->getCoefficients()->values[1], //0.0, //arr_coeffs_subprim_horizontal[horizontal_idx]->values[1],
+				subprims_[0][0]->getCoefficients()->values[2]
 			);
-			float h_radius(subprims_[0]->getCoefficients()->values[6]);
+			float h_radius(subprims_[0][0]->getCoefficients()->values[6]);
 
 			// Find each circle (cyl coef) center among the points in the subprimitive
 			Eigen::Vector3f v_center(
-				subprims_[1]->getCoefficients()->values[0], //0.0, //arr_coeffs_subprim_vertical[vertical_idx]->values[0],
-				subprims_[1]->getCoefficients()->values[1],
-				subprims_[1]->getCoefficients()->values[2]
+				subprims_[1][0]->getCoefficients()->values[0], //0.0, //arr_coeffs_subprim_vertical[vertical_idx]->values[0],
+				subprims_[1][0]->getCoefficients()->values[1],
+				subprims_[1][0]->getCoefficients()->values[2]
 			);
-			float v_radius(subprims_[1]->getCoefficients()->values[6]);
+			float v_radius(subprims_[1][0]->getCoefficients()->values[6]);
 
 
 			// Find the sphere center
@@ -196,10 +217,10 @@ namespace robin
 			coefficients_->values[2] = sphere_center.z(); //z
 			coefficients_->values[3] = sphere_radius; //r
 		}
-		//else {
-			//this->reset();
-		//}
 	}
 
-
+	void Primitive3Sphere::heuristic_laser_array_star()
+	{
+		/* Not implemented yet. */
+	}
 }

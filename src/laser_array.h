@@ -22,7 +22,7 @@ namespace robin {
 	{
 	public:
 		LaserArraySingle();
-		LaserArraySingle(CameraDepth* cam);
+		LaserArraySingle(CameraDepth* cam, float tol=0.001);
 		~LaserArraySingle();
 
 	protected:
@@ -34,7 +34,7 @@ namespace robin {
 	{
 	public:
 		LaserArrayCross();
-		LaserArrayCross(CameraDepth* cam);
+		LaserArrayCross(CameraDepth* cam, float tol=0.001);
 		~LaserArrayCross();
 
 	protected:
@@ -46,7 +46,7 @@ namespace robin {
 	{
 	public:
 		LaserArrayStar();
-		LaserArrayStar(CameraDepth* cam);
+		LaserArrayStar(CameraDepth* cam, float tol=0.001);
 		~LaserArrayStar();
 
 	protected:

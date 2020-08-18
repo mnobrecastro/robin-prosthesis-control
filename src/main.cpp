@@ -113,8 +113,8 @@ int main(int argc, char** argv)
 	// Declare a solver3
 	//robin::Solver3LCCP mysolver;
 	robin::Solver3Lasers mysolver;
-	mysolver.setCrop(-0.100, 0.100, -0.100, 0.100, 0.100, 0.200); //0.106 or 0.160
-	mysolver.setDownsample(0.001f); //0.0025f
+	mysolver.setCrop(-0.100, 0.100, -0.100, 0.100, 0.100, 0.250); //0.106 or 0.160
+	//mysolver.setDownsample(0.001f); //0.0025f
 	mysolver.setPlaneRemoval(false);
 	//solver.setUseNormals(true);
 	
@@ -150,7 +150,7 @@ int main(int argc, char** argv)
 	robin::LaserScanner* laser_3(new robin::LaserScanner(mycam, 1.0, 1.0, 0.0, 0.0, 0.001));
 	mysolver.addSensor(laser_3);*/
 
-	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam));
+	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
 	mysolver.addSensor(myarr);
 	//-----
 
