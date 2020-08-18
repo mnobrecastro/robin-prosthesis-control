@@ -155,7 +155,7 @@ int main(int argc, char** argv)
 	//-----
 
 	// Create a Primitive
-	robin::Primitive3Cuboid* prim(new robin::Primitive3Cuboid);
+	robin::Primitive3Cylinder* prim(new robin::Primitive3Cylinder);
 	prim->setVisualizeOnOff(true);
 
 	// Create a PCL visualizer
