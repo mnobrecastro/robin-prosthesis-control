@@ -158,59 +158,6 @@ namespace robin
 	}
 
 
-
-	/* PointCloud utils */
-
-	float Primitive3::dotPointXYZ(pcl::PointXYZ a, pcl::PointXYZ b)
-	{
-		return a.x * b.x + a.y * b.y + a.z * b.z;
-	}
-
-	float Primitive3::normPointXYZ(pcl::PointXYZ c)
-	{
-		return std::sqrt(c.x * c.x + c.y * c.y + c.z * c.z);
-	}
-
-	std::array<float, 2> Primitive3::getPointCloudExtremes(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointXYZ center, pcl::PointXYZ axis)
-	{
-		std::array<float, 2> arr = {1000.0, -1000.0};
-		pcl::PointXYZ vec;
-		float scalar_proj;
-		for (size_t i = 0; i < cloud.points.size(); ++i) { 
-			vec.x = cloud.points[i].x - center.x;
-			vec.y = cloud.points[i].y - center.y;
-			vec.z = cloud.points[i].z - center.z;
-			scalar_proj = dotPointXYZ(axis, vec) / normPointXYZ(axis);
-			if (scalar_proj < arr[0])
-				arr[0] = scalar_proj;
-			if (scalar_proj > arr[1])
-				arr[1] = scalar_proj;
-		}
-		return arr;
-	}
-
-	std::array<float, 6> Primitive3::getPointCloudRanges(const pcl::PointCloud<pcl::PointXYZ>& cloud)
-	{
-		std::array<float, 6> arr = { 1000.0, -1000.0, 1000.0, -1000.0, 1000.0, -1000.0};
-		for (auto point : cloud.points) {
-			if (point.x < arr[0])
-				arr[0] = point.x;
-			if (point.x > arr[1])
-				arr[1] = point.x;
-			if (point.y < arr[2])
-				arr[2] = point.y;
-			if (point.y > arr[3])
-				arr[3] = point.y;
-			if (point.z < arr[4])
-				arr[4] = point.z;
-			if (point.z > arr[5])
-				arr[5] = point.z;
-		}
-		return arr;
-	}
-
-
-
 	/// PRIMITIVE3D3
 
 	void Primitive3d3::addSubPrimitive(Primitive3d1* p)
@@ -293,6 +240,90 @@ namespace robin
 			this->heuristic_laser_array_star();
 			break;
 		}
+	}
+
+
+
+
+
+
+
+	/* PointCloud utils */
+
+	float Primitive3::dotPointXYZ(pcl::PointXYZ a, pcl::PointXYZ b)
+	{
+		return a.x * b.x + a.y * b.y + a.z * b.z;
+	}
+
+	float Primitive3::normPointXYZ(pcl::PointXYZ c)
+	{
+		return std::sqrt(c.x * c.x + c.y * c.y + c.z * c.z);
+	}
+
+	/* Calculates the extreme projection values of all PointXYZ in the PointCloud along a given axis. */
+	std::array<float, 2> Primitive3::getPointCloudExtremes(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointXYZ center, pcl::PointXYZ axis)
+	{
+		std::array<float, 2> arr = { 1000.0, -1000.0 };
+		pcl::PointXYZ vec;
+		float scalar_proj;
+		for (size_t i = 0; i < cloud.points.size(); ++i) {
+			vec.x = cloud.points[i].x - center.x;
+			vec.y = cloud.points[i].y - center.y;
+			vec.z = cloud.points[i].z - center.z;
+			scalar_proj = dotPointXYZ(axis, vec) / normPointXYZ(axis);
+			if (scalar_proj < arr[0])
+				arr[0] = scalar_proj;
+			if (scalar_proj > arr[1])
+				arr[1] = scalar_proj;
+		}
+		return arr;
+	}
+
+	/* Calculates the projection extremes of a point cloud about a specific axis 'axis' from point 'center'. */
+	std::array<float, 2> Primitive3::getPointCloudExtremes(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointXYZ center, pcl::PointXYZ axis, pcl::PointXYZ& min, pcl::PointXYZ& max)
+	{
+		std::array<float, 2> arr = { 1000.0, -1000.0 };
+		pcl::PointXYZ vec;
+		float scalar_proj;
+		for (size_t i = 0; i < cloud.points.size(); ++i) {
+			vec.x = cloud.points[i].x - center.x;
+			vec.y = cloud.points[i].y - center.y;
+			vec.z = cloud.points[i].z - center.z;
+			scalar_proj = dotPointXYZ(axis, vec) / normPointXYZ(axis);
+			if (scalar_proj < arr[0]){
+				arr[0] = scalar_proj;
+				min.x = cloud.points[i].x;
+				min.y = cloud.points[i].y;
+				min.z = cloud.points[i].z;
+			}
+			if (scalar_proj > arr[1]) {
+				arr[1] = scalar_proj;
+				max.x = cloud.points[i].x;
+				max.y = cloud.points[i].y;
+				max.z = cloud.points[i].z;
+			}
+		}
+		return arr;
+	}
+
+	std::array<float, 6> Primitive3::getPointCloudRanges(const pcl::PointCloud<pcl::PointXYZ>& cloud)
+	{
+		std::array<float, 6> arr = { 1000.0, -1000.0, 1000.0, -1000.0, 1000.0, -1000.0 };
+		for (auto point : cloud.points) {
+			if (point.x < arr[0])
+				arr[0] = point.x;
+			if (point.x > arr[1])
+				arr[1] = point.x;
+			if (point.y < arr[2])
+				arr[2] = point.y;
+			if (point.y > arr[3])
+				arr[3] = point.y;
+			if (point.z < arr[4])
+				arr[4] = point.z;
+			if (point.z > arr[5])
+				arr[5] = point.z;
+		}
+		return arr;
 	}
 
 }

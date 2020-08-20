@@ -119,6 +119,9 @@ namespace robin
 		/* Calculates the extreme projection values of all PointXYZ in the PointCloud along a given axis. */
 		std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointXYZ center, pcl::PointXYZ axis);
 
+		/* Calculates the projection extremes of a point cloud about a specific axis 'axis' from point 'center'. */
+		std::array<float, 2> getPointCloudExtremes(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointXYZ center, pcl::PointXYZ axis, pcl::PointXYZ& min, pcl::PointXYZ& max);
+
 		/* Calculates the ranges (min,max) of PointCloud along the x-, y- and z-axis. */
 		std::array<float, 6> getPointCloudRanges(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 	};

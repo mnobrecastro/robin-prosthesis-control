@@ -4,7 +4,9 @@
 #include "primitive3_line.h"
 
 #include <vector>
+#include <array>
 #include <typeinfo>
+#include <cmath>
 
 #define MAX_SUBPRIMS 2
 
@@ -39,6 +41,8 @@ namespace robin
 		} properties_;
 
 		std::vector<Primitive3Plane*> planes_;
+
+		std::array<float,12> plot_;
 
 		/* Checks if the fit is valid. */
 		bool is_fit_valid();
