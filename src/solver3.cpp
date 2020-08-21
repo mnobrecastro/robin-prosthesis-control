@@ -14,6 +14,10 @@ namespace robin
 		return cloud_;
 	}
 
+	pcl::PointCloud<pcl::PointXYZ>::Ptr Solver3::getPreprocessed() const {
+		return cloud_preproc_;
+	}
+
 	void Solver3::addSensor(robin::Sensor3* sensor)
 	{
 		sensors_.push_back(sensor);
@@ -137,6 +141,8 @@ namespace robin
 
 		this->crop();
 		this->downsample();
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_preproc(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
+		cloud_preproc_ = cloud_preproc;
 
 		this->segment();
 	}

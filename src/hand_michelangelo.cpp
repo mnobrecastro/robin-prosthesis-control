@@ -261,16 +261,20 @@ namespace robin
 					if (grasp_type == 0) { configstate_.grasp_type = GRASP::PALMAR; }
 					else if (grasp_type == 1) { configstate_.grasp_type = GRASP::LATERAL; }
 
-					/* byte6: "Aperture" (int8), range [0,100]%
+					/* ---- bugged ---- byte6: "Aperture" (int8), range [0,100]%
+					 * byte0: "Main Drive" (uint8), main drive, range [0,100]%
 					 * -> Palmar = [0.000,0.110]m
 					 * -> Lateral = [0.000,0.070]m */
-					int grasp_size = +int8_t(*(packet + 6));
+					//int grasp_size = +int8_t(*(packet + 6));
+					int grasp_size = +uint8_t(*(packet + 0));
 					switch (configstate_.grasp_type) {
 					case GRASP::PALMAR:
-						configstate_.grasp_size = float(grasp_size / 100.0 * 0.110);
+						//configstate_.grasp_size = float(grasp_size) / 100.0 * 0.110;
+						configstate_.grasp_size = (float(grasp_size)-161.0)/(255.0-161.0) * 0.110;
 						break;
 					case GRASP::LATERAL:
-						configstate_.grasp_size = float(grasp_size / 100.0 * 0.070);
+						//configstate_.grasp_size = float(grasp_size) / 100 * 0.070;
+						configstate_.grasp_size = (89.0-float(grasp_size))/(89.0-0.0) * 0.070; // inverted
 						break;
 					}
 

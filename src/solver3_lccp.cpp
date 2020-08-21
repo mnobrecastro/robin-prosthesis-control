@@ -39,9 +39,9 @@ namespace robin
 		pcl::SupervoxelClustering<pcl::PointXYZRGBA> supervox(voxel_resolution, seed_resolution);
 		supervox.setInputCloud(cloud_rgba);
 		supervox.setUseSingleCameraTransform(false);
-		supervox.setColorImportance(0.0f);
-		supervox.setSpatialImportance(1.0f);
-		supervox.setNormalImportance(4.0f);
+		supervox.setColorImportance(0.0f); //0.0f
+		supervox.setSpatialImportance(1.0f); //1.0f
+		supervox.setNormalImportance(4.0f); //4.0f
 		if (use_normal_estimation) { supervox.setNormalCloud(cloud_normals); }
 
 		// Extract the supervoxels
@@ -61,7 +61,7 @@ namespace robin
 		lccp.setConcavityToleranceThreshold(10.0);
 		lccp.setSanityCheck(false);
 		lccp.setSmoothnessCheck(true, voxel_resolution, seed_resolution, 0.1); // smoothness_threshold
-		lccp.setKFactor((unsigned int)0); // k_factor = 1 for extended_convexity
+		lccp.setKFactor((unsigned int)1); //0 // k_factor = 1 for extended_convexity
 		lccp.setInputSupervoxels(supervoxel_clusters, supervoxel_adjacency);
 		lccp.setMinSegmentSize((unsigned int)0);
 		lccp.segment();
@@ -87,6 +87,7 @@ namespace robin
 		else {
 			// Fails if no centroid was selected as the biggest uint32_t (2**32-1) is retrieved
 			std::cout << "LCCP failed to find a suitable point cloud among all labeled ones." << std::endl;
+			return;
 		}
 
 		Solver3::segment();

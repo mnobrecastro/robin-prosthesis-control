@@ -75,7 +75,7 @@ namespace robin
 					}
 				}
 				else {
-					hand_->stop();
+					hand_->supinate(0.0, false); //stop();
 				}
 			}
 			else {
@@ -95,7 +95,7 @@ namespace robin
 					}
 				}
 				else {
-					hand_->stop();
+					hand_->supinate(0.0, false); //stop();
 				}
 			}
 			hand_->send_command();
@@ -132,19 +132,19 @@ namespace robin
 
 		void ControlSimple::estimate_grasp_size(robin::Primitive3* prim)
 		{
-			float grasp_size;
+			float grasp_size(10.0);
 			switch (find_primitive3_type(prim)){
 			case Primitive3Type::PRIMITIVE3_SPHERE:
 				grasp_size = 2 * prim->getProperty_radius();
 				break;
 			case Primitive3Type::PRIMITIVE3_CUBOID:
-				if (prim->getProperty_width() > 0.001) {
+				if (prim->getProperty_width() > 0.005) {
 					grasp_size = prim->getProperty_width();
 				}
-				if (prim->getProperty_height() > 0.001 && grasp_size > prim->getProperty_height()) {
+				if (prim->getProperty_height() > 0.005 && grasp_size > prim->getProperty_height()) {
 					grasp_size = prim->getProperty_height();
 				}
-				if (prim->getProperty_depth() > 0.001 && grasp_size > prim->getProperty_depth()) {
+				if (prim->getProperty_depth() > 0.005 && grasp_size > prim->getProperty_depth()) {
 					grasp_size = prim->getProperty_depth();
 				}
 				break;

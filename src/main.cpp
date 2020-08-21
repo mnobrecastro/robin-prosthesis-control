@@ -111,10 +111,10 @@ int main(int argc, char** argv)
 	robin::control::ControlSimple controller(myhand);
 
 	// Declare a solver3
-	//robin::Solver3LCCP mysolver;
-	robin::Solver3Lasers mysolver;
-	mysolver.setCrop(-0.100, 0.100, -0.100, 0.100, 0.100, 0.250); //0.106 or 0.160
-	//mysolver.setDownsample(0.001f); //0.0025f
+	robin::Solver3LCCP mysolver;
+	//robin::Solver3Lasers mysolver;
+	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.100, 0.250); //0.106 or 0.160
+	//mysolver.setDownsample(0.005f); //Cyl=0.0025f //Cub=0.005f
 	mysolver.setPlaneRemoval(false);
 	//solver.setUseNormals(true);
 	
@@ -132,7 +132,10 @@ int main(int argc, char** argv)
 	// Create a sensor from a camera
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
 	mycam->printInfo();
-	//mysolver.addSensor(mycam);
+	mysolver.addSensor(mycam);
+
+	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.001));
+	//mysolver.addSensor(myarr);
 
 	//-----
 	// Create a sensor from another sensor
@@ -149,13 +152,10 @@ int main(int argc, char** argv)
 	mysolver.addSensor(laser_2);
 	robin::LaserScanner* laser_3(new robin::LaserScanner(mycam, 1.0, 1.0, 0.0, 0.0, 0.001));
 	mysolver.addSensor(laser_3);*/
-
-	robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001));
-	mysolver.addSensor(myarr);
 	//-----
 
 	// Create a Primitive
-	robin::Primitive3Cuboid* prim(new robin::Primitive3Cuboid);
+	robin::Primitive3Cylinder* prim(new robin::Primitive3Cylinder);
 	prim->setVisualizeOnOff(true);
 
 	// Create a PCL visualizer
@@ -176,7 +176,7 @@ int main(int argc, char** argv)
 
 		mysolver.solve(*prim);
 
-		/*
+		///*
 		controller.evaluate(prim);
 		std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
 		std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
@@ -191,7 +191,7 @@ int main(int argc, char** argv)
 			std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
 		}
 		std::cout << "\n" << std::endl;		
-		*/
+		//*/
 
 		//---- RENDERING ----
 		if (RENDER) {
@@ -204,8 +204,12 @@ int main(int argc, char** argv)
 				cloud_color_h.setInputCloud(s->getPointCloud());
 				viewer->addPointCloud(s->getPointCloud(), cloud_color_h, std::to_string(std::rand()));
 			}*/
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> preproc_color_h(255, 255, 255);
+			preproc_color_h.setInputCloud(mysolver.getPreprocessed());
+			viewer->addPointCloud(mysolver.getPreprocessed(), preproc_color_h, "preproc");
 
-			//
+			///
+
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);
 			solver_color_h.setInputCloud(mysolver.getPointCloud());
 			viewer->addPointCloud(mysolver.getPointCloud(), solver_color_h, "solver");
