@@ -2,8 +2,13 @@
 #include "solver.h"
 #include "sensor3.h"
 #include "primitive3_plane.h"
+#include "primitive3_sphere.h"
+#include "primitive3_cuboid.h"
+#include "primitive3_cylinder.h"
 
 #include <vector>
+#include <typeinfo>
+#include <thread>
 
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
@@ -43,18 +48,18 @@ namespace robin
 
 		std::vector<robin::Sensor3*> getSensors() const;
 
-		void solve(robin::Primitive3& prim);
+		void solve(robin::Primitive3d3*& prim);
 
 		virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;
 
 	protected:
 		std::vector<robin::Sensor3*> sensors_;
-		Primitive3* primitive_ = nullptr;
+		Primitive3d3* primitive_ = nullptr;
 
-		/* Point cloud (temp) that can be manipulated */
+		/* Point cloud (temp) that can be manipulated. */
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
 
-		/* Pre-processed point cloud (after cropping and downsampling) */
+		/* Pre-processed point cloud (after cropping and downsampling). */
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_preproc_;
 
 		bool filterOnOff_ = false;
@@ -73,5 +78,8 @@ namespace robin
 		pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_ptr_ = nullptr;
 
 		virtual void segment();
+		
+		/* Auxiliary Primitive fitting function for multithreading. */
+		void fitPrimitive(robin::Primitive3d3*& prim, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::SACSegmentation<pcl::PointXYZ>*& seg_obj);
 	};
 }

@@ -11,6 +11,31 @@ namespace robin
 	}
 	Primitive3::~Primitive3() {}
 
+	Primitive3::Primitive3(const Primitive3& prim)
+	{
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>(*prim.cloud_));
+		cloud_ = cloud;
+		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients(*prim.coefficients_));
+		coefficients_ = coefficients;
+				
+		properties_.center_x = prim.properties_.center_x;
+		properties_.center_y = prim.properties_.center_y;
+		properties_.center_z = prim.properties_.center_z;
+		properties_.width = prim.properties_.width;
+		properties_.height = prim.properties_.height;
+		properties_.depth = prim.properties_.depth;
+		properties_.axis_x = prim.properties_.axis_x;
+		properties_.axis_y = prim.properties_.axis_y;
+		properties_.axis_z = prim.properties_.axis_z;
+		properties_.d = prim.properties_.d;
+		properties_.radius = prim.properties_.radius;
+		properties_.e0_x = prim.properties_.e0_x;
+		properties_.e0_y = prim.properties_.e0_y;
+		properties_.e0_z = prim.properties_.e0_z;
+		properties_.e1_x = prim.properties_.e1_x;
+		properties_.e1_y = prim.properties_.e1_y;
+		properties_.e1_z = prim.properties_.e1_z;
+	}
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr Primitive3::getPointCloud() const
 	{
@@ -48,6 +73,9 @@ namespace robin
 
 	void Primitive3::fit_sample_consensus(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg_obj)
 	{
+		// Save a copy of the coefficients in case a solution is not found
+		pcl::ModelCoefficients::Ptr coef_temp_copy(new pcl::ModelCoefficients(*coefficients_));
+		
 		std::cout << "Running 'sample consensus'...";
 
 		// Copy the segmentation object
@@ -66,18 +94,25 @@ namespace robin
 		pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
 		seg.segment(*inliers, *coefficients_);
 
-		// Extract the planar inliers from the input cloud
-		pcl::ExtractIndices<pcl::PointXYZ> extract;
-		extract.setInputCloud(cloud);
-		extract.setIndices(inliers);
-		extract.setNegative(false);
-		extract.filter(*cloud_);
+		if (!coefficients_->values.empty()) {
+			// Extract the planar inliers from the input cloud
+			pcl::ExtractIndices<pcl::PointXYZ> extract;
+			extract.setInputCloud(cloud);
+			extract.setIndices(inliers);
+			extract.setNegative(false);
+			extract.filter(*cloud_);
 
-		// Remove the inliers, extract/subtract the rest
-		extract.setNegative(true);
-		extract.filter(*cloud);
+			// Remove the inliers, extract/subtract the rest
+			extract.setNegative(true);
+			extract.filter(*cloud);
 
-		std::cout << " done." << std::endl;
+			std::cout << " done." << std::endl;
+		}
+		else {
+			coefficients_ = coef_temp_copy;
+			std::cout << " no solution found." << std::endl;
+		}
+
 	}
 
 	void Primitive3::fit_sample_consensus_with_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, const static int SAC_METHOD, pcl::SacModel SAC_MODEL)
@@ -100,6 +135,9 @@ namespace robin
 
 	void Primitive3::fit_sample_consensus_with_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg_obj)
 	{
+		// Save a copy of the coefficients in case a solution is not found
+		pcl::ModelCoefficients::Ptr coef_temp_copy(new pcl::ModelCoefficients(*coefficients_));
+		
 		std::cout << "Running 'sample consensus from normals'...";
 
 		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
@@ -133,22 +171,28 @@ namespace robin
 		pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
 		seg.segment(*inliers, *coefficients_);
 
-		// Extract the planar inliers from the input cloud
-		pcl::ExtractIndices<pcl::PointXYZ> extract;
-		extract.setInputCloud(cloud);
-		extract.setIndices(inliers);
-		extract.setNegative(false);
-		extract.filter(*cloud_);
+		if (!coefficients_->values.empty()) {
+			// Extract the planar inliers from the input cloud
+			pcl::ExtractIndices<pcl::PointXYZ> extract;
+			extract.setInputCloud(cloud);
+			extract.setIndices(inliers);
+			extract.setNegative(false);
+			extract.filter(*cloud_);
 
-		// Remove the inliers, extract/subtract the rest
-		extract.setNegative(true);
-		extract.filter(*cloud);
-		//extract_normals.setNegative(true);
-		//extract_normals.setInputCloud(cloud_normals);
-		//extract_normals.setIndices(inliers_plane);
-		//extract_normals.filter(*cloud_normals2);
+			// Remove the inliers, extract/subtract the rest
+			extract.setNegative(true);
+			extract.filter(*cloud);
+			//extract_normals.setNegative(true);
+			//extract_normals.setInputCloud(cloud_normals);
+			//extract_normals.setIndices(inliers_plane);
+			//extract_normals.filter(*cloud_normals2);
 
-		std::cout << " done." << std::endl;
+			std::cout << " done." << std::endl;
+		}
+		else {
+			coefficients_ = coef_temp_copy;
+			std::cout << " no solution found." << std::endl;
+		}
 	}
 
 

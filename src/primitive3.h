@@ -27,6 +27,8 @@ namespace robin
 		Primitive3();
 		~Primitive3();
 
+		Primitive3(const Primitive3& prim);
+
 		float getProperty_center_x() { return properties_.center_x; }
 		float getProperty_center_y() { return properties_.center_y; }
 		float getProperty_center_z() { return properties_.center_z; }

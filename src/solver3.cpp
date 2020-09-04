@@ -128,9 +128,9 @@ namespace robin
 		}
 	}
 
-	void Solver3::solve(robin::Primitive3& prim)
+	void Solver3::solve(robin::Primitive3d3*& prim)
 	{
-		primitive_ = &prim;
+		primitive_ = prim;
 
 		// Reset the solver's (temp) PointCloud 
 		cloud_->clear();
@@ -145,6 +145,9 @@ namespace robin
 		cloud_preproc_ = cloud_preproc;
 
 		this->segment();
+
+		// Copy the address in case a Primitive3d3 has been provided and mutated to a derived primitive
+		prim = primitive_;
 	}
 
 	void Solver3::segment()
@@ -169,15 +172,72 @@ namespace robin
 				}
 			}
 
-			// Check whether an instance of Segmentation has been provided.
-			if (seg_obj_ptr_ != nullptr) {
-				std::cout << "Segmentation object has been provided!" << std::endl;
-				primitive_->fit(cloud_, seg_obj_ptr_);				
+			if (typeid(*primitive_) != typeid(robin::Primitive3d3)) {
+				this->fitPrimitive(primitive_, cloud_, seg_obj_ptr_);
 			}
 			else {
-				std::cout << "NO segmentation object has been provided." << std::endl;
-				primitive_->fit(cloud_, seg_normals_);				
+				// Erase the dummy/generic Primitive3d3
+				//delete primitive_;
+
+				robin::Primitive3d3* p_sph = new robin::Primitive3Sphere;
+				robin::Primitive3d3* p_cub = new robin::Primitive3Cuboid;
+				robin::Primitive3d3* p_cyl = new robin::Primitive3Cylinder;
+
+				pcl::PointCloud<pcl::PointXYZ>::Ptr c_sph(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
+				pcl::PointCloud<pcl::PointXYZ>::Ptr c_cub(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
+				pcl::PointCloud<pcl::PointXYZ>::Ptr c_cyl(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
+
+				pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_sph = new pcl::SACSegmentation<pcl::PointXYZ>(*seg_obj_ptr_);
+				pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_cub = new pcl::SACSegmentation<pcl::PointXYZ>(*seg_obj_ptr_);
+				pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_cyl = new pcl::SACSegmentation<pcl::PointXYZ>(*seg_obj_ptr_);
+
+				std::thread t_sph = std::thread(&Solver3::fitPrimitive, this, std::ref(p_sph), std::ref(c_sph), std::ref(seg_obj_sph));
+				std::thread t_cub = std::thread(&Solver3::fitPrimitive, this, std::ref(p_cub), std::ref(c_cub), std::ref(seg_obj_cub));
+				std::thread t_cyl = std::thread(&Solver3::fitPrimitive, this, std::ref(p_cyl), std::ref(c_cyl), std::ref(seg_obj_cyl));
+
+				t_sph.join();
+				t_cub.join();
+				t_cyl.join();
+
+				// Pick the biggest fit cloud that corresponds to the correct primitive fitting
+				float cloud_size(cloud_->points.size());
+				float fit_percent(0.0);
+
+				float sph_size(p_sph->getPointCloud()->points.size());
+				std::cout << "Sphere FitPercent: " << sph_size / cloud_size << std::endl;				
+				if (fit_percent < sph_size / cloud_size) {
+					fit_percent = sph_size / cloud_size;
+					primitive_ = p_sph;
+					cloud_ = c_sph;
+				}
+				float cub_size(p_cub->getPointCloud()->points.size());
+				std::cout << "Cuboid FitPercent: " << cub_size / cloud_size << std::endl;
+				if (fit_percent < cub_size / cloud_size) {
+					fit_percent = cub_size / cloud_size;
+					primitive_ = p_cub;
+					cloud_ = c_cyl;
+				}
+				float cyl_size(p_cyl->getPointCloud()->points.size());
+				std::cout << "Cylinder FitPercent: " << cyl_size / cloud_size << std::endl;
+				if (fit_percent < cyl_size / cloud_size) {
+					fit_percent = cyl_size / cloud_size;
+					primitive_ = p_cyl;
+					cloud_ = c_cyl;
+				}
 			}
+		}
+	}
+
+	void Solver3::fitPrimitive(robin::Primitive3d3*& prim, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::SACSegmentation<pcl::PointXYZ>*& seg_obj)
+	{
+		// Check whether an instance of Segmentation has been provided.
+		if (seg_obj_ptr_ != nullptr) {
+			std::cout << "Segmentation object has been provided!" << std::endl;
+			prim->fit(cloud, seg_obj);
+		}
+		else {
+			std::cout << "NO segmentation object has been provided." << std::endl;
+			prim->fit(cloud, seg_normals_);
 		}
 	}
 
