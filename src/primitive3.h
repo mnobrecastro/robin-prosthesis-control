@@ -85,6 +85,9 @@ namespace robin
 			float e1_x = 0.0;
 			float e1_y = 0.0;
 			float e1_z = 0.0;
+
+			Eigen::Vector3f v;
+			float angle;
 		} properties_;
 
 		pcl::ModelCoefficients::Ptr coefficients_;

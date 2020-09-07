@@ -67,6 +67,10 @@ namespace robin
 		if (SAC_MODEL == pcl::SACMODEL_CYLINDER || SAC_MODEL == pcl::SACMODEL_SPHERE) {
 			seg->setRadiusLimits(0.005, 0.050);
 		}
+		if (SAC_MODEL == pcl::SACMODEL_PERPENDICULAR_PLANE || SAC_MODEL == pcl::SACMODEL_PARALLEL_PLANE) {
+			seg->setAxis(properties_.v);
+			seg->setEpsAngle(properties_.angle * M_PI/180);
+		}
 
 		this-> fit_sample_consensus(cloud, seg);
 	}
@@ -87,7 +91,9 @@ namespace robin
 		seg.setDistanceThreshold(seg_obj->getDistanceThreshold());
 		double min_radius, max_radius;
 		seg_obj->getRadiusLimits(min_radius, max_radius);
-		seg.setRadiusLimits(min_radius, max_radius);
+		seg.setRadiusLimits(min_radius, max_radius); // pcl::SACMODEL_CYLINDER || pcl::SACMODEL_SPHERE
+		seg.setAxis(properties_.v); // pcl::SACMODEL_PERPENDICULAR_PLANE || pcl::SACMODEL_PARALLEL_PLANE
+		seg.setEpsAngle(properties_.angle * M_PI/180); // pcl::SACMODEL_PERPENDICULAR_PLANE || pcl::SACMODEL_PARALLEL_PLANE
 		seg.setInputCloud(cloud);
 
 		// Obtain the plane inliers and coefficients
@@ -129,6 +135,10 @@ namespace robin
 		if (SAC_MODEL == pcl::SACMODEL_CYLINDER || SAC_MODEL == pcl::SACMODEL_SPHERE) {
 			seg->setRadiusLimits(0.005, 0.050);
 		}
+		if (SAC_MODEL == pcl::SACMODEL_PERPENDICULAR_PLANE || SAC_MODEL == pcl::SACMODEL_PARALLEL_PLANE) {
+			seg->setAxis(properties_.v);
+			seg->setEpsAngle(properties_.angle * M_PI/180);
+		}
 
 		this->fit_sample_consensus_with_normals(cloud, seg);
 	}
@@ -161,11 +171,10 @@ namespace robin
 		double min_radius, max_radius;
 		static_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg_obj)->getRadiusLimits(min_radius, max_radius);
 		seg.setRadiusLimits(min_radius, max_radius);
+		seg.setAxis(properties_.v); // pcl::SACMODEL_PERPENDICULAR_PLANE || pcl::SACMODEL_PARALLEL_PLANE
+		seg.setEpsAngle(properties_.angle * M_PI/180); // pcl::SACMODEL_PERPENDICULAR_PLANE || pcl::SACMODEL_PARALLEL_PLANE
 		seg.setInputCloud(cloud);
 		seg.setInputNormals(cloud_normals);
-		//if (seg.getModelType() == pcl::SACMODEL_CYLINDER || seg.getModelType() == pcl::SACMODEL_SPHERE) {
-		//seg.setRadiusLimits(0.005, 0.050);
-		//}
 
 		// Obtain the plane inliers and coefficients
 		pcl::PointIndices::Ptr inliers(new pcl::PointIndices);

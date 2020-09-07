@@ -35,7 +35,6 @@ namespace robin
 		viewer->addLine<pcl::PointXYZ>(pcl::PointXYZ(plot_[0], plot_[1], plot_[2]), pcl::PointXYZ(plot_[3], plot_[4], plot_[5]), 1.0, 0.4, 0.4, "axis0");
 		viewer->addLine<pcl::PointXYZ>(pcl::PointXYZ(plot_[0], plot_[1], plot_[2]), pcl::PointXYZ(plot_[6], plot_[7], plot_[8]), 0.4, 1.0, 0.4, "axis1");
 		viewer->addLine<pcl::PointXYZ>(pcl::PointXYZ(plot_[0], plot_[1], plot_[2]), pcl::PointXYZ(plot_[9], plot_[10], plot_[11]), 0.4, 0.4, 1.0, "axis2");
-
 	}
 
 	void Primitive3Cuboid::reset()
@@ -56,12 +55,31 @@ namespace robin
 
 	void Primitive3Cuboid::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals)
 	{
-		size_t n_planes(0), n_pts(cloud_->points.size());
-		while (cloud_->points.size() > 0.3 * n_pts && n_planes < 3) {
-			Primitive3Plane* plane(new Primitive3Plane());
-			plane->fit(cloud, normals);
-			*cloud_ += *(plane->getPointCloud());
-			planes_.push_back(plane);
+		size_t n_planes(0); int n_pts(cloud->points.size());
+		while (cloud->points.size() > 0.3 * n_pts && n_planes < 3) {
+			// A minimum of 2 planes are enough to fully define the Primitive3Cuboid.
+			if (n_planes == 0) {
+				Primitive3Plane* plane(new Primitive3Plane());
+				plane->fit(cloud, normals);
+				*cloud_ += *(plane->getPointCloud());
+				planes_.push_back(plane);
+			}
+			else {
+				Eigen::Vector3f normal_axis(planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z());
+				//Primitive3Plane* plane(new Primitive3Plane(robin::PLANE_TYPE::PERPENDICULAR, normal_axis, 15.0));
+				Primitive3Plane* plane(new Primitive3Plane());
+				try {
+					plane->fit(cloud, normals);
+				}
+				catch (...) {}
+				// Avoid cases where PERPENDICULAR planes were not found
+				Eigen::Vector3f new_axis(plane->getProperty_axis_x(), plane->getProperty_axis_y(), plane->getProperty_axis_z());
+				float angle(std::acos(normal_axis.dot(new_axis)/(normal_axis.norm() * new_axis.norm())));
+				if (!plane->getPointCloud()->points.empty() && std::abs(angle-M_PI/2) < 15*M_PI/180.0) {
+					*cloud_ += *(plane->getPointCloud());
+					planes_.push_back(plane);
+				}
+			}
 			++n_planes;
 		}
 
@@ -87,11 +105,30 @@ namespace robin
 		}
 
 		size_t n_planes(0); int n_pts(cloud->points.size());
-		while (cloud->points.size() > 0.3 * n_pts && n_planes < 3) {
-			Primitive3Plane* plane(new Primitive3Plane());
-			plane->fit(cloud, seg);
-			*cloud_ += *(plane->getPointCloud());
-			planes_.push_back(plane);
+		while (cloud->points.size() > 0.3 * n_pts && n_planes < 3) { //3 
+			// A minimum of 2 planes are enough to fully define the Primitive3Cuboid.
+			if (n_planes == 0) {
+				Primitive3Plane* plane(new Primitive3Plane());
+				plane->fit(cloud, seg);
+				*cloud_ += *(plane->getPointCloud());
+				planes_.push_back(plane);
+			}
+			else {
+				Eigen::Vector3f normal_axis(planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z());
+				//Primitive3Plane* plane(new Primitive3Plane(robin::PLANE_TYPE::PERPENDICULAR, normal_axis, 15.0));
+				Primitive3Plane* plane(new Primitive3Plane());
+				try {
+					plane->fit(cloud, seg);
+				}
+				catch (...) {}
+				// Avoid cases where PERPENDICULAR planes were not found
+				Eigen::Vector3f new_axis(plane->getProperty_axis_x(), plane->getProperty_axis_y(), plane->getProperty_axis_z());
+				float angle(std::acos(normal_axis.dot(new_axis) / (normal_axis.norm() * new_axis.norm())));
+				if (!plane->getPointCloud()->points.empty() && std::abs(angle - M_PI / 2) < 15 * M_PI / 180.0) {
+					*cloud_ += *(plane->getPointCloud());
+					planes_.push_back(plane);
+				}
+			}			
 			++n_planes;
 		}
 
@@ -336,6 +373,9 @@ namespace robin
 		//properties_.axis_y = coefficients_->values[4];
 		//properties_.axis_z = coefficients_->values[5];
 		std::cout << "Primitive3Cuboid properties were updated." << std::endl;
+		std::cout << "\t" << properties_.width << " " << properties_.height << " " << properties_.depth << std::endl;
+		std::cout << "\t" << properties_.axis_x << " " << properties_.axis_y << " " << properties_.axis_z << "("
+			<< std::sqrt(std::pow(properties_.axis_x, 2) + std::pow(properties_.axis_y, 2) + std::pow(properties_.axis_z, 2)) << ")" << std::endl;
 	}
 
 
@@ -762,8 +802,6 @@ namespace robin
 				properties_.axis_z = face_normal.z();			
 			}
 			//
-
-			std::cout << "\t" << cube_width  << " " << cube_height << " " << cube_depth << std::endl;
 		}
 	}
 }

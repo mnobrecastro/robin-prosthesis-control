@@ -3,7 +3,16 @@
 namespace robin
 {
 	Primitive3Plane::Primitive3Plane()
-	{
+		: Primitive3Plane(PLANE_TYPE::DEFAULT, Eigen::Vector3f(0.0,0.0,0.0), 0.0)
+	{}
+	
+	/* Primitive3Plane can be initialized by "DEFAULT" or by "PERPENDICULAR" or "PARALLEL" types. */
+	Primitive3Plane::Primitive3Plane(PLANE_TYPE type, Eigen::Vector3f v, float angle)
+	{		
+		type_ = type;
+		properties_.v = v;
+		properties_.angle = angle;
+
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 		cloud_ = cloud;
 		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
@@ -28,11 +37,14 @@ namespace robin
 	
 	void Primitive3Plane::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
-
 		if (visualizeOnOff_)
 			viewer->addPlane(*coefficients_, "plane" + std::to_string(std::rand()));
 
 		pcl::PointXYZ center(properties_.center_x, properties_.center_y, properties_.center_z);
+		pcl::PointXYZ center_normal(properties_.center_x + 0.05 * properties_.axis_x,
+									properties_.center_y + 0.05 * properties_.axis_y,
+									properties_.center_z + 0.05 * properties_.axis_z);
+		viewer->addLine(center, center_normal, "plane_normal" + std::to_string(std::rand()));
 		pcl::PointXYZ center_e0(properties_.center_x + properties_.width / 2.0 * properties_.e0_x,
 								properties_.center_y + properties_.width / 2.0 * properties_.e0_y,
 								properties_.center_z + properties_.width / 2.0 * properties_.e0_z);
@@ -47,10 +59,36 @@ namespace robin
 	void Primitive3Plane::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals)
 	{
 		if (normals) {
-			fit_sample_consensus_with_normals(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_NORMAL_PLANE);
+			switch (type_)
+			{
+			case PLANE_TYPE::DEFAULT:
+				fit_sample_consensus_with_normals(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_NORMAL_PLANE);
+				break;
+			case PLANE_TYPE::PERPENDICULAR:
+				/* pcl::SACMODEL_NORMAL_PERPENDICULAR_PLANE
+				 * NOT IMPLEMENTED IN THE POINT CLOUD LIBRARY!
+				 * pcl\segmentation\impl\sac_segmentation.hpp */
+				std::cerr << "The 'pcl::SACMODEL_NORMAL_PERPENDICULAR_PLANE' is not available. Using 'pcl::SACMODEL_NORMAL_PLANE' by default." << std::endl;
+				fit_sample_consensus_with_normals(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_NORMAL_PLANE);
+				break;
+			case PLANE_TYPE::PARALLEL:
+				fit_sample_consensus_with_normals(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_NORMAL_PARALLEL_PLANE);
+				break;
+			}			
 		}
 		else {
-			fit_sample_consensus(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_PLANE); //pcl::SACMODEL_NORMAL_PLANE ?
+			switch (type_)
+			{
+			case PLANE_TYPE::DEFAULT:
+				fit_sample_consensus(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_PLANE);
+				break;
+			case PLANE_TYPE::PERPENDICULAR:
+				fit_sample_consensus(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_PERPENDICULAR_PLANE);
+				break;
+			case PLANE_TYPE::PARALLEL:
+				fit_sample_consensus(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_PARALLEL_PLANE);
+				break;
+			}
 		}
 
 		/* 1. Validate the fit. */
@@ -66,12 +104,42 @@ namespace robin
 	{
 		pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* from_normals = dynamic_cast<pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>*>(seg);
 		if (from_normals != nullptr) {
-			seg->setModelType(pcl::SACMODEL_NORMAL_PLANE);
-			fit_sample_consensus_with_normals(cloud, seg);
+			switch (type_)
+			{
+			case PLANE_TYPE::DEFAULT:
+				seg->setModelType(pcl::SACMODEL_NORMAL_PLANE);
+				fit_sample_consensus_with_normals(cloud, seg);
+				break;
+			case PLANE_TYPE::PERPENDICULAR:
+				/* pcl::SACMODEL_NORMAL_PERPENDICULAR_PLANE
+				 * NOT IMPLEMENTED IN THE POINT CLOUD LIBRARY!
+				 * pcl\segmentation\impl\sac_segmentation.hpp */
+				std::cerr << "The 'pcl::SACMODEL_NORMAL_PERPENDICULAR_PLANE' is not available. Using 'pcl::SACMODEL_NORMAL_PLANE' by default." << std::endl;
+				seg->setModelType(pcl::SACMODEL_NORMAL_PLANE);
+				fit_sample_consensus_with_normals(cloud, seg);
+				break;
+			case PLANE_TYPE::PARALLEL:
+				seg->setModelType(pcl::SACMODEL_NORMAL_PARALLEL_PLANE);
+				fit_sample_consensus_with_normals(cloud, seg);
+				break;
+			}
 		}
 		else {
-			seg->setModelType(pcl::SACMODEL_PLANE);
-			fit_sample_consensus(cloud, seg);
+			switch (type_)
+			{
+			case PLANE_TYPE::DEFAULT:
+				seg->setModelType(pcl::SACMODEL_PLANE);
+				fit_sample_consensus(cloud, seg);
+				break;
+			case PLANE_TYPE::PERPENDICULAR:
+				seg->setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
+				fit_sample_consensus(cloud, seg);
+				break;
+			case PLANE_TYPE::PARALLEL:
+				seg->setModelType(pcl::SACMODEL_PARALLEL_PLANE);
+				fit_sample_consensus(cloud, seg);
+				break;
+			}
 		}
 
 		/* 1. Validate the fit. */
@@ -86,7 +154,12 @@ namespace robin
 	/* Checks if the fit is valid. */
 	bool Primitive3Plane::is_fit_valid()
 	{
-		return true;
+		if (!cloud_->points.empty()) {
+			return true;
+		}
+
+		this->reset();
+		return false;
 	}
 
 	/* Correct the obtained coefficients if necessary. */

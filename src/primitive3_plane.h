@@ -10,11 +10,18 @@
 
 namespace robin
 {
+	enum class PLANE_TYPE {
+		DEFAULT,
+		PERPENDICULAR,
+		PARALLEL
+	};
+	
 	class Primitive3Plane :
 		public Primitive3d2
 	{
 	public:
 		Primitive3Plane();
+		Primitive3Plane(PLANE_TYPE type, Eigen::Vector3f v, float angle);
 		~Primitive3Plane();
 
 		void reset();
@@ -26,6 +33,8 @@ namespace robin
 		void fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg);
 
 	protected:
+		PLANE_TYPE type_;
+
 		/* Checks if the fit is valid. */
 		bool is_fit_valid();
 
