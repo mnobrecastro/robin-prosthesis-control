@@ -5,7 +5,7 @@
 
 #include <typeinfo>
 
-#define MAX_SUBPRIMS 2
+#define MAX_SUBPRIMS 1
 
 namespace robin
 {

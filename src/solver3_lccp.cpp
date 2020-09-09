@@ -90,7 +90,15 @@ namespace robin
 			return;
 		}
 
+		///
+		pcl::RandomSample<pcl::PointXYZ> dsfilt;
+		dsfilt.setInputCloud(cloud_);
+		dsfilt.setSample(100);
+		dsfilt.filter(*cloud_);
+		///
+
 		Solver3::segment();
+		
 	}
 
 	std::vector<int> Solver3LCCP::getCentroids(const pcl::PointCloud<pcl::PointXYZL>& cloud, std::vector<uint32_t>& labels, std::vector<std::array<float, 3>>& centroids)
