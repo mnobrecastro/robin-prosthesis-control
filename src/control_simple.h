@@ -33,10 +33,18 @@ namespace robin
 			void evaluate(robin::Primitive3* prim);
 
 			float getGraspSize();
-
 			float getTiltAngle();
 
+			bool getStateMove() { return state_move_; }
+			bool getStateGrasp() { return state_grasp_; }
+
 		protected:
+			ControlVar emg_cmd_move_;
+			ControlVar emg_cmd_grasp_;
+
+			bool state_move_ = true;
+			bool state_grasp_ = false;
+
 			ControlVar hand_supination_angle_;
 			ControlVar hand_grasp_size_;
 

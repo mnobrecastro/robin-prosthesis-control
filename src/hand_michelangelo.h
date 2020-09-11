@@ -40,6 +40,7 @@ namespace robin
 			float getWristSupProAngle();
 			float getGraspSize();
 			float getGraspForce();
+			std::vector<float> getEMG();
 
 			/* Prothesis commands available. */
 			void pronate(float vel, bool send = true);

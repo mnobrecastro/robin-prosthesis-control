@@ -8,6 +8,15 @@ namespace robin
 		Michelangelo::Michelangelo(bool right_hand, const char* ip, short port_in, short port_out)
 			: HandUDP(right_hand, ip, port_in, port_out)
 		{
+			configstate_.emg_channels.push_back(0.0); //0
+			configstate_.emg_channels.push_back(0.0); //1
+			configstate_.emg_channels.push_back(0.0); //2
+			configstate_.emg_channels.push_back(0.0); //3
+			configstate_.emg_channels.push_back(0.0); //4
+			configstate_.emg_channels.push_back(0.0); //5
+			configstate_.emg_channels.push_back(0.0); //6
+			configstate_.emg_channels.push_back(0.0); //7
+
 			thread_configstate_ = std::thread(&Michelangelo::updateConfigState, this);
 		}
 
@@ -55,6 +64,14 @@ namespace robin
 			float val(configstate_.grasp_force);
 			mu_configstate_.unlock();
 			return val;
+		}
+
+		std::vector<float> Michelangelo::getEMG()
+		{
+			mu_configstate_.lock();
+			std::vector<float> emg(configstate_.emg_channels);
+			mu_configstate_.unlock();
+			return emg;
 		}
 
 		/* Prothesis commands available. */
@@ -298,6 +315,16 @@ namespace robin
 					case GRASP::LATERAL:
 						configstate_.grasp_force = grasp_force / 100 * 60;
 						break;
+					}
+
+					/* byte16-31: 1th-8th EMG channel (uint16), range [0,856] */
+					size_t j(0);
+					for (int i(16); i < 31; i += 2) {
+						uint8_t most_significant_byte = *(packet + i + 1);
+						uint8_t least_significant_byte = *(packet + i);
+						uint16_t val = (most_significant_byte << 8) | least_significant_byte; // Little-Endian
+						configstate_.emg_channels[j] = float(+val)/856.0;
+						++j;
 					}
 
 					mu_configstate_.unlock();

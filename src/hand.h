@@ -33,6 +33,9 @@ namespace robin
 			/* Read the current configuration state of the prosthesis. */
 			virtual std::vector<float> getConfigState() { return std::vector<float>(); }
 
+			/* Read the current sEMG channels provided by the prosthesis. */
+			virtual std::vector<float> getEMG() { return configstate_.emg_channels; }
+
 			void setControlMode(CONTROL ctrl);
 			void setGrasp(GRASP grasp);
 
@@ -40,7 +43,7 @@ namespace robin
 			virtual float getWristAbdAddAngle();
 			virtual float getWristSupProAngle();
 			virtual float getGraspSize();
-			virtual float getGraspForce();
+			virtual float getGraspForce();			
 
 			virtual void flex(float vel, bool send = true) {}
 			virtual void extend(float vel, bool send = true) {}
@@ -67,6 +70,7 @@ namespace robin
 				float sup_pro_angle = 0.0; //[rad]
 				float grasp_size = 0.0; //[m]
 				float grasp_force = 0.0; //[N]
+				std::vector<float> emg_channels; //[0.0-1.0]
 			} configstate_;
 
 			bool right_hand_;

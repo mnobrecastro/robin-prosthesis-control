@@ -11,6 +11,78 @@ namespace robin
 
 		void ControlSimple::evaluate(robin::Primitive3* prim)
 		{
+			std::vector<float> emg_channels = hand_->getEMG();
+			// Current EMG "MOVE" command (channel 1)
+			emg_cmd_move_.value = emg_channels[0];
+			emg_cmd_move_.buffer.push_back(emg_channels[0]);
+			// Current EMG "GRASP" command (channel 2)
+			emg_cmd_grasp_.value = emg_channels[1];
+			emg_cmd_grasp_.buffer.push_back(emg_channels[1]);
+
+			// Obtain window for MOVE command
+			std::vector<float> window_cmd_move;
+			if (emg_cmd_move_.buffer.size() < 100) { //&& !emg_cmd_move_.buffer.empty()
+				window_cmd_move = std::vector<float>(emg_cmd_move_.buffer.begin(), emg_cmd_move_.buffer.end());
+			} else if(emg_cmd_move_.buffer.size() >= 100) { //&& !emg_cmd_move_.buffer.empty()
+				window_cmd_move = std::vector<float>(emg_cmd_move_.buffer.end()-99, emg_cmd_move_.buffer.end());
+			}
+			size_t window_size_move = window_cmd_move.size();
+			std::cout << "WINDOW MOVE SIZE: " << window_size_move << std::endl;
+			// Calculate median value
+			std::sort(window_cmd_move.begin(), window_cmd_move.end());
+			float median_cmd_move(0.0);
+			if (window_size_move % 2 == 0) {
+				median_cmd_move = (window_cmd_move[window_size_move/2-1] + window_cmd_move[window_size_move/2]) / 2;
+			} else {
+				median_cmd_move = window_cmd_move[window_size_move/2];
+			}
+			// Set current MOVE command
+			bool usr_cmd_move(false);
+			if (emg_cmd_move_.value >= 0.75) { //median_cmd_move
+				usr_cmd_move = true;
+			}
+
+
+			// Obtain window for GRASP command
+			std::vector<float> window_cmd_grasp;
+			if (emg_cmd_grasp_.buffer.size() < 100) { //&& !emg_cmd_grasp_.buffer.empty()
+				window_cmd_grasp = std::vector<float>(emg_cmd_grasp_.buffer.begin(), emg_cmd_grasp_.buffer.end());
+			}
+			else if (emg_cmd_grasp_.buffer.size() >= 100) { //&& !emg_cmd_grasp_.buffer.empty()
+				window_cmd_grasp = std::vector<float>(emg_cmd_grasp_.buffer.end() - 99, emg_cmd_grasp_.buffer.end());
+			}
+			size_t window_size_grasp = window_cmd_grasp.size();
+			std::cout << "WINDOW GRASP SIZE: " << window_size_grasp << std::endl;
+			// Calculate median value
+			std::sort(window_cmd_grasp.begin(), window_cmd_grasp.end());
+			float median_cmd_grasp(0.0);
+			if (window_size_grasp % 2 == 0) {
+				median_cmd_grasp = (window_cmd_grasp[window_size_grasp/2-1] + window_cmd_grasp[window_size_grasp/2]) / 2;
+			}
+			else {
+				median_cmd_grasp = window_cmd_grasp[window_size_grasp/2];
+			}
+			// Set current GRASP command
+			bool usr_cmd_grasp(false);
+			if (emg_cmd_grasp_.value >= 0.75) { //median_cmd_grasp
+				usr_cmd_grasp = true;
+			}
+
+			// Change the MOVE and GRASP state booleans
+			//if (usr_cmd_move) {
+			//	if (state_move_ && !state_grasp_) { state_move_ = false; }
+			//	if (!state_move_ && !state_grasp_) { state_move_ = true; }
+			//}
+			////else if (usr_cmd_grasp) { // "else if" to prevent simultaneous behaviour
+			////	if (!state_grasp_ && !state_move_) { state_grasp_ = true; }
+			////	if (state_grasp_ && !state_move_) { state_grasp_ = false; }
+			////}
+			if (usr_cmd_move) {
+				state_move_ = !state_move_;
+			}
+
+			// ----
+			
 			// Current absolute supination angle of the prosthesis
 			// (measured from the full pronated wrist position ref frame).
 			//
@@ -43,63 +115,84 @@ namespace robin
 
 			this->estimate_grasp_size(prim);
 			this->estimate_tilt_angle(prim);
+						
 
-
-			float grasp_size_error(target_grasp_size_.value - hand_grasp_size_.value);
-			if (std::abs(grasp_size_error) > 0.01) {
-				if (grasp_size_error > 0) {
-					hand_->open(0.01);
-				}
-				else {
-					hand_->close(0.01);
-				}
-			} else {
-				hand_->open(0.0); //stop()
-			}
-
-			float tilt_angle_error(target_tilt_angle_.value - hand_supination_angle_.value);
-			if (hand_->isRightHand()) {
-				// Right-hand prosthesis (positive tilt angle)				
-				if (std::abs(tilt_angle_error) > 15 * M_PI / 180) {
-					if (tilt_angle_error > 0) {
-						hand_->supinate(0.01, false);
-						//std::chrono::seconds tsleep(1);
-						//std::this_thread::sleep_for(tsleep);
-						//hand_->stop();
+			if (state_move_)
+			{
+				float grasp_size_error(target_grasp_size_.value - hand_grasp_size_.value);
+				if (std::abs(grasp_size_error) > 0.01) {
+					if (grasp_size_error > 0) {
+						hand_->open(0.01);
 					}
 					else {
-						hand_->pronate(0.01, false);
-						//std::chrono::seconds tsleep(1);
-						//std::this_thread::sleep_for(tsleep);
-						//hand_->stop();
+						hand_->close(0.01);
 					}
 				}
 				else {
-					hand_->supinate(0.0, false); //stop();
+					hand_->open(0.0); //stop()
+				}
+
+				float tilt_angle_error(target_tilt_angle_.value - hand_supination_angle_.value);
+				if (hand_->isRightHand()) {
+					// Right-hand prosthesis (positive tilt angle)				
+					if (std::abs(tilt_angle_error) > 15 * M_PI / 180) {
+						if (tilt_angle_error > 0) {
+							hand_->supinate(0.01, false);
+							//std::chrono::seconds tsleep(1);
+							//std::this_thread::sleep_for(tsleep);
+							//hand_->stop();
+						}
+						else {
+							hand_->pronate(0.01, false);
+							//std::chrono::seconds tsleep(1);
+							//std::this_thread::sleep_for(tsleep);
+							//hand_->stop();
+						}
+					}
+					else {
+						hand_->supinate(0.0, false); //stop();
+					}
+				}
+				else {
+					// Left-hand prosthesis (negative tilt angle)
+					if (std::abs(tilt_angle_error) > 15 * M_PI / 180) {
+						if (tilt_angle_error < 0) {
+							hand_->supinate(0.01, false);
+							//std::chrono::seconds tsleep(1);
+							//std::this_thread::sleep_for(tsleep);
+							//hand_->stop();
+						}
+						else {
+							hand_->pronate(0.01, false);
+							//std::chrono::seconds tsleep(1);
+							//std::this_thread::sleep_for(tsleep);
+							//hand_->stop();
+						}
+					}
+					else {
+						hand_->supinate(0.0, false); //stop();
+					}
 				}
 			}
 			else {
-				// Left-hand prosthesis (negative tilt angle)
-				if (std::abs(tilt_angle_error) > 15 * M_PI / 180) {
-					if (tilt_angle_error < 0) {
-						hand_->supinate(0.01, false);
-						//std::chrono::seconds tsleep(1);
-						//std::this_thread::sleep_for(tsleep);
-						//hand_->stop();
-					}
-					else {
-						hand_->pronate(0.01, false);
-						//std::chrono::seconds tsleep(1);
-						//std::this_thread::sleep_for(tsleep);
-						//hand_->stop();
+				if (!state_grasp_) {
+					if (!usr_cmd_grasp) {
+						hand_->stop();
+					} else {
+						hand_->close(0.01);
+						state_grasp_ = !state_grasp_;
 					}
 				}
-				else {
-					hand_->supinate(0.0, false); //stop();
-				}
+				else{
+					if(usr_cmd_grasp){
+						hand_->open(0.01);
+						state_grasp_ = !state_grasp_;
+					}else{
+						hand_->stop();
+					}
+				}				
 			}
 			hand_->send_command();
-
 		}
 
 		float ControlSimple::getGraspSize()
