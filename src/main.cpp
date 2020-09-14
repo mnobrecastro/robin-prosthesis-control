@@ -2,6 +2,7 @@
 #include "../src/solver3_lccp.h"
 #include "../src/solver3_lasers.h"
 #include "../src/realsense_d400.h"
+#include "../src/royale_picoflexx.h"
 #include "../src/laser_scanner.h"
 #include "../src/laser_array.h"
 #include "../src/primitive3_sphere.h"
@@ -9,7 +10,7 @@
 #include "../src/primitive3_cuboid.h"
 #include "../src/primitive3_line.h"
 #include "../src/primitive3_circle.h"
-#include "../src/hand_michelangelo.h"
+//#include "../src/hand_michelangelo.h"
 #include "../src/control_simple.h"
 
 #include <chrono>
@@ -32,17 +33,17 @@ int main(int argc, char** argv)
 	//myhand.print_recv_packet(packpack, byte_len);
 
 
-	robin::hand::Michelangelo myhand(false);
+	//robin::hand::Michelangelo myhand(false);
 
 	//robin::hand::Hand myhand(TRUE);
 
-	robin::control::ControlSimple controller(myhand);
+	//robin::control::ControlSimple controller(myhand);
 
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
 	//robin::Solver3Lasers mysolver;
-	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315); //0.105 or 0.160
-	mysolver.setDownsample(0.004f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f
+	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.215); //0.105 or 0.160
+	mysolver.setDownsample(0.0025f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f  good//0.0025
 	mysolver.setPlaneRemoval(false);
 	//solver.setUseNormals(true);
 	
@@ -52,13 +53,14 @@ int main(int argc, char** argv)
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
-	seg->setMaxIterations(100);
-	seg->setDistanceThreshold(0.001);
+	seg->setMaxIterations(1000);//100
+	seg->setDistanceThreshold(0.001);//0.001
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 	
 	// Create a sensor from a camera
-	robin::RealsenseD400* mycam(new robin::RealsenseD400());
+	//robin::RealsenseD400* mycam(new robin::RealsenseD400());
+	robin::RoyalePicoflexx* mycam(new robin::RoyalePicoflexx());
 	mycam->printInfo();
 	mycam->setDisparity(false);
 	mysolver.addSensor(mycam);
@@ -84,7 +86,7 @@ int main(int argc, char** argv)
 	//-----
 
 	// Create a Primitive
-	robin::Primitive3d3* prim(new robin::Primitive3Cylinder);
+	//robin::Primitive3d3* prim(new robin::Primitive3Cylinder);
 	//prim->setVisualizeOnOff(false);
 
 	// Create a PCL visualizer
@@ -97,46 +99,53 @@ int main(int argc, char** argv)
 	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
 	viewer->addCoordinateSystem(0.25);
 
-	bool RENDER(false);
+	bool RENDER(true);
+	bool HAND_CONTROL(false);
 	std::vector<double> freq;
 
 	while(true){
 		auto tic = std::chrono::high_resolution_clock::now();
 
-		//robin::Primitive3d3* prim(new robin::Primitive3d3);
+		// Create a Primitive
+		robin::Primitive3d3* prim(new robin::Primitive3d3);
 		
 		mysolver.solve(prim);
 
 		///
-		controller.evaluate(prim);
-		std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
-		std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
+		//if (HAND_CONTROL) {
+		//	controller.evaluate(prim);
+		//	std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
+		//	std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
 
-		if (myhand.isRightHand()) {
-			// Right-hand prosthesis (positive tilt angle)
-			std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
-			std::cout << "Hand tilt_angle: " << myhand.getWristSupProAngle() << " (" << myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
-		} else {
-			// Left-hand prosthesis (negative tilt angle)
-			std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
-			std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
-		}
+		//	if (myhand.isRightHand()) {
+		//		// Right-hand prosthesis (positive tilt angle)
+		//		std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
+		//		std::cout << "Hand tilt_angle: " << myhand.getWristSupProAngle() << " (" << myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
+		//	}
+		//	else {
+		//		// Left-hand prosthesis (negative tilt angle)
+		//		std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
+		//		std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
+		//	}
 
-		std::cout << "Bools: ";
-		if (controller.getStateMove()) {
-			std::cout << "ON";
-		} else {
-			std::cout << "OFF";
-		}
-		std::cout << " ";
-		if (controller.getStateGrasp()) {
-			std::cout << "ON";
-		} else {
-			std::cout << "OFF";
-		}
-		std::cout << std::endl;
+		//	std::cout << "Bools: ";
+		//	if (controller.getStateMove()) {
+		//		std::cout << "ON";
+		//	}
+		//	else {
+		//		std::cout << "OFF";
+		//	}
+		//	std::cout << " ";
+		//	if (controller.getStateGrasp()) {
+		//		std::cout << "ON";
+		//	}
+		//	else {
+		//		std::cout << "OFF";
+		//	}
+		//	std::cout << std::endl;
 
-		std::cout << "\n" << std::endl;		
+		//	std::cout << "\n" << std::endl;
+		//}
 		///
 
 		//---- RENDERING ----

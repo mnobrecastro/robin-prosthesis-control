@@ -112,10 +112,11 @@ namespace robin
 				plane->fit(cloud, seg);
 				*cloud_ += *(plane->getPointCloud());
 				planes_.push_back(plane);
+				++n_planes;
 			}
 			else {
-				Eigen::Vector3f normal_axis(planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z());
-				//Primitive3Plane* plane(new Primitive3Plane(robin::PLANE_TYPE::PERPENDICULAR, normal_axis, 15.0));
+				Eigen::Vector3f normal_axis(planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z());				
+				//Primitive3Plane* plane(new Primitive3Plane(robin::PLANE_TYPE::PERPENDICULAR, normal_axis, 1.0)); //15.0
 				Primitive3Plane* plane(new Primitive3Plane());
 				try {
 					plane->fit(cloud, seg);
@@ -124,12 +125,12 @@ namespace robin
 				// Avoid cases where PERPENDICULAR planes were not found
 				Eigen::Vector3f new_axis(plane->getProperty_axis_x(), plane->getProperty_axis_y(), plane->getProperty_axis_z());
 				float angle(std::acos(normal_axis.dot(new_axis) / (normal_axis.norm() * new_axis.norm())));
-				if (!plane->getPointCloud()->points.empty() && std::abs(angle - M_PI / 2) < 15 * M_PI / 180.0) {
+				if (!plane->getPointCloud()->points.empty() && std::abs(angle - M_PI / 2) < 1 * M_PI / 180.0) {
 					*cloud_ += *(plane->getPointCloud());
 					planes_.push_back(plane);
+					++n_planes;
 				}
-			}			
-			++n_planes;
+			}					
 		}
 
 		/* 1. Validate the fit. */

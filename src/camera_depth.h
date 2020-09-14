@@ -5,8 +5,6 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <librealsense2/rs.hpp>
-#include <librealsense2/rs_advanced_mode.hpp>
 
 namespace robin {
 

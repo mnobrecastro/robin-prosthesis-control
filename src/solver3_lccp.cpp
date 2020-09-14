@@ -91,10 +91,10 @@ namespace robin
 		}
 
 		///
-		pcl::RandomSample<pcl::PointXYZ> dsfilt;
-		dsfilt.setInputCloud(cloud_);
-		dsfilt.setSample(100);
-		dsfilt.filter(*cloud_);
+		//pcl::RandomSample<pcl::PointXYZ> dsfilt;
+		//dsfilt.setInputCloud(cloud_);
+		//dsfilt.setSample(100);
+		//dsfilt.filter(*cloud_);
 		///
 
 		Solver3::segment();
