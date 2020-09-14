@@ -15,6 +15,9 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/surface/mls.h>
+//#include <pcl/surface/impl/mls.hpp>
 
 #include <pcl/segmentation/supervoxel_clustering.h>
 #include <pcl/segmentation/lccp_segmentation.h>
@@ -46,6 +49,8 @@ namespace robin
 
 		void setDownsample(float);
 
+		void setResample(size_t order, float radius);
+
 		std::vector<robin::Sensor3*> getSensors() const;
 
 		void solve(robin::Primitive3d3*& prim);
@@ -64,12 +69,20 @@ namespace robin
 
 		bool filterOnOff_ = false;
 		std::array<float, 6> limits_;
+		void crop();
+
 		bool downsampleOnOff_ = false;
 		float voxel_size_ = 0.0025f;
+		void downsample();
+
+		bool resampleOnOff_ = false;
+		size_t resamp_order_ = 0;
+		float resamp_radius_ = 0.001f;
+		void resample();
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr trimPointCloud();
-		void crop();
-		void downsample();
+		
+		
 
 		unsigned int MIN_POINTS_PROCEED_ = 100;
 

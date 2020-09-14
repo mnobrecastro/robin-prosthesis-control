@@ -56,6 +56,13 @@ namespace robin
 		voxel_size_ = voxel_size;
 	}
 
+	void Solver3::setResample(size_t order, float radius)
+	{
+		resampleOnOff_ = true;
+		resamp_order_ = order;
+		resamp_radius_ = radius;
+	}
+
 	pcl::PointCloud<pcl::PointXYZ>::Ptr Solver3::trimPointCloud()
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_trimmed(new pcl::PointCloud<pcl::PointXYZ>());
@@ -128,6 +135,55 @@ namespace robin
 		}
 	}
 
+	void Solver3::resample()
+	{
+		if (resampleOnOff_) {
+			std::time_t t0, tf;
+			t0 = std::time(0);
+
+			// Smoothing a raw point cloud by resampling it
+
+			// Create a kD-Tree for point search
+			pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+
+			// Output has the PointNormal type in order to store the normals calculated by MLS
+			pcl::PointCloud<pcl::PointNormal>::Ptr mls_points(new pcl::PointCloud<pcl::PointNormal>);
+			//pcl::PointCloud<pcl::PointXYZ>::Ptr mls_points(new pcl::PointCloud<pcl::PointXYZ>);
+
+			// Init object (second point type is for the normals, even if unused)
+			pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls;
+			//pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ> mls;
+
+			mls.setComputeNormals(true);
+			//mls.setComputeNormals(false);
+
+			// Set MovingLeastSquares parameters
+			mls.setInputCloud(cloud_);
+			mls.setPolynomialOrder(resamp_order_);
+			mls.setSearchMethod(tree);
+			mls.setSearchRadius(resamp_radius_);
+
+			// Reconstruct
+			//mls.process(*mls_points);
+			mls.process(*mls_points);
+
+			// Copying the PointCloud
+			cloud_->clear();
+			cloud_->resize(mls_points->size());
+			auto ptr = mls_points->points.begin();
+			for (auto& p : cloud_->points) {
+				p.x = ptr->x;
+				p.y = ptr->y;
+				p.z = ptr->z;
+				ptr++;
+			}
+
+			tf = std::time(0);
+			std::cerr << "PointCloud after resampling: " << cloud_->width * cloud_->height << "=" << cloud_->points.size()
+				<< " data points (in " << std::difftime(t0, tf) << " ms)." << std::endl;
+		}
+	}
+
 	void Solver3::solve(robin::Primitive3d3*& prim)
 	{
 		primitive_ = prim;
@@ -141,6 +197,7 @@ namespace robin
 
 		this->crop();
 		this->downsample();
+		this->resample();
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_preproc(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
 		cloud_preproc_ = cloud_preproc;
 
