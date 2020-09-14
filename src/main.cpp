@@ -43,7 +43,7 @@ int main(int argc, char** argv)
 	robin::Solver3LCCP mysolver;
 	//robin::Solver3Lasers mysolver;
 	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.215); //0.105 or 0.160
-	mysolver.setDownsample(0.0025f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f  good//0.0025
+	mysolver.setDownsample(0.0025f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f
 	mysolver.setPlaneRemoval(false);
 	//solver.setUseNormals(true);
 	
@@ -53,8 +53,8 @@ int main(int argc, char** argv)
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
-	seg->setMaxIterations(1000);//100
-	seg->setDistanceThreshold(0.001);//0.001
+	seg->setMaxIterations(1000); //100
+	seg->setDistanceThreshold(0.001);
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 	
@@ -86,7 +86,8 @@ int main(int argc, char** argv)
 	//-----
 
 	// Create a Primitive
-	//robin::Primitive3d3* prim(new robin::Primitive3Cylinder);
+	robin::Primitive3d3* prim;
+	//robin::Primitive3d3* prim(new robin::Primitive3Cylinder);	
 	//prim->setVisualizeOnOff(false);
 
 	// Create a PCL visualizer
@@ -106,8 +107,8 @@ int main(int argc, char** argv)
 	while(true){
 		auto tic = std::chrono::high_resolution_clock::now();
 
-		// Create a Primitive
-		robin::Primitive3d3* prim(new robin::Primitive3d3);
+		// Reset the dummy Primitive3d3 for multiple primitive inference
+		prim = new robin::Primitive3d3;
 		
 		mysolver.solve(prim);
 

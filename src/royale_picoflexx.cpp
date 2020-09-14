@@ -74,7 +74,7 @@ namespace robin {
 		// Windows requires that the application allocate these, not the DLL.  We expect typical
 		// Royale applications to be using a GUI toolkit such as Qt, which has its own equivalent of this
 		// PlatformResources class (automatically set up by the toolkit).
-		sample_utils::PlatformResources resources_;
+		sample_utils::PlatformResources resources;
 
 		// This is the data listener which will receive callbacks.  It's declared
 		// before the cameraDevice (dev_) so that, if this function exits with a 'return'
@@ -151,7 +151,7 @@ namespace robin {
 		this->start(DISPARITY_);
 
 		// Let the camera capture for some time
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		std::this_thread::sleep_for(std::chrono::seconds(5));
 
 		// Change the exposure time for the first stream of the use case (Royale will limit this to an
 		// eye-safe exposure time, with limits defined by the use case).  The time is given in
@@ -159,7 +159,7 @@ namespace robin {
 		//
 		// Non-mixed mode use cases have exactly one stream, mixed mode use cases have more than one.
 		// For this example we only change the first stream.
-		if (dev_->setExposureTime(500, streamIds_[0]) != royale::CameraStatus::SUCCESS) { //200
+		if (dev_->setExposureTime(400, streamIds_[0]) != royale::CameraStatus::SUCCESS) { //200
 			std::cerr << "Cannot set exposure time for stream" << streamIds_[0] << std::endl;
 		}
 		else {

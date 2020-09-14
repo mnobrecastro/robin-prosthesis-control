@@ -199,30 +199,40 @@ namespace robin
 				t_cub.join();
 				t_cyl.join();
 
-				// Pick the biggest fit cloud that corresponds to the correct primitive fitting
+				// Selection of the best fitting Primitive3d3
 				float cloud_size(cloud_->points.size());
 				float fit_percent(0.0);
 
 				float sph_size(p_sph->getPointCloud()->points.size());
-				std::cout << "Sphere FitPercent: " << sph_size / cloud_size << std::endl;				
-				if (fit_percent < sph_size / cloud_size) {
-					fit_percent = sph_size / cloud_size;
-					primitive_ = p_sph;
-					cloud_ = c_sph;
-				}
+				std::cout << "Sphere FitPercent: " << sph_size / cloud_size << std::endl;
 				float cub_size(p_cub->getPointCloud()->points.size());
 				std::cout << "Cuboid FitPercent: " << cub_size / cloud_size << std::endl;
-				if (fit_percent < cub_size / cloud_size) {
-					fit_percent = cub_size / cloud_size;
-					primitive_ = p_cub;
-					cloud_ = c_cyl;
-				}
 				float cyl_size(p_cyl->getPointCloud()->points.size());
 				std::cout << "Cylinder FitPercent: " << cyl_size / cloud_size << std::endl;
-				if (fit_percent < cyl_size / cloud_size) {
-					fit_percent = cyl_size / cloud_size;
-					primitive_ = p_cyl;
-					cloud_ = c_cyl;
+				
+				if (sph_size == 0 || cub_size == 0 || cyl_size == 0) {
+					// Fair selection: if at least one of the Primitive3d3 has not been fitted, then no primitive should be selected.
+					primitive_ = primitive_;
+					pcl::PointCloud<pcl::PointXYZ>::Ptr c_empty (new pcl::PointCloud<pcl::PointXYZ>());
+					cloud_ = c_empty;
+				}
+				else {
+					// Pick the biggest fit cloud that corresponds to the correct primitive fitting
+					if (fit_percent < sph_size / cloud_size) {
+						fit_percent = sph_size / cloud_size;
+						primitive_ = p_sph;
+						cloud_ = c_sph;
+					}
+					if (fit_percent < cub_size / cloud_size) {
+						fit_percent = cub_size / cloud_size;
+						primitive_ = p_cub;
+						cloud_ = c_cyl;
+					}
+					if (fit_percent < cyl_size / cloud_size) {
+						fit_percent = cyl_size / cloud_size;
+						primitive_ = p_cyl;
+						cloud_ = c_cyl;
+					}
 				}
 			}
 		}
