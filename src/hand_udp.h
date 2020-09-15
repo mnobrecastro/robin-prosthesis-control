@@ -10,6 +10,16 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32.lib")
+// NOTE: <winsock2.h> will import <windows.h> which defines macros for 'min' and 'max' functions.
+// Therefore these need to be undefined outside the imported document such that there is no conflict
+// with the standard library's 'min' and 'max' functions.
+// Another solution is to add NOMINMAX to Project Properties: C/C++ > Preprocessor Definitions.
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
 
 namespace robin
 {
@@ -70,3 +80,6 @@ namespace robin
 		};
 	}
 }
+
+//#define WIN32_LEAN_AND_MEAN
+//#define _WINSOCKAPI_

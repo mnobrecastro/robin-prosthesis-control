@@ -91,7 +91,7 @@ namespace robin
 				/* byte5 = uint8 : Pronation Velocity in range[0, 255]
 				 * byte6 = uint8 : Supination Velocity in range[0, 255]
 				 */
-				command_buffer_[5] = min(max(0.0, std::abs(vel)), 1.0);
+				command_buffer_[5] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
 				command_buffer_[6] = 0.0;
 				if (send) {
 					this->send_command();
@@ -106,7 +106,7 @@ namespace robin
 				 * byte6 = uint8 : Supination Velocity in range[0, 255]
 				 */
 				command_buffer_[5] = 0.0;
-				command_buffer_[6] = min(max(0.0, std::abs(vel)), 1.0);
+				command_buffer_[6] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
 				if (send) {
 					this->send_command();
 					is_moving_ = true;
@@ -123,7 +123,7 @@ namespace robin
 				 * byte4 = uint8 : Lateral Grip Opening command in range[0, 255]
 				 */
 				command_buffer_[1] = 0.0;
-				command_buffer_[2] = min(max(0.0, std::abs(vel)), 1.0); 
+				command_buffer_[2] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
 				if (send) {
 					this->send_command();
 					is_moving_ = true;
@@ -138,7 +138,7 @@ namespace robin
 				 * byte3 = uint8 : Lateral Grip Closing command in range[0, 255]
 				 * byte4 = uint8 : Lateral Grip Opening command in range[0, 255]
 				 */
-				command_buffer_[1] = min(max(0.0, std::abs(vel)), 1.0);
+				command_buffer_[1] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
 				command_buffer_[2] = 0.0;
 				if (send) {
 					this->send_command();

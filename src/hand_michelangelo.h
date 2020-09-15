@@ -1,6 +1,7 @@
 #pragma once
 #include "hand_udp.h"
 
+#include <algorithm>
 #include <iostream>
 #include <atomic>
 #include <chrono>

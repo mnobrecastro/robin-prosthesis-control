@@ -1,3 +1,5 @@
+#include "../src/hand_michelangelo.h"
+#include "../src/control_simple.h"
 #include "../src/solver3.h"
 #include "../src/solver3_lccp.h"
 #include "../src/solver3_lasers.h"
@@ -10,8 +12,6 @@
 #include "../src/primitive3_cuboid.h"
 #include "../src/primitive3_line.h"
 #include "../src/primitive3_circle.h"
-//#include "../src/hand_michelangelo.h"
-#include "../src/control_simple.h"
 
 #include <chrono>
 #include <thread>
@@ -33,18 +33,18 @@ int main(int argc, char** argv)
 	//myhand.print_recv_packet(packpack, byte_len);
 
 
-	//robin::hand::Michelangelo myhand(false);
+	robin::hand::Michelangelo myhand(false);
 
 	//robin::hand::Hand myhand(TRUE);
 
-	//robin::control::ControlSimple controller(myhand);
+	robin::control::ControlSimple controller(myhand);
 
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
 	//robin::Solver3Lasers mysolver;
 	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.215); //0.105 or 0.160
 	mysolver.setDownsample(0.0025f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f
-	mysolver.setResample(2, 0.01);
+	//mysolver.setResample(2, 0.005);
 	mysolver.setPlaneRemoval(false);
 	//solver.setUseNormals(true);
 	
@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 	viewer->addCoordinateSystem(0.25);
 
 	bool RENDER(true);
-	bool HAND_CONTROL(false);
+	bool HAND_CONTROL(true);
 	std::vector<double> freq;
 
 	while(true){
@@ -114,40 +114,40 @@ int main(int argc, char** argv)
 		mysolver.solve(prim);
 
 		///
-		//if (HAND_CONTROL) {
-		//	controller.evaluate(prim);
-		//	std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
-		//	std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
+		if (HAND_CONTROL) {
+			controller.evaluate(prim);
+			std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
+			std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
 
-		//	if (myhand.isRightHand()) {
-		//		// Right-hand prosthesis (positive tilt angle)
-		//		std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
-		//		std::cout << "Hand tilt_angle: " << myhand.getWristSupProAngle() << " (" << myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
-		//	}
-		//	else {
-		//		// Left-hand prosthesis (negative tilt angle)
-		//		std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
-		//		std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
-		//	}
+			if (myhand.isRightHand()) {
+				// Right-hand prosthesis (positive tilt angle)
+				std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
+				std::cout << "Hand tilt_angle: " << myhand.getWristSupProAngle() << " (" << myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
+			}
+			else {
+				// Left-hand prosthesis (negative tilt angle)
+				std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
+				std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
+			}
 
-		//	std::cout << "Bools: ";
-		//	if (controller.getStateMove()) {
-		//		std::cout << "ON";
-		//	}
-		//	else {
-		//		std::cout << "OFF";
-		//	}
-		//	std::cout << " ";
-		//	if (controller.getStateGrasp()) {
-		//		std::cout << "ON";
-		//	}
-		//	else {
-		//		std::cout << "OFF";
-		//	}
-		//	std::cout << std::endl;
+			std::cout << "Bools: ";
+			if (controller.getStateMove()) {
+				std::cout << "ON";
+			}
+			else {
+				std::cout << "OFF";
+			}
+			std::cout << " ";
+			if (controller.getStateGrasp()) {
+				std::cout << "ON";
+			}
+			else {
+				std::cout << "OFF";
+			}
+			std::cout << std::endl;
 
-		//	std::cout << "\n" << std::endl;
-		//}
+			std::cout << "\n" << std::endl;
+		}
 		///
 
 		//---- RENDERING ----
