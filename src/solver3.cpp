@@ -63,6 +63,11 @@ namespace robin
 		resamp_radius_ = radius;
 	}
 
+	void Solver3::setFairSelection(bool fairness)
+	{
+		fairselectionOnOff_ = fairness;
+	}
+
 	pcl::PointCloud<pcl::PointXYZ>::Ptr Solver3::trimPointCloud()
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_trimmed(new pcl::PointCloud<pcl::PointXYZ>());
@@ -266,29 +271,30 @@ namespace robin
 				float cyl_size(p_cyl->getPointCloud()->points.size());
 				std::cout << "Cylinder FitPercent: " << cyl_size / cloud_size << std::endl;
 				
-				if (sph_size == 0 || cub_size == 0 || cyl_size == 0) {
-					// Fair selection: if at least one of the Primitive3d3 has not been fitted, then no primitive should be selected.
-					primitive_ = primitive_;
-					pcl::PointCloud<pcl::PointXYZ>::Ptr c_empty (new pcl::PointCloud<pcl::PointXYZ>());
-					cloud_ = c_empty;
+				if (fairselectionOnOff_) {
+					if (sph_size == 0 || cub_size == 0 || cyl_size == 0) {
+						// Fair selection: if at least one of the Primitive3d3 has not been fitted, then no primitive should be selected.
+						primitive_ = primitive_;
+						pcl::PointCloud<pcl::PointXYZ>::Ptr c_empty(new pcl::PointCloud<pcl::PointXYZ>());
+						cloud_ = c_empty;
+						return;
+					}
 				}
-				else {
-					// Pick the biggest fit cloud that corresponds to the correct primitive fitting
-					if (fit_percent < sph_size / cloud_size) {
-						fit_percent = sph_size / cloud_size;
-						primitive_ = p_sph;
-						cloud_ = c_sph;
-					}
-					if (fit_percent < cub_size / cloud_size) {
-						fit_percent = cub_size / cloud_size;
-						primitive_ = p_cub;
-						cloud_ = c_cyl;
-					}
-					if (fit_percent < cyl_size / cloud_size) {
-						fit_percent = cyl_size / cloud_size;
-						primitive_ = p_cyl;
-						cloud_ = c_cyl;
-					}
+				// Pick the biggest fit cloud that corresponds to the correct primitive fitting
+				if (fit_percent < sph_size / cloud_size) {
+					fit_percent = sph_size / cloud_size;
+					primitive_ = p_sph;
+					cloud_ = c_sph;
+				}
+				if (fit_percent < cub_size / cloud_size) {
+					fit_percent = cub_size / cloud_size;
+					primitive_ = p_cub;
+					cloud_ = c_cyl;
+				}
+				if (fit_percent < cyl_size / cloud_size) {
+					fit_percent = cyl_size / cloud_size;
+					primitive_ = p_cyl;
+					cloud_ = c_cyl;
 				}
 			}
 		}

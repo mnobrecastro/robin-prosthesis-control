@@ -43,9 +43,10 @@ int main(int argc, char** argv)
 	robin::Solver3LCCP mysolver;
 	//robin::Solver3Lasers mysolver;
 	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.215); //0.105 or 0.160
-	mysolver.setDownsample(0.0025f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f
+	mysolver.setDownsample(0.002f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f
 	//mysolver.setResample(2, 0.005);
 	mysolver.setPlaneRemoval(false);
+	mysolver.setFairSelection(false);
 	//solver.setUseNormals(true);
 	
 	// Dummy Segmentation object
@@ -55,13 +56,13 @@ int main(int argc, char** argv)
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
 	seg->setMaxIterations(1000); //100
-	seg->setDistanceThreshold(0.002); //0.001
+	seg->setDistanceThreshold(0.001); //0.001
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 	
 	// Create a sensor from a camera
-	//robin::RealsenseD400* mycam(new robin::RealsenseD400());
-	robin::RoyalePicoflexx* mycam(new robin::RoyalePicoflexx());
+	robin::RealsenseD400* mycam(new robin::RealsenseD400());
+	//robin::RoyalePicoflexx* mycam(new robin::RoyalePicoflexx());
 	mycam->printInfo();
 	mycam->setDisparity(false);
 	mysolver.addSensor(mycam);

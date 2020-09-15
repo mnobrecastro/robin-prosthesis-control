@@ -50,6 +50,8 @@ namespace robin
 
 		void setResample(size_t order, float radius);
 
+		void setFairSelection(bool fairness);
+
 		std::vector<robin::Sensor3*> getSensors() const;
 
 		void solve(robin::Primitive3d3*& prim);
@@ -78,6 +80,9 @@ namespace robin
 		size_t resamp_order_ = 0;
 		float resamp_radius_ = 0.001f;
 		void resample();
+
+		/* To be used with multithreading Primitive3d3 fitting. */
+		bool fairselectionOnOff_ = false;
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr trimPointCloud();
 		
