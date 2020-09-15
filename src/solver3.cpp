@@ -164,7 +164,6 @@ namespace robin
 			mls.setSearchRadius(resamp_radius_);
 
 			// Reconstruct
-			//mls.process(*mls_points);
 			mls.process(*mls_points);
 
 			// Copying the PointCloud
@@ -197,7 +196,7 @@ namespace robin
 
 		this->crop();
 		this->downsample();
-		this->resample();
+		//this->resample();
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_preproc(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
 		cloud_preproc_ = cloud_preproc;
 

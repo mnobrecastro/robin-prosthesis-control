@@ -159,7 +159,7 @@ namespace robin {
 		//
 		// Non-mixed mode use cases have exactly one stream, mixed mode use cases have more than one.
 		// For this example we only change the first stream.
-		if (dev_->setExposureTime(400, streamIds_[0]) != royale::CameraStatus::SUCCESS) { //200
+		if (dev_->setExposureTime(300, streamIds_[0]) != royale::CameraStatus::SUCCESS) { //200
 			std::cerr << "Cannot set exposure time for stream" << streamIds_[0] << std::endl;
 		}
 		else {
