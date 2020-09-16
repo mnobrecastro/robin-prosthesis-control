@@ -24,12 +24,12 @@ namespace robin
 		void fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg);
 
 	protected:
-		struct Properties {
+		/*struct Properties {
 			float radius = 0.0;
 			float center_x = 0.0;
 			float center_y = 0.0;
 			float center_z = 0.0;
-		} properties_;
+		} properties_;*/
 
 		/* Checks if the fit is valid. */
 		bool is_fit_valid();
