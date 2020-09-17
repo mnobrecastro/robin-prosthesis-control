@@ -32,9 +32,39 @@ namespace robin
 			plane->visualize(viewer);
 		}
 
-		viewer->addLine<pcl::PointXYZ>(pcl::PointXYZ(plot_[0], plot_[1], plot_[2]), pcl::PointXYZ(plot_[3], plot_[4], plot_[5]), 1.0, 0.4, 0.4, "axis0");
-		viewer->addLine<pcl::PointXYZ>(pcl::PointXYZ(plot_[0], plot_[1], plot_[2]), pcl::PointXYZ(plot_[6], plot_[7], plot_[8]), 0.4, 1.0, 0.4, "axis1");
-		viewer->addLine<pcl::PointXYZ>(pcl::PointXYZ(plot_[0], plot_[1], plot_[2]), pcl::PointXYZ(plot_[9], plot_[10], plot_[11]), 0.4, 0.4, 1.0, "axis2");
+		pcl::PointXYZ center(properties_.center_x, properties_.center_y, properties_.center_z);
+		pcl::PointXYZ point_x(properties_.center_x + properties_.e0_x, properties_.center_y + properties_.e0_y, properties_.center_z + properties_.e0_z);
+		pcl::PointXYZ point_y(properties_.center_x + properties_.e1_x, properties_.center_y + properties_.e1_y, properties_.center_z + properties_.e1_z);
+		pcl::PointXYZ point_z(properties_.center_x + properties_.axis_x, properties_.center_y + properties_.axis_y, properties_.center_z + properties_.axis_z);
+		viewer->addLine<pcl::PointXYZ>(center, point_x, 1.0, 0.4, 0.4, "axis0");
+		viewer->addLine<pcl::PointXYZ>(center, point_y, 0.4, 1.0, 0.4, "axis1");
+		viewer->addLine<pcl::PointXYZ>(center, point_z, 0.4, 0.4, 1.0, "axis2");
+
+		// Wireframe cube
+		//pcl::PointXYZ pFUL(plot_[0] - 0.005, plot_[1] - 0.005, plot_[2] - 0.005);
+		//pcl::PointXYZ pFUR(plot_[0] + 0.005, plot_[1] - 0.005, plot_[2] - 0.005);
+		//pcl::PointXYZ pFDL(plot_[0] - 0.005, plot_[1] + 0.005, plot_[2] - 0.005);
+		//pcl::PointXYZ pFDR(plot_[0] + 0.005, plot_[1] + 0.005, plot_[2] - 0.005);
+
+		//pcl::PointXYZ pBUL(plot_[0] - 0.005, plot_[1] - 0.005, plot_[2] + 0.005);
+		//pcl::PointXYZ pBUR(plot_[0] + 0.005, plot_[1] - 0.005, plot_[2] + 0.005);
+		//pcl::PointXYZ pBDL(plot_[0] - 0.005, plot_[1] + 0.005, plot_[2] + 0.005);
+		//pcl::PointXYZ pBDR(plot_[0] + 0.005, plot_[1] + 0.005, plot_[2] + 0.005);
+
+		//viewer->addLine<pcl::PointXYZ>(pFUL, pFUR, 255, 255, 255, "cFU");
+		//viewer->addLine<pcl::PointXYZ>(pFUR, pFDR, 255, 255, 255, "cFR");
+		//viewer->addLine<pcl::PointXYZ>(pFDR, pFDL, 255, 255, 255, "cFD");
+		//viewer->addLine<pcl::PointXYZ>(pFDL, pFUL, 255, 255, 255, "cFL");
+
+		//viewer->addLine<pcl::PointXYZ>(pBUL, pBUR, 255, 255, 255, "cBU");
+		//viewer->addLine<pcl::PointXYZ>(pBUR, pBDR, 255, 255, 255, "cBR");
+		//viewer->addLine<pcl::PointXYZ>(pBDR, pBDL, 255, 255, 255, "cBD");
+		//viewer->addLine<pcl::PointXYZ>(pBDL, pBUL, 255, 255, 255, "cBL");
+
+		//viewer->addLine<pcl::PointXYZ>(pBUL, pFUL, 255, 255, 255, "cLU");
+		//viewer->addLine<pcl::PointXYZ>(pBDL, pFDL, 255, 255, 255, "cLD");
+		//viewer->addLine<pcl::PointXYZ>(pBUR, pFUR, 255, 255, 255, "cRU");
+		//viewer->addLine<pcl::PointXYZ>(pBDR, pFDR, 255, 255, 255, "cRD");
 	}
 
 	void Primitive3Cuboid::reset()
@@ -75,7 +105,7 @@ namespace robin
 				// Avoid cases where PERPENDICULAR planes were not found
 				Eigen::Vector3f new_axis(plane->getProperty_axis_x(), plane->getProperty_axis_y(), plane->getProperty_axis_z());
 				float angle(std::acos(normal_axis.dot(new_axis)/(normal_axis.norm() * new_axis.norm())));
-				if (!plane->getPointCloud()->points.empty() && std::abs(angle-M_PI/2) < 15*M_PI/180.0) {
+				if (!plane->getPointCloud()->points.empty() && std::abs(angle-M_PI/2) < 5 * M_PI/180.0) {
 					*cloud_ += *(plane->getPointCloud());
 					planes_.push_back(plane);
 				}
@@ -125,7 +155,7 @@ namespace robin
 				// Avoid cases where PERPENDICULAR planes were not found
 				Eigen::Vector3f new_axis(plane->getProperty_axis_x(), plane->getProperty_axis_y(), plane->getProperty_axis_z());
 				float angle(std::acos(normal_axis.dot(new_axis) / (normal_axis.norm() * new_axis.norm())));
-				if (!plane->getPointCloud()->points.empty() && std::abs(angle - M_PI / 2) < 1 * M_PI / 180.0) {
+				if (!plane->getPointCloud()->points.empty() && std::abs(angle - M_PI / 2) < 5 * M_PI / 180.0) {
 					*cloud_ += *(plane->getPointCloud());
 					planes_.push_back(plane);
 					++n_planes;
@@ -176,69 +206,58 @@ namespace robin
 	{
 		if (planes_.size() > 0) {
 			float width(0.0), height(0.0), depth(0.001);
+			Eigen::Vector3f e0_axis, e1_axis, z_axis;
 			Eigen::Matrix3f mori;
 			Eigen::Vector3f face_center, cube_center;
 			Eigen::Vector3f intersection_axis, point_on_axis;
 
 			if (planes_.size() == 1) {
-				width = planes_[0]->getProperty_width();
-				height = planes_[0]->getProperty_height();
+				/*
+				 *    ___________
+				 *   |   Z ^    ||
+				 *   |     |    ||
+				 *   |     |    ||
+				 *   |     ---> ||
+				 *   |    /     ||
+				 *   |  e0	    ||
+				 *   |__________/
+				 */
+				
+				width = planes_[0]->getProperty_width(); // In the e1-direction
+				height = planes_[0]->getProperty_height(); // In the z-direction
 
-
-				mori(0, 0) = planes_[0]->getProperty_e0_x();
-				mori(1, 0) = planes_[0]->getProperty_e0_y();
-				mori(2, 0) = planes_[0]->getProperty_e0_z();
-
-				mori(0, 1) = planes_[0]->getProperty_e1_x();
-				mori(1, 1) = planes_[0]->getProperty_e1_y();
-				mori(2, 1) = planes_[0]->getProperty_e1_z();
-
-				mori(0, 2) = planes_[0]->getProperty_axis_x();
-				mori(1, 2) = planes_[0]->getProperty_axis_y();
-				mori(2, 2) = planes_[0]->getProperty_axis_z();
-
-				face_center(0) = planes_[0]->getProperty_center_x();
-				face_center(1) = planes_[0]->getProperty_center_y();
-				face_center(2) = planes_[0]->getProperty_center_z();
-
-				cube_center(0) = face_center.x() + mori(0, 2) * depth / 2;
-				cube_center(1) = face_center.y() + mori(1, 2) * depth / 2;
-				cube_center(2) = face_center.z() + mori(2, 2) * depth / 2;
-
-				//
-				plot_[0] = cube_center.x();
-				plot_[1] = cube_center.y();
-				plot_[2] = cube_center.z();
-				plot_[3] = planes_[0]->getProperty_axis_x();
-				plot_[4] = planes_[0]->getProperty_axis_y();
-				plot_[5] = planes_[0]->getProperty_axis_z();
-				plot_[6] = planes_[0]->getProperty_e0_x();
-				plot_[7] = planes_[0]->getProperty_e0_y();
-				plot_[8] = planes_[0]->getProperty_e0_z();
-				plot_[9] = planes_[0]->getProperty_e1_x();
-				plot_[10] = planes_[0]->getProperty_e1_y();
-				plot_[11] = planes_[0]->getProperty_e1_z();
-
-				if (width >= height && width >= depth) {
-					properties_.axis_x = planes_[0]->getProperty_e0_x();
-					properties_.axis_y = planes_[0]->getProperty_e0_y();
-					properties_.axis_z = planes_[0]->getProperty_e0_z();
-				}
-				else if (height >= width && height >= depth) {
-					properties_.axis_x = planes_[0]->getProperty_e1_x();
-					properties_.axis_y = planes_[0]->getProperty_e1_y();
-					properties_.axis_z = planes_[0]->getProperty_e1_z();
-				}
-				else if (depth > 0.005 && depth >= width && depth >= height) {
-					properties_.axis_x = planes_[0]->getProperty_axis_x();
-					properties_.axis_y = planes_[0]->getProperty_axis_y();
-					properties_.axis_z = planes_[0]->getProperty_axis_z();
-				}
-				//
-
+				// Plane z -> Cube e0
+				e0_axis = { planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z() };
+				e0_axis.normalize();
+				e0_axis *= depth / 2;
+				// Plane -e1 -> Cube e1
+				e1_axis = { -planes_[0]->getProperty_e1_x(), -planes_[0]->getProperty_e1_y(), -planes_[0]->getProperty_e1_z() };
+				e1_axis.normalize();
+				e1_axis *= width / 2;
+				// Plane e0 -> Cube z
+				z_axis = { planes_[0]->getProperty_e0_x(), planes_[0]->getProperty_e0_y(), planes_[0]->getProperty_e0_z() };
+				z_axis.normalize();
+				z_axis *= height / 2;
 			}
 			else if (planes_.size() > 1) {
 				// Case of 2 or 3
+				// e0 is by convention the face closest to the view
+				// Z defines HEIGHT, e0 defines DEPTH, e1 defines WIDTH
+				/*
+				 *      ___________
+				 *     /   Z      /|
+				 *    /    ^     / |
+				 *   /_____|____/F1|
+				 *   |F0   |    |  |
+				 *   |     |    |  |
+				 *   |     |    |  |
+				 *   |     -----|->|
+				 *   |    /     |e1|
+				 *   |   /	    |  |
+				 *   | e0       | /
+				 *   |__________|/
+				 */
+
 				float a1(planes_[0]->getProperty_axis_x());
 				float b1(planes_[0]->getProperty_axis_y());
 				float c1(planes_[0]->getProperty_axis_z());
@@ -249,7 +268,7 @@ namespace robin
 				float c2(planes_[1]->getProperty_axis_z());
 				float d2(planes_[1]->getProperty_d());
 
-				// Calculate the intersection axis between the two planes
+				// Calculate the intersection axis between the two planes (defines the new Z)
 				intersection_axis(0) = b1 / a1 * (c2 - a2 * c1 / a1) / (b2 - a2 * b1 / a1) - c1 / a1;
 				intersection_axis(1) = -(c2 - a2 * c1 / a1) / (b2 - a2 * b1 / a1);
 				intersection_axis(2) = 1;
@@ -272,77 +291,102 @@ namespace robin
 				height = height_arr[1] - height_arr[0];
 
 				// Calculate width
-				Eigen::Vector3f face0_axis = { planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z() };
-				Eigen::Vector3f face0_axis_new = intersection_axis.cross(face0_axis);
+				Eigen::Vector3f face0_e0_axis = { planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z() }; // normalized
+				Eigen::Vector3f face0_e1_axis = intersection_axis.cross(face0_e0_axis); // new/updated face0_e1_axis
 				std::array<float, 2> width_arr(getPointCloudExtremes(
 					*planes_[0]->getPointCloud(),
 					pcl::PointXYZ(planes_[0]->getProperty_center_x(), planes_[0]->getProperty_center_y(), planes_[0]->getProperty_center_z()),
-					pcl::PointXYZ(intersection_axis.x(), intersection_axis.y(), intersection_axis.z())
+					pcl::PointXYZ(face0_e1_axis.x(), face0_e1_axis.y(), face0_e1_axis.z()) //intersection_axis.
 				));
 				width = width_arr[1] - width_arr[0];
 
 				// Calculate depth
-				Eigen::Vector3f face1_axis = { planes_[1]->getProperty_axis_x(), planes_[1]->getProperty_axis_y(), planes_[1]->getProperty_axis_z() };
-				Eigen::Vector3f face1_axis_new = intersection_axis.cross(face1_axis);
+				Eigen::Vector3f face1_e0_axis = { planes_[1]->getProperty_axis_x(), planes_[1]->getProperty_axis_y(), planes_[1]->getProperty_axis_z() }; // normalized (no longer used)
+				Eigen::Vector3f face1_e1_axis = intersection_axis.cross(face1_e0_axis); // new/updated face1_e1_axis (no longer used)
 				std::array<float, 2> depth_arr(getPointCloudExtremes(
 					*planes_[1]->getPointCloud(),
-					pcl::PointXYZ(planes_[1]->getProperty_center_x(), planes_[1]->getProperty_center_y(), planes_[1]->getProperty_center_z()),
-					pcl::PointXYZ(intersection_axis.x(), intersection_axis.y(), intersection_axis.z())
+					pcl::PointXYZ(planes_[0]->getProperty_center_x(), planes_[0]->getProperty_center_y(), planes_[0]->getProperty_center_z()), //planes_[1]
+					pcl::PointXYZ(face0_e0_axis.x(), face0_e0_axis.y(), face0_e0_axis.z()) //intersection_axis.
 				));
 				depth = depth_arr[1] - depth_arr[0];
 
+				// Plane z -> Cube e0
+				e0_axis = face0_e0_axis;
+				e0_axis.normalize();
+				e0_axis *= depth / 2;
+				// Plane -e1 -> Cube e1
+				e1_axis = face0_e1_axis;
+				e1_axis.normalize();
+				e1_axis *= width / 2;
+				// Plane e0 -> Cube z
+				z_axis = intersection_axis;
+				z_axis.normalize();
+				z_axis *= height / 2;
 
-				mori(0, 0) = face0_axis_new.x();
-				mori(1, 0) = face0_axis_new.y();
-				mori(2, 0) = face0_axis_new.z();
+				////
+				//plot_[0] = cube_center.x();
+				//plot_[1] = cube_center.y();
+				//plot_[2] = cube_center.z();
+				//plot_[3] = planes_[0]->getProperty_axis_x();
+				//plot_[4] = planes_[0]->getProperty_axis_y();
+				//plot_[5] = planes_[0]->getProperty_axis_z();
+				//plot_[6] = face0_e1_axis.x();
+				//plot_[7] = face0_e1_axis.y();
+				//plot_[8] = face0_e1_axis.z();
+				//plot_[9] = intersection_axis.x();
+				//plot_[10] = intersection_axis.y();
+				//plot_[11] = intersection_axis.z();
 
-				mori(0, 1) = intersection_axis.x();
-				mori(1, 1) = intersection_axis.y();
-				mori(2, 1) = intersection_axis.z();
-
-				mori(0, 2) = planes_[0]->getProperty_axis_x();
-				mori(1, 2) = planes_[0]->getProperty_axis_y();
-				mori(2, 2) = planes_[0]->getProperty_axis_z();
-
-				face_center(0) = planes_[0]->getProperty_center_x();
-				face_center(1) = planes_[0]->getProperty_center_y();
-				face_center(2) = planes_[0]->getProperty_center_z();
-
-				cube_center(0) = face_center.x() + mori(0, 2) * depth / 2;
-				cube_center(1) = face_center.y() + mori(1, 2) * depth / 2;
-				cube_center(2) = face_center.z() + mori(2, 2) * depth / 2;
-
-				//
-				plot_[0] = cube_center.x();
-				plot_[1] = cube_center.y();
-				plot_[2] = cube_center.z();
-				plot_[3] = planes_[0]->getProperty_axis_x();
-				plot_[4] = planes_[0]->getProperty_axis_y();
-				plot_[5] = planes_[0]->getProperty_axis_z();
-				plot_[6] = face0_axis_new.x();
-				plot_[7] = face0_axis_new.y();
-				plot_[8] = face0_axis_new.z();
-				plot_[9] = intersection_axis.x();
-				plot_[10] = intersection_axis.y();
-				plot_[11] = intersection_axis.z();
-
-				if (width >= height && width >= depth) {
-					properties_.axis_x = face0_axis_new.x();
-					properties_.axis_y = face0_axis_new.y();
-					properties_.axis_z = face0_axis_new.z();
-				}
-				else if (height >= width && height >= depth) {
-					properties_.axis_x = intersection_axis.x();
-					properties_.axis_y = intersection_axis.y();
-					properties_.axis_z = intersection_axis.z();
-				}
-				else if (depth > 0.005 && depth >= width && depth >= height) {
-					properties_.axis_x = planes_[0]->getProperty_axis_x();
-					properties_.axis_y = planes_[0]->getProperty_axis_y();
-					properties_.axis_z = planes_[0]->getProperty_axis_z();
-				}
-				//
+				//if (width >= height && width >= depth) {
+				//	properties_.axis_x = face0_e1_axis.x() * width;
+				//	properties_.axis_y = face0_e1_axis.y() * width;
+				//	properties_.axis_z = face0_e1_axis.z() * width;
+				//}
+				//else if (height >= width && height >= depth) {
+				//	properties_.axis_x = intersection_axis.x() * height;
+				//	properties_.axis_y = intersection_axis.y() * height;
+				//	properties_.axis_z = intersection_axis.z() * height;
+				//}
+				//else if (depth > 0.005 && depth >= width && depth >= height) {
+				//	properties_.axis_x = planes_[0]->getProperty_axis_x() * depth;
+				//	properties_.axis_y = planes_[0]->getProperty_axis_y() * depth;
+				//	properties_.axis_z = planes_[0]->getProperty_axis_z() * depth;
+				//}
+				////
 			}
+
+			face_center(0) = planes_[0]->getProperty_center_x();
+			face_center(1) = planes_[0]->getProperty_center_y();
+			face_center(2) = planes_[0]->getProperty_center_z();
+
+			cube_center(0) = face_center.x() - e0_axis(0);
+			cube_center(1) = face_center.y() - e0_axis(1);
+			cube_center(2) = face_center.z() - e0_axis(2);
+
+			// Since width (plane e0) <= height (plane e1)
+			properties_.e0_x = e0_axis(0);
+			properties_.e0_y = e0_axis(1);
+			properties_.e0_z = e0_axis(2);
+			properties_.e1_x = e1_axis(0);
+			properties_.e1_y = e1_axis(1);
+			properties_.e1_z = e1_axis(2);
+			properties_.axis_x = z_axis(0);
+			properties_.axis_y = z_axis(1);
+			properties_.axis_z = z_axis(2);
+
+			// Transformation matrix
+			e0_axis.normalize();
+			mori(0, 0) = e0_axis(0);
+			mori(1, 0) = e0_axis(1);
+			mori(2, 0) = e0_axis(2);
+			e1_axis.normalize();
+			mori(0, 1) = e1_axis(0);
+			mori(1, 1) = e1_axis(1);
+			mori(2, 1) = e1_axis(2);
+			z_axis.normalize();
+			mori(0, 2) = z_axis(0);
+			mori(1, 2) = z_axis(1);
+			mori(2, 2) = z_axis(2);
 
 			Eigen::Quaternionf quat(mori);
 
@@ -370,9 +414,6 @@ namespace robin
 		properties_.height = coefficients_->values[8];
 		properties_.depth = coefficients_->values[9];
 
-		//properties_.axis_x = coefficients_->values[3];
-		//properties_.axis_y = coefficients_->values[4];
-		//properties_.axis_z = coefficients_->values[5];
 		std::cout << "Primitive3Cuboid properties were updated." << std::endl;
 		std::cout << "\t" << properties_.width << " " << properties_.height << " " << properties_.depth << std::endl;
 		std::cout << "\t" << properties_.axis_x << " " << properties_.axis_y << " " << properties_.axis_z << "("

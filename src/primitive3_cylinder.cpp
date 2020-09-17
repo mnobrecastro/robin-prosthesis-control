@@ -149,12 +149,12 @@ namespace robin
 	/* Update the properties of the Primitive3. */
 	void Primitive3Cylinder::update_properties()
 	{
-		properties_.center_x = coefficients_->values[0];
-		properties_.center_y = coefficients_->values[1];
-		properties_.center_z = coefficients_->values[2];
-		properties_.axis_x = coefficients_->values[3];
-		properties_.axis_y = coefficients_->values[4];
-		properties_.axis_z = coefficients_->values[5];
+		properties_.center_x = coefficients_->values[0] + coefficients_->values[3] / 2;
+		properties_.center_y = coefficients_->values[1] + coefficients_->values[4] / 2;
+		properties_.center_z = coefficients_->values[2] + coefficients_->values[5] / 2;
+		properties_.axis_x = coefficients_->values[3] / 2;
+		properties_.axis_y = coefficients_->values[4] / 2;
+		properties_.axis_z = coefficients_->values[5] / 2;
 		properties_.radius = coefficients_->values[6];
 	}
 

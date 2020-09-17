@@ -45,13 +45,13 @@ namespace robin
 									properties_.center_y + 0.05 * properties_.axis_y,
 									properties_.center_z + 0.05 * properties_.axis_z);
 		viewer->addLine(center, center_normal, "plane_normal" + std::to_string(std::rand()));
-		pcl::PointXYZ center_e0(properties_.center_x + properties_.width / 2.0 * properties_.e0_x,
-								properties_.center_y + properties_.width / 2.0 * properties_.e0_y,
-								properties_.center_z + properties_.width / 2.0 * properties_.e0_z);
+		pcl::PointXYZ center_e0(properties_.center_x + properties_.e0_x,
+								properties_.center_y + properties_.e0_y,
+								properties_.center_z + properties_.e0_z);
 		viewer->addLine(center, center_e0, "plane_e0" + std::to_string(std::rand()));
-		pcl::PointXYZ center_e1(properties_.center_x + properties_.height / 2.0 * properties_.e1_x,
-								properties_.center_y + properties_.height / 2.0 * properties_.e1_y,
-								properties_.center_z + properties_.height / 2.0 * properties_.e1_z);
+		pcl::PointXYZ center_e1(properties_.center_x + properties_.e1_x,
+								properties_.center_y + properties_.e1_y,
+								properties_.center_z + properties_.e1_z);
 		viewer->addLine(center, center_e1, "plane_e1" + std::to_string(std::rand()));
 	}
 
@@ -165,8 +165,8 @@ namespace robin
 	/* Correct the obtained coefficients if necessary. */
 	void Primitive3Plane::correct_coefficients()
 	{
-		// Nomal points towards the camera (convex objects only)
-		if (coefficients_->values[2] < 0) {
+		// Nomal always points towards the camera (convex objects only)
+		if (coefficients_->values[2] > 0) {
 			coefficients_->values[0] = -coefficients_->values[0];
 			coefficients_->values[1] = -coefficients_->values[1];
 			coefficients_->values[2] = -coefficients_->values[2];
@@ -176,19 +176,22 @@ namespace robin
 	/* Update the properties of the Primitive3. */
 	void Primitive3Plane::update_properties()
 	{
+		Eigen::Vector3f e2(coefficients_->values[0], coefficients_->values[1], coefficients_->values[2]);
+		
 		pcl::PCA<pcl::PointXYZ> pca;
 		pca.setInputCloud(cloud_);
 		Eigen::Vector4f mean(pca.getMean());
 		Eigen::Matrix3f eigenvecs(pca.getEigenVectors());
 		Eigen::Vector3f eigenvals(pca.getEigenValues());
 		//Eigen::MatrixXf coeffs(pca.getCoefficients());
-			
+
 		Eigen::Vector3f e0 = eigenvecs.col(0);
 		std::array<float, 2> e0_min_max(
 			getPointCloudExtremes(*cloud_, pcl::PointXYZ(mean.x(), mean.y(), mean.z()), pcl::PointXYZ(e0.x(), e0.y(), e0.z()))
 		);
 
-		Eigen::Vector3f e1 = eigenvecs.col(1);
+		Eigen::Vector3f e1 = e2.cross(e0);
+		e1.normalize();
 		std::array<float, 2> e1_min_max(
 			getPointCloudExtremes(*cloud_, pcl::PointXYZ(mean.x(), mean.y(), mean.z()), pcl::PointXYZ(e1.x(), e1.y(), e1.z()))
 		);
@@ -200,13 +203,13 @@ namespace robin
 		properties_.axis_y = coefficients_->values[1];
 		properties_.axis_z = coefficients_->values[2];
 		properties_.d = coefficients_->values[3];
-		properties_.e0_x = e0.x();
-		properties_.e0_y = e0.y();
-		properties_.e0_z = e0.z();
-		properties_.e1_x = e1.x();
-		properties_.e1_y = e1.y();
-		properties_.e1_z = e1.z();
-		properties_.width = e0_min_max[1] - e0_min_max[0];
-		properties_.height = e1_min_max[1] - e1_min_max[0];
+		properties_.e0_x = e0.x() * (e0_min_max[1]-e0_min_max[0])/2;
+		properties_.e0_y = e0.y() * (e0_min_max[1]-e0_min_max[0])/2;
+		properties_.e0_z = e0.z() * (e0_min_max[1]-e0_min_max[0])/2;
+		properties_.e1_x = e1.x() * (e1_min_max[1]-e1_min_max[0])/2;
+		properties_.e1_y = e1.y() * (e1_min_max[1]-e1_min_max[0])/2;
+		properties_.e1_z = e1.z() * (e1_min_max[1]-e1_min_max[0])/2;
+		properties_.height = e0_min_max[1] - e0_min_max[0]; // e0 sets convention for HEIGHT
+		properties_.width = e1_min_max[1] - e1_min_max[0]; // e1 sets convention for WIDTH
 	}
 }
