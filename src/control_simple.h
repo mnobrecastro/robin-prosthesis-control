@@ -57,6 +57,10 @@ namespace robin
 			/* Estimation of the "grasp size" from a primitive3 object. */
 			void estimate_grasp_size(robin::Primitive3* prim);
 
+			/* Estimation of the "grasp type" from a primitive3 object. */
+			robin::hand::GRASP target_grasp_type_;
+			void estimate_grasp_type(robin::Primitive3* prim);
+
 			/* Estimation of the "tilt angle" from a primitive3 object. */
 			void estimate_tilt_angle(robin::Primitive3* prim);						
 		};

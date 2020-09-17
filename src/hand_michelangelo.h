@@ -47,7 +47,7 @@ namespace robin
 			void pronate(float vel, bool send = true);
 			void supinate(float vel, bool send = true);
 			void open(float vel, bool send = true);
-			void close(float vel, bool send = true);
+			void close(GRASP g, float vel, bool send = true);
 			void stop();
 
 			void send_command();

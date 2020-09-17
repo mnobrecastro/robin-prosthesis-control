@@ -112,65 +112,56 @@ namespace robin
 			hand_grasp_size_.buffer.push_back(hand_->getGraspSize());
 
 
-
 			this->estimate_grasp_size(prim);
+			this->estimate_grasp_type(prim);
 			this->estimate_tilt_angle(prim);
 						
+			// Tolerances
+			float grasp_size_error_tol(0.01);
+			float tilt_angle_error_tol(10 * M_PI/180);
 
 			if (state_move_)
 			{
 				float grasp_size_error(target_grasp_size_.value - hand_grasp_size_.value);
-				if (std::abs(grasp_size_error) > 0.01) {
-					if (grasp_size_error > 0) {
-						hand_->open(0.01);
+				if (std::abs(grasp_size_error) > grasp_size_error_tol) {
+					if (grasp_size_error > 0.0) {
+						hand_->open(0.01, false); //*
 					}
 					else {
-						hand_->close(0.01);
+						hand_->close(target_grasp_type_, 0.01, false); //*
 					}
 				}
 				else {
-					hand_->open(0.0); //stop()
+					hand_->open(0.0, false); //stop() //*
 				}
 
 				float tilt_angle_error(target_tilt_angle_.value - hand_supination_angle_.value);
 				if (hand_->isRightHand()) {
 					// Right-hand prosthesis (positive tilt angle)				
-					if (std::abs(tilt_angle_error) > 15 * M_PI / 180) {
-						if (tilt_angle_error > 0) {
+					if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
+						if (tilt_angle_error > 0.0) {
 							hand_->supinate(0.01, false);
-							//std::chrono::seconds tsleep(1);
-							//std::this_thread::sleep_for(tsleep);
-							//hand_->stop();
 						}
 						else {
 							hand_->pronate(0.01, false);
-							//std::chrono::seconds tsleep(1);
-							//std::this_thread::sleep_for(tsleep);
-							//hand_->stop();
 						}
 					}
 					else {
-						hand_->supinate(0.0, false); //stop();
+						hand_->supinate(0.0, false);
 					}
 				}
 				else {
 					// Left-hand prosthesis (negative tilt angle)
-					if (std::abs(tilt_angle_error) > 15 * M_PI / 180) {
-						if (tilt_angle_error < 0) {
+					if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
+						if (tilt_angle_error < 0.0) {
 							hand_->supinate(0.01, false);
-							//std::chrono::seconds tsleep(1);
-							//std::this_thread::sleep_for(tsleep);
-							//hand_->stop();
 						}
 						else {
 							hand_->pronate(0.01, false);
-							//std::chrono::seconds tsleep(1);
-							//std::this_thread::sleep_for(tsleep);
-							//hand_->stop();
 						}
 					}
 					else {
-						hand_->supinate(0.0, false); //stop();
+						hand_->supinate(0.0, false);
 					}
 				}
 			}
@@ -179,13 +170,13 @@ namespace robin
 					if (!usr_cmd_grasp) {
 						hand_->stop();
 					} else {
-						hand_->close(0.01);
+						hand_->close(target_grasp_type_, 0.01, false);
 						state_grasp_ = !state_grasp_;
 					}
 				}
 				else{
 					if(usr_cmd_grasp){
-						hand_->open(0.01);
+						hand_->open(0.01, false);
 						state_grasp_ = !state_grasp_;
 					}else{
 						hand_->stop();
@@ -225,13 +216,19 @@ namespace robin
 
 		void ControlSimple::estimate_grasp_size(robin::Primitive3* prim)
 		{
+			// Cuboid vars
+			float projection(0.0);
+			Eigen::Vector3f axis, cam_axis(0.0, 0.0, 1.0), e0_axis, e1_axis, z_axis;
+			//
+
 			float grasp_size(10.0);
 			switch (find_primitive3_type(prim)){
 			case Primitive3Type::PRIMITIVE3_SPHERE:
-				grasp_size = 2 * prim->getProperty_radius();
+				grasp_size = 2.0 * prim->getProperty_radius();
 				break;
-			case Primitive3Type::PRIMITIVE3_CUBOID:
-				if (prim->getProperty_width() > 0.005) {
+			case Primitive3Type::PRIMITIVE3_CUBOID:				
+				// Original variant (pick the smallest dimension)
+				/*if (prim->getProperty_width() > 0.005) {
 					grasp_size = prim->getProperty_width();
 				}
 				if (prim->getProperty_height() > 0.005 && grasp_size > prim->getProperty_height()) {
@@ -239,10 +236,46 @@ namespace robin
 				}
 				if (prim->getProperty_depth() > 0.005 && grasp_size > prim->getProperty_depth()) {
 					grasp_size = prim->getProperty_depth();
+				}*/
+
+				// Projection variant (closest normal to cam-axis)
+				e0_axis = { prim->getProperty_e0_x(), prim->getProperty_e0_y(), prim->getProperty_e0_z() };
+				e1_axis = { prim->getProperty_e1_x(), prim->getProperty_e1_y(), prim->getProperty_e1_z() };
+				z_axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
+
+				if (projection < std::abs(e0_axis.dot(cam_axis) / (e0_axis.norm() * cam_axis.norm())))
+				{
+					projection = std::abs(e0_axis.dot(cam_axis) / (e0_axis.norm() * cam_axis.norm()));
+					if (e1_axis.norm() >= z_axis.norm()) {
+						grasp_size = 2.0 * z_axis.norm();
+					}
+					else {
+						grasp_size = 2.0 * e1_axis.norm();
+					}
+				}
+				if (projection < std::abs(e1_axis.dot(cam_axis) / (e1_axis.norm() * cam_axis.norm())))
+				{
+					projection = std::abs(e1_axis.dot(cam_axis) / (e1_axis.norm() * cam_axis.norm()));
+					if (e0_axis.norm() >= z_axis.norm()) {
+						grasp_size = 2.0 * z_axis.norm();
+					}
+					else {
+						grasp_size = 2.0 * e0_axis.norm();
+					}
+				}
+				if (projection < std::abs(z_axis.dot(cam_axis) / (z_axis.norm() * cam_axis.norm())))
+				{
+					projection = std::abs(z_axis.dot(cam_axis) / (z_axis.norm() * cam_axis.norm()));
+					if (e0_axis.norm() >= e1_axis.norm()) {
+						grasp_size = 2.0 * e1_axis.norm();
+					}
+					else {
+						grasp_size = 2.0 * e0_axis.norm();
+					}
 				}
 				break;
 			case Primitive3Type::PRIMITIVE3_CYLINDER:
-				grasp_size = 2 * prim->getProperty_radius();
+				grasp_size = 2.0 * prim->getProperty_radius();
 				break;
 			}
 			target_grasp_size_.buffer.push_back(grasp_size);
@@ -251,7 +284,7 @@ namespace robin
 
 			// Calculate and use the median value
 			std::vector<float> temp;
-			size_t n_samples(1);
+			size_t n_samples(10);
 			if (target_grasp_size_.buffer.size() < n_samples) {
 				temp = target_grasp_size_.buffer;
 			} else {
@@ -260,6 +293,107 @@ namespace robin
 			std::sort(temp.begin(), temp.begin());
 			target_grasp_size_.value = temp[(int) temp.size()/2];
 			std::cout << " with median: " << target_grasp_size_.value << std::endl;
+		}
+
+		void ControlSimple::estimate_grasp_type(robin::Primitive3* prim)
+		{
+			float length_threshold(0.080);
+			float grasp_size_threshold(0.050);
+			float projection_threshold(std::cos(M_PI/6)); //30deg
+
+			// Cuboid vars
+			float projection(0.0);
+			Eigen::Vector3f axis, cam_axis(0.0, 0.0, 1.0), e0_axis, e1_axis, z_axis;
+			//
+
+			robin::hand::GRASP grasp_type(robin::hand::GRASP::PALMAR);
+			switch (find_primitive3_type(prim)) {
+			case Primitive3Type::PRIMITIVE3_SPHERE:
+				if (target_grasp_size_.value < grasp_size_threshold) {
+					grasp_type = robin::hand::GRASP::LATERAL;
+				}
+				else {
+					grasp_type = robin::hand::GRASP::PALMAR;
+				}
+				break;
+
+			case Primitive3Type::PRIMITIVE3_CUBOID:
+				// Projection variant (closest normal to cam-axis)				
+				e0_axis = { prim->getProperty_e0_x(), prim->getProperty_e0_y(), prim->getProperty_e0_z() };
+				e1_axis = { prim->getProperty_e1_x(), prim->getProperty_e1_y(), prim->getProperty_e1_z() };
+				z_axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
+
+				if (projection < std::abs(e0_axis.dot(cam_axis) / (e0_axis.norm() * cam_axis.norm())))
+				{
+					projection = std::abs(e0_axis.dot(cam_axis) / (e0_axis.norm() * cam_axis.norm()));
+					if (e1_axis.norm() >= z_axis.norm()) {
+						axis = e1_axis;
+					} else {
+						axis = z_axis;
+					}					
+				}
+				if (projection < std::abs(e1_axis.dot(cam_axis) / (e1_axis.norm() * cam_axis.norm())))
+				{
+					projection = std::abs(e1_axis.dot(cam_axis) / (e1_axis.norm() * cam_axis.norm()));
+					if (e0_axis.norm() >= z_axis.norm()) {
+						axis = e0_axis;
+					}
+					else {
+						axis = z_axis;
+					}
+				}
+				if (projection < std::abs(z_axis.dot(cam_axis) / (z_axis.norm() * cam_axis.norm())))
+				{
+					projection = std::abs(z_axis.dot(cam_axis) / (z_axis.norm() * cam_axis.norm()));
+					if (e0_axis.norm() >= e1_axis.norm()) {
+						axis = e0_axis;
+					}
+					else {
+						axis = e1_axis;
+					}
+				}
+
+				if (2.0 * axis.norm() < length_threshold) {
+					if (target_grasp_size_.value < grasp_size_threshold) {
+						grasp_type = robin::hand::GRASP::LATERAL;
+					} else {
+						grasp_type = robin::hand::GRASP::PALMAR;
+					}
+				}
+				else {
+					grasp_type = robin::hand::GRASP::PALMAR;
+				}
+				break;
+
+			case Primitive3Type::PRIMITIVE3_CYLINDER:
+				axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
+				if (2.0 * axis.norm() < length_threshold) {
+					if (target_grasp_size_.value < grasp_size_threshold) {
+						grasp_type = robin::hand::GRASP::LATERAL;
+					}else {
+						//Eigen::Vector3f cam_axis(0.0, 0.0, 1.0);
+						float projection = std::abs( axis.dot(cam_axis)/(axis.norm()*cam_axis.norm()) );
+						if (projection < projection_threshold) {
+							grasp_type = robin::hand::GRASP::LATERAL;
+						} else {
+							grasp_type = robin::hand::GRASP::PALMAR;
+						}
+					}
+				} else {
+					grasp_type = robin::hand::GRASP::PALMAR;
+				}
+				break;
+			}
+			target_grasp_type_ = grasp_type;
+			std::cout << "Estimated grasp_type: ";
+			switch (grasp_type) {
+			case robin::hand::GRASP::PALMAR:
+				std::cout << "PALMAR" << std::endl;
+				break;
+			case robin::hand::GRASP::LATERAL:
+				std::cout << "LATERAL" << std::endl;
+				break;
+			}
 		}
 
 		void ControlSimple::estimate_tilt_angle(robin::Primitive3* prim)
@@ -272,25 +406,45 @@ namespace robin
 				/* To be further implemented. */
 				tilt_angle = hand_supination_angle_.value; // Hand stays as it is.
 			}
-			else if(prim3_type == Primitive3Type::PRIMITIVE3_CUBOID || prim3_type == Primitive3Type::PRIMITIVE3_CYLINDER)
-			{				
+			else if (prim3_type == Primitive3Type::PRIMITIVE3_CUBOID || prim3_type == Primitive3Type::PRIMITIVE3_CYLINDER)
+			{
 				// Angle of the projection of the Primitive3 axis into the xOy plane of the camera.
 				float projected_angle(std::atan2(prim->getProperty_axis_y(), prim->getProperty_axis_x()));
-				
-				// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
-				if (hand_->isRightHand()) {
-					// Right-hand prosthesis (positive angle)
-					if (hand_supination_angle_.value + projected_angle < 0) { projected_angle += M_PI; }
-					else if (hand_supination_angle_.value + projected_angle > M_PI) { projected_angle -= M_PI; }
 
-				}else{
-					// Left-hand prosthesis (negative angle)
-					if (hand_supination_angle_.value + projected_angle > 0) { projected_angle -= M_PI; }
-					else if (hand_supination_angle_.value + projected_angle < -M_PI) { projected_angle += M_PI; }
+				if (target_grasp_type_ == robin::hand::GRASP::PALMAR) {
+					// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
+					if (hand_->isRightHand()) {
+						// Right-hand prosthesis (positive angle)
+						if (hand_supination_angle_.value + projected_angle < 0) { projected_angle += M_PI; }
+						else if (hand_supination_angle_.value + projected_angle > M_PI) { projected_angle -= M_PI; }
+
+					}
+					else {
+						// Left-hand prosthesis (negative angle)
+						if (hand_supination_angle_.value + projected_angle > 0) { projected_angle -= M_PI; }
+						else if (hand_supination_angle_.value + projected_angle < -M_PI) { projected_angle += M_PI; }
+					}
+
+					// Current absolute tilt angle of the Primitive3
+					tilt_angle = hand_supination_angle_.value + projected_angle;
 				}
+				else {
+					// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
+					if (hand_->isRightHand()) {
+						// Right-hand prosthesis (positive angle)
+						if (hand_supination_angle_.value + projected_angle + M_PI/2 < 0) { projected_angle += M_PI; }
+						else if (hand_supination_angle_.value + projected_angle + M_PI/2 > M_PI) { projected_angle -= M_PI; }
 
-				// Current absolute tilt angle of the Primitive3
-				tilt_angle = hand_supination_angle_.value + projected_angle;
+					}
+					else {
+						// Left-hand prosthesis (negative angle)
+						if (hand_supination_angle_.value + projected_angle + M_PI/2 > 0) { projected_angle -= M_PI; }
+						else if (hand_supination_angle_.value + projected_angle + M_PI/2 < -M_PI) { projected_angle += M_PI; }
+					}
+
+					// Current absolute tilt angle of the Primitive3
+					tilt_angle = hand_supination_angle_.value + projected_angle + M_PI/2;
+				}
 			}
 			target_tilt_angle_.buffer.push_back(tilt_angle);
 			std::cout << "Estimated tilt_angle: " << tilt_angle;
@@ -298,7 +452,7 @@ namespace robin
 
 			// Calculate and use the median value
 			std::vector<float> temp;
-			size_t n_samples(1);
+			size_t n_samples(10);
 			if (target_tilt_angle_.buffer.size() < n_samples) {
 				temp = target_tilt_angle_.buffer;
 			}

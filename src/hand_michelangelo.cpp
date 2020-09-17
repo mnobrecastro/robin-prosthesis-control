@@ -122,15 +122,39 @@ namespace robin
 				 * byte3 = uint8 : Lateral Grip Closing command in range[0, 255]
 				 * byte4 = uint8 : Lateral Grip Opening command in range[0, 255]
 				 */
+				/*if (command_buffer_[1] == 0.0 && command_buffer_[2] == 0.0 && command_buffer_[3] == 0.0 && command_buffer_[4] == 0.0) {
+					command_buffer_[1] = 0.0;
+					command_buffer_[2] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
+					command_buffer_[3] = 0.0;
+					command_buffer_[4] = 0.0;
+					std::cout << "O0O0O0O0O0O0O0O0O0O0O0O0O0O0O0" << std::endl;
+				}
+				else if (command_buffer_[1] > 0.0 || command_buffer_[2] > 0.0) {
+					command_buffer_[1] = 0.0;
+					command_buffer_[2] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
+					command_buffer_[3] = 0.0;
+					command_buffer_[4] = 0.0;
+					std::cout << "O1O1O1O1O1O1O1O1O1O1O1O1O1O1O1" << std::endl;
+				}
+				else if(command_buffer_[3] > 0.0 || command_buffer_[4] > 0.0){
+					command_buffer_[1] = 0.0;
+					command_buffer_[2] = 0.0;
+					command_buffer_[3] = 0.0;
+					command_buffer_[4] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
+					std::cout << "O2O2O2O2O2O2O2O2O2O2O2O2O2O2O2" << std::endl;
+				}*/
+
 				command_buffer_[1] = 0.0;
 				command_buffer_[2] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
+				command_buffer_[3] = 0.0;
+				command_buffer_[4] = 0.0;
 				if (send) {
 					this->send_command();
 					is_moving_ = true;
 				}
 			}
 		}
-		void Michelangelo::close(float vel, bool send)
+		void Michelangelo::close(GRASP g, float vel, bool send)
 		{
 			if (is_dumping_) {
 				/* byte1 = uint8 : Palmar Grip Closing command in range[0, 255]
@@ -138,8 +162,27 @@ namespace robin
 				 * byte3 = uint8 : Lateral Grip Closing command in range[0, 255]
 				 * byte4 = uint8 : Lateral Grip Opening command in range[0, 255]
 				 */
-				command_buffer_[1] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
-				command_buffer_[2] = 0.0;
+				switch (g) {
+				case GRASP::PALMAR:
+					command_buffer_[1] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
+					command_buffer_[2] = 0.0;
+					command_buffer_[3] = 0.0;
+					command_buffer_[4] = 0.0;
+					std::cout << "PPPPPPPPPPPPPPPPPPPPPPPPPPPPP" << std::endl;
+					break;
+				case GRASP::LATERAL:
+					command_buffer_[1] = 0.0;
+					command_buffer_[2] = 0.0;
+					command_buffer_[3] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
+					command_buffer_[4] = 0.0;
+					std::cout << "LLLLLLLLLLLLLLLLLLLLLLLLLLLLL" << std::endl;
+					break;
+				}
+				
+				//command_buffer_[1] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
+				//command_buffer_[2] = 0.0;
+				//command_buffer_[3] = 0.0;
+				//command_buffer_[4] = 0.0;
 				if (send) {
 					this->send_command();
 					is_moving_ = true;
@@ -287,11 +330,21 @@ namespace robin
 					switch (configstate_.grasp_type) {
 					case GRASP::PALMAR:
 						//configstate_.grasp_size = float(grasp_size) / 100.0 * 0.110;
-						configstate_.grasp_size = (float(grasp_size)-161.0)/(255.0-161.0) * 0.110;
+						if (160.0 <= float(grasp_size) && float(grasp_size) <= 255.0) {
+							configstate_.grasp_size = (float(grasp_size) - 160.0) / (255.0 - 160.0) * 0.110; // Correct Phase
+						}
+						else if(0.0 <= float(grasp_size) && float(grasp_size) <= 90.0) {
+							configstate_.grasp_size = (90.0 - float(grasp_size)) / (90.0 - 0.0) * 0.110; // Transition Phase (inverted vals)
+						}
 						break;
 					case GRASP::LATERAL:
 						//configstate_.grasp_size = float(grasp_size) / 100 * 0.070;
-						configstate_.grasp_size = (89.0-float(grasp_size))/(89.0-0.0) * 0.070; // inverted
+						if (0.0 <= float(grasp_size) && float(grasp_size) <= 90.0) {
+							configstate_.grasp_size = (90.0 - float(grasp_size)) / (90.0 - 0.0) * 0.070; // Correct Phase (inverted vals)
+						}
+						else if (160.0 <= float(grasp_size) && float(grasp_size) <= 255.0) {
+							configstate_.grasp_size = (float(grasp_size) - 160.0) / (255.0 - 160.0) * 0.070; // Transition Phase
+						}
 						break;
 					}
 
