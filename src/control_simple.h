@@ -50,6 +50,7 @@ namespace robin
 
 			ControlVar target_grasp_size_;
 			ControlVar target_tilt_angle_;
+			ControlVar target_grasp_type_;
 
 			/* Receives a Primitive3 object and evaluates its type. */
 			Primitive3Type find_primitive3_type(robin::Primitive3* prim);
@@ -58,7 +59,6 @@ namespace robin
 			void estimate_grasp_size(robin::Primitive3* prim);
 
 			/* Estimation of the "grasp type" from a primitive3 object. */
-			robin::hand::GRASP target_grasp_type_;
 			void estimate_grasp_type(robin::Primitive3* prim);
 
 			/* Estimation of the "tilt angle" from a primitive3 object. */

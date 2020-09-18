@@ -128,7 +128,7 @@ namespace robin
 						hand_->open(0.01, false); //*
 					}
 					else {
-						hand_->close(target_grasp_type_, 0.01, false); //*
+						hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.01, false); //*
 					}
 				}
 				else {
@@ -170,7 +170,7 @@ namespace robin
 					if (!usr_cmd_grasp) {
 						hand_->stop();
 					} else {
-						hand_->close(target_grasp_type_, 0.01, false);
+						hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.01, false);
 						state_grasp_ = !state_grasp_;
 					}
 				}
@@ -281,17 +281,7 @@ namespace robin
 			target_grasp_size_.buffer.push_back(grasp_size);
 			std::cout << "Estimated grasp_size: " << grasp_size;
 
-
-			// Calculate and use the median value
-			std::vector<float> temp;
-			size_t n_samples(10);
-			if (target_grasp_size_.buffer.size() < n_samples) {
-				temp = target_grasp_size_.buffer;
-			} else {
-				temp = std::vector<float>(target_grasp_size_.buffer.end() - n_samples, target_grasp_size_.buffer.end());
-			}
-			std::sort(temp.begin(), temp.begin());
-			target_grasp_size_.value = temp[(int) temp.size()/2];
+			target_grasp_size_.update(filter_, window_size_);
 			std::cout << " with median: " << target_grasp_size_.value << std::endl;
 		}
 
@@ -384,13 +374,15 @@ namespace robin
 				}
 				break;
 			}
-			target_grasp_type_ = grasp_type;
+			target_grasp_type_.buffer.push_back(int(grasp_type));
+			target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+			
 			std::cout << "Estimated grasp_type: ";
-			switch (grasp_type) {
-			case robin::hand::GRASP::PALMAR:
+			switch (int(target_grasp_type_.value)) {
+			case int(robin::hand::GRASP::PALMAR):
 				std::cout << "PALMAR" << std::endl;
 				break;
-			case robin::hand::GRASP::LATERAL:
+			case int(robin::hand::GRASP::LATERAL):
 				std::cout << "LATERAL" << std::endl;
 				break;
 			}
@@ -411,7 +403,9 @@ namespace robin
 				// Angle of the projection of the Primitive3 axis into the xOy plane of the camera.
 				float projected_angle(std::atan2(prim->getProperty_axis_y(), prim->getProperty_axis_x()));
 
-				if (target_grasp_type_ == robin::hand::GRASP::PALMAR) {
+				switch (int(target_grasp_type_.value)) {
+
+				case int(robin::hand::GRASP::PALMAR):
 					// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
 					if (hand_->isRightHand()) {
 						// Right-hand prosthesis (positive angle)
@@ -427,8 +421,9 @@ namespace robin
 
 					// Current absolute tilt angle of the Primitive3
 					tilt_angle = hand_supination_angle_.value + projected_angle;
-				}
-				else {
+
+					break;
+				case int(robin::hand::GRASP::LATERAL):
 					// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
 					if (hand_->isRightHand()) {
 						// Right-hand prosthesis (positive angle)
@@ -444,23 +439,14 @@ namespace robin
 
 					// Current absolute tilt angle of the Primitive3
 					tilt_angle = hand_supination_angle_.value + projected_angle + M_PI/2;
+
+					break;
 				}
 			}
 			target_tilt_angle_.buffer.push_back(tilt_angle);
 			std::cout << "Estimated tilt_angle: " << tilt_angle;
 
-
-			// Calculate and use the median value
-			std::vector<float> temp;
-			size_t n_samples(10);
-			if (target_tilt_angle_.buffer.size() < n_samples) {
-				temp = target_tilt_angle_.buffer;
-			}
-			else {
-				temp = std::vector<float>(target_tilt_angle_.buffer.end() - n_samples, target_tilt_angle_.buffer.end());
-			}
-			std::sort(temp.begin(), temp.begin());
-			target_tilt_angle_.value = temp[(int) temp.size()/2];
+			target_tilt_angle_.update(filter_, window_size_);
 			std::cout << " with median: " << target_tilt_angle_.value << std::endl;
 		}
 	}
