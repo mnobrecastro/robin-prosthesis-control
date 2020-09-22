@@ -39,7 +39,6 @@ int main(int argc, char** argv)
 
 	robin::control::ControlSimple controller(myhand);
 	controller.setFilter(robin::control::ControlVar::fname::MEDIAN, 30);
-
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
 	//robin::Solver3Lasers mysolver;
@@ -55,7 +54,7 @@ int main(int argc, char** argv)
 	//seg->setNormalDistanceWeight(0.001);
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
-	seg->setMethodType(pcl::SAC_RANSAC);
+	seg->setMethodType(pcl::SAC_PROSAC);
 	seg->setMaxIterations(1000); //100
 	seg->setDistanceThreshold(0.001); //0.001
 	seg->setRadiusLimits(0.005, 0.050);

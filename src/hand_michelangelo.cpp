@@ -327,24 +327,35 @@ namespace robin
 					 * -> Lateral = [0.000,0.070]m */
 					//int grasp_size = +int8_t(*(packet + 6));
 					int grasp_size = +uint8_t(*(packet + 0));
+					float _x_(0.0);
 					switch (configstate_.grasp_type) {
-					case GRASP::PALMAR:
-						//configstate_.grasp_size = float(grasp_size) / 100.0 * 0.110;
+					case GRASP::PALMAR:						
 						if (160.0 <= float(grasp_size) && float(grasp_size) <= 255.0) {
-							configstate_.grasp_size = (float(grasp_size) - 160.0) / (255.0 - 160.0) * 0.110; // Correct Phase
+							// Correct Phase
+							_x_ = (float(grasp_size) - 160.0) / (255.0 - 160.0);							
+						} else if(0.0 <= float(grasp_size) && float(grasp_size) <= 90.0) {
+							// Transition Phase (inverted vals)
+							_x_ = (90.0 - float(grasp_size)) / (90.0 - 0.0);
 						}
-						else if(0.0 <= float(grasp_size) && float(grasp_size) <= 90.0) {
-							configstate_.grasp_size = (90.0 - float(grasp_size)) / (90.0 - 0.0) * 0.110; // Transition Phase (inverted vals)
-						}
+						// Linear							
+						configstate_.grasp_size = _x_ * 0.110;
+						// Polynomial 4th-order
+						configstate_.grasp_size = (0.6524 * std::pow(_x_, 4) - 2.4145 * std::pow(_x_, 3) + 2.1337 * std::pow(_x_, 2) + 0.6547 * _x_ - 0.0187) * 0.110;
+
 						break;
 					case GRASP::LATERAL:
-						//configstate_.grasp_size = float(grasp_size) / 100 * 0.070;
 						if (0.0 <= float(grasp_size) && float(grasp_size) <= 90.0) {
-							configstate_.grasp_size = (90.0 - float(grasp_size)) / (90.0 - 0.0) * 0.070; // Correct Phase (inverted vals)
+							// Correct Phase (inverted vals)
+							_x_ = (90.0 - float(grasp_size)) / (90.0 - 0.0); 
+						} else if (160.0 <= float(grasp_size) && float(grasp_size) <= 255.0) {
+							// Transition Phase
+							_x_ = (float(grasp_size) - 160.0) / (255.0 - 160.0);
 						}
-						else if (160.0 <= float(grasp_size) && float(grasp_size) <= 255.0) {
-							configstate_.grasp_size = (float(grasp_size) - 160.0) / (255.0 - 160.0) * 0.070; // Transition Phase
-						}
+						// Linear							
+						configstate_.grasp_size = _x_ * 0.070;
+						// Polynomial 4th-order
+						configstate_.grasp_size = (2.4965 * std::pow(_x_, 4) - 6.4698 * std::pow(_x_, 3) + 4.3496 * std::pow(_x_, 2) + 0.6082 * _x_ + 0.001) * 0.070;
+
 						break;
 					}
 
