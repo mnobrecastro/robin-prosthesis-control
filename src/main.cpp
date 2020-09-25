@@ -20,6 +20,17 @@
 
 int main(int argc, char** argv)
 {
+	//std::cout << '\a';
+	Beep(523, 100); // 523 hertz (C5) for 500 milliseconds
+	//ascending pitch beep
+	/*for (int i = 0; i < 3000; i += 10) {
+		Beep(i, 100);
+	}*/
+	//descending pitch beep
+	/*for (int i = 3000; i > 0; i -= 10) {
+		Beep(i, 100);
+	}*/
+	
 	// Create a hand
 	//robin::hand::HandUDP myhand(false, "127.0.0.1", 8052, 8051);
 	//system("C:\\Users\\MMC\\Documents\\AAU\\Projects\\Robin\\Software\\Mikey\\DLLs\\MichelangeloGUI.exe");
@@ -38,7 +49,7 @@ int main(int argc, char** argv)
 	//robin::hand::Hand myhand(TRUE);
 
 	robin::control::ControlSimple controller(myhand);
-	controller.setFilter(robin::control::ControlVar::fname::MEDIAN, 30);
+	controller.setFilter(robin::control::ControlVar::fname::MEDIAN, 40);
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
 	//robin::Solver3Lasers mysolver;
@@ -54,7 +65,7 @@ int main(int argc, char** argv)
 	//seg->setNormalDistanceWeight(0.001);
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
-	seg->setMethodType(pcl::SAC_PROSAC);
+	seg->setMethodType(pcl::SAC_PROSAC); //PROSAC?
 	seg->setMaxIterations(1000); //100
 	seg->setDistanceThreshold(0.001); //0.001
 	seg->setRadiusLimits(0.005, 0.050);
@@ -132,7 +143,7 @@ int main(int argc, char** argv)
 			}
 
 			std::cout << "Bools: ";
-			if (controller.getStateMove()) {
+			if (controller.getStateAuto()) {
 				std::cout << "ON";
 			}
 			else {

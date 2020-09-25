@@ -35,14 +35,19 @@ namespace robin
 			float getGraspSize();
 			float getTiltAngle();
 
-			bool getStateMove() { return state_move_; }
+			bool getStateAuto() { return state_auto_; }
 			bool getStateGrasp() { return state_grasp_; }
 
 		protected:
-			ControlVar emg_cmd_move_;
-			ControlVar emg_cmd_grasp_;
+			ControlVar emg_cmd_flexion_;
+			ControlVar emg_cmd_extension_;
+			ControlVar force_detection_;
 
-			bool state_move_ = true;
+			// State auto:=true corresponds to "auto" mode, while move:=false corresponds to "manual" mode
+			bool state_auto_ = true;
+			// State rotation:=true corresponds to pro/sup movements, rotation:=false corresponds to 
+			bool state_rotate_ = false;
+			// State grasp:=false corresponds to grasp "force" detected
 			bool state_grasp_ = false;
 
 			ControlVar hand_supination_angle_;

@@ -329,7 +329,7 @@ namespace robin
 					int grasp_size = +uint8_t(*(packet + 0));
 					float _x_(0.0);
 					switch (configstate_.grasp_type) {
-					case GRASP::PALMAR:						
+					case GRASP::PALMAR:
 						if (160.0 <= float(grasp_size) && float(grasp_size) <= 255.0) {
 							// Correct Phase
 							_x_ = (float(grasp_size) - 160.0) / (255.0 - 160.0);							
@@ -374,10 +374,10 @@ namespace robin
 					int  grasp_force = +int8_t(*(packet + 9));
 					switch (configstate_.grasp_type) {
 					case GRASP::PALMAR:
-						configstate_.grasp_force = grasp_force / 100 * 100;
+						configstate_.grasp_force = float(grasp_force) / 100.0 * 100.0;
 						break;
 					case GRASP::LATERAL:
-						configstate_.grasp_force = grasp_force / 100 * 60;
+						configstate_.grasp_force = float(grasp_force) / 100.0 * 60.0;
 						break;
 					}
 

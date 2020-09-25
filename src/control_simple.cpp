@@ -1,5 +1,7 @@
 #include "control_simple.h"
 
+#include <windows.h>
+
 namespace robin
 {
 	namespace control
@@ -12,116 +14,82 @@ namespace robin
 		void ControlSimple::evaluate(robin::Primitive3* prim)
 		{
 			std::vector<float> emg_channels = hand_->getEMG();
-			// Current EMG "MOVE" command (channel 1)
-			emg_cmd_move_.value = emg_channels[0];
-			emg_cmd_move_.buffer.push_back(emg_channels[0]);
-			// Current EMG "GRASP" command (channel 2)
-			emg_cmd_grasp_.value = emg_channels[1];
-			emg_cmd_grasp_.buffer.push_back(emg_channels[1]);
+			// Current EMG "flexion" command (channel 1)
+			emg_cmd_flexion_.buffer.push_back(emg_channels[0]);
+			emg_cmd_flexion_.update(robin::control::ControlVar::fname::MEDIAN, 1);
+			// Current EMG "extension" command (channel 2)
+			emg_cmd_extension_.buffer.push_back(emg_channels[1]);
+			emg_cmd_extension_.update(robin::control::ControlVar::fname::MEDIAN, 1);
 
-			// Obtain window for MOVE command
-			std::vector<float> window_cmd_move;
-			if (emg_cmd_move_.buffer.size() < 100) { //&& !emg_cmd_move_.buffer.empty()
-				window_cmd_move = std::vector<float>(emg_cmd_move_.buffer.begin(), emg_cmd_move_.buffer.end());
-			} else if(emg_cmd_move_.buffer.size() >= 100) { //&& !emg_cmd_move_.buffer.empty()
-				window_cmd_move = std::vector<float>(emg_cmd_move_.buffer.end()-99, emg_cmd_move_.buffer.end());
-			}
-			size_t window_size_move = window_cmd_move.size();
-			std::cout << "WINDOW MOVE SIZE: " << window_size_move << std::endl;
-			// Calculate median value
-			std::sort(window_cmd_move.begin(), window_cmd_move.end());
-			float median_cmd_move(0.0);
-			if (window_size_move % 2 == 0) {
-				median_cmd_move = (window_cmd_move[window_size_move/2-1] + window_cmd_move[window_size_move/2]) / 2;
-			} else {
-				median_cmd_move = window_cmd_move[window_size_move/2];
-			}
-			// Set current MOVE command
-			bool usr_cmd_move(false);
-			if (emg_cmd_move_.value >= 0.75) { //median_cmd_move
-				usr_cmd_move = true;
+			// Current Force measure
+			force_detection_.buffer.push_back(hand_->getGraspForce());
+			force_detection_.update(robin::control::ControlVar::fname::MEDIAN, 1);		
+
+			// Interpret user commands
+			float emg_threshold(0.5); // [0-1]
+			float force_threshold(5.0); // [N]
+			bool usr_cmd_rotate(false), usr_cmd_stop(false);
+			
+			if (!state_auto_ && emg_cmd_flexion_.value >= emg_threshold/2.0 && emg_cmd_extension_.value >= emg_threshold/2.0) {
+				usr_cmd_rotate = true;
+			} else if (state_auto_ && emg_cmd_extension_.value >= emg_threshold) { //median_cmd_move
+				usr_cmd_stop = true;
 			}
 
-
-			// Obtain window for GRASP command
-			std::vector<float> window_cmd_grasp;
-			if (emg_cmd_grasp_.buffer.size() < 100) { //&& !emg_cmd_grasp_.buffer.empty()
-				window_cmd_grasp = std::vector<float>(emg_cmd_grasp_.buffer.begin(), emg_cmd_grasp_.buffer.end());
-			}
-			else if (emg_cmd_grasp_.buffer.size() >= 100) { //&& !emg_cmd_grasp_.buffer.empty()
-				window_cmd_grasp = std::vector<float>(emg_cmd_grasp_.buffer.end() - 99, emg_cmd_grasp_.buffer.end());
-			}
-			size_t window_size_grasp = window_cmd_grasp.size();
-			std::cout << "WINDOW GRASP SIZE: " << window_size_grasp << std::endl;
-			// Calculate median value
-			std::sort(window_cmd_grasp.begin(), window_cmd_grasp.end());
-			float median_cmd_grasp(0.0);
-			if (window_size_grasp % 2 == 0) {
-				median_cmd_grasp = (window_cmd_grasp[window_size_grasp/2-1] + window_cmd_grasp[window_size_grasp/2]) / 2;
-			}
-			else {
-				median_cmd_grasp = window_cmd_grasp[window_size_grasp/2];
-			}
 			// Set current GRASP command
 			bool usr_cmd_grasp(false);
-			if (emg_cmd_grasp_.value >= 0.75) { //median_cmd_grasp
+			if (force_detection_.value >= force_threshold) { // [N]
 				usr_cmd_grasp = true;
 			}
 
-			// Change the MOVE and GRASP state booleans
-			//if (usr_cmd_move) {
-			//	if (state_move_ && !state_grasp_) { state_move_ = false; }
-			//	if (!state_move_ && !state_grasp_) { state_move_ = true; }
-			//}
-			////else if (usr_cmd_grasp) { // "else if" to prevent simultaneous behaviour
-			////	if (!state_grasp_ && !state_move_) { state_grasp_ = true; }
-			////	if (state_grasp_ && !state_move_) { state_grasp_ = false; }
-			////}
-			if (usr_cmd_move) {
-				state_move_ = !state_move_;
-			}
+			std::cout << "*******  EMG1: " << emg_cmd_flexion_.value  << " EMG2: " << emg_cmd_extension_.value << " FORCE: " << force_detection_.value << std::endl;
+
 
 			// ----
 			
 			// Current absolute supination angle of the prosthesis
 			// (measured from the full pronated wrist position ref frame).
-			//
-			//			                 (Z)
-			//                           /
-			//                          /
-			//		                   /_ _ _ _ (X)
-			//                         |
-			//                  A      |      A
-			// (Sup Right-hand) |__    |    __| (Sup Left-hand) 
-			//                        (Y)
-			//
-			float supination_angle;
-			if (hand_->isRightHand()) {
-				// Right-hand prosthesis (positive angle)
-				supination_angle = hand_->getWristSupProAngle();
-			}
-			else {
-				// Left-hand prosthesis (negative angle)
-				supination_angle = -hand_->getWristSupProAngle();
-			}
-			hand_supination_angle_.value = supination_angle;
-			hand_supination_angle_.buffer.push_back(supination_angle);
 
-			// Current grasp size of the prosthesis
-			hand_grasp_size_.value = hand_->getGraspSize();
-			hand_grasp_size_.buffer.push_back(hand_->getGraspSize());
-
-
-			this->estimate_grasp_size(prim);
-			this->estimate_grasp_type(prim);
-			this->estimate_tilt_angle(prim);
-						
-			// Tolerances
-			float grasp_size_error_tol(0.01);
-			float tilt_angle_error_tol(10 * M_PI/180);
-
-			if (state_move_)
+			if (state_auto_)
 			{
+				// Current absolute supination angle of the prosthesis
+				// (measured from the full pronated wrist position ref frame).
+				//
+				//			                 (Z)
+				//                           /
+				//                          /
+				//		                   /_ _ _ _ (X)
+				//                         |
+				//                  A      |      A
+				// (Sup Right-hand) |__    |    __| (Sup Left-hand) 
+				//                        (Y)
+				//
+				float supination_angle;
+				if (hand_->isRightHand()) {
+					// Right-hand prosthesis (positive angle)
+					supination_angle = hand_->getWristSupProAngle();
+				}
+				else {
+					// Left-hand prosthesis (negative angle)
+					supination_angle = -hand_->getWristSupProAngle();
+				}
+				hand_supination_angle_.value = supination_angle;
+				hand_supination_angle_.buffer.push_back(supination_angle);
+
+				// Current grasp size of the prosthesis
+				hand_grasp_size_.value = hand_->getGraspSize();
+				hand_grasp_size_.buffer.push_back(hand_->getGraspSize());
+
+
+				this->estimate_grasp_size(prim);
+				this->estimate_grasp_type(prim);
+				this->estimate_tilt_angle(prim);
+
+				// Tolerances
+				float grasp_size_error_tol(0.01);
+				float tilt_angle_error_tol(5 * M_PI / 180);
+
+
 				float grasp_size_error(target_grasp_size_.value - hand_grasp_size_.value);
 				if (std::abs(grasp_size_error) > grasp_size_error_tol) {
 					if (grasp_size_error > 0.0) {
@@ -164,24 +132,68 @@ namespace robin
 						hand_->supinate(0.0, false);
 					}
 				}
+
+				// Checks if a stopping cmd has been received
+				if (usr_cmd_stop) {
+					hand_->stop();
+					state_auto_ = false;
+					usr_cmd_stop = !usr_cmd_stop;
+					Beep(2000, 100);
+					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+				}
 			}
 			else {
-				if (!state_grasp_) {
-					if (!usr_cmd_grasp) {
+				if (!state_rotate_) {
+					// The hand is in Manual [Open/Close] mode
+					if (usr_cmd_rotate) {
 						hand_->stop();
-					} else {
-						hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.01, false);
-						state_grasp_ = !state_grasp_;
+						state_rotate_ = true;
+						usr_cmd_rotate = !usr_cmd_rotate;
+						Beep(2000, 100); Beep(2000, 100);
+						std::this_thread::sleep_for(std::chrono::milliseconds(500));
+					}
+					else {
+						if (emg_cmd_flexion_.value > emg_threshold/2.0) {
+							hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), emg_cmd_flexion_.value, false);
+						} else if (emg_cmd_extension_.value > emg_threshold/2.0) {
+							hand_->open(emg_cmd_extension_.value, false);
+							if (state_grasp_) {
+								hand_->open(0.5, true); // "true" forces the command to be excuted right away
+								state_auto_ = true;
+								state_rotate_ = false;
+								state_grasp_ = false;
+								Beep(523, 100);
+								std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+							}
+						} else {
+							hand_->stop();
+						}
 					}
 				}
-				else{
-					if(usr_cmd_grasp){
-						hand_->open(0.01, false);
-						state_grasp_ = !state_grasp_;
-					}else{
+				else {
+					// The hand is in Manual [Pronation/Supination] mode
+					if (usr_cmd_rotate) {
 						hand_->stop();
+						state_rotate_ = false;
+						usr_cmd_rotate = !usr_cmd_rotate;
+						Beep(2000, 100);
+						std::this_thread::sleep_for(std::chrono::milliseconds(500));
 					}
-				}				
+					else {
+						if (emg_cmd_flexion_.value > emg_threshold/2.0) {
+							hand_->pronate(emg_cmd_flexion_.value, false);
+						} else if (emg_cmd_extension_.value > emg_threshold/2.0) {
+							hand_->supinate(emg_cmd_extension_.value, false);
+						} else {
+							hand_->stop();
+						}
+					}
+				}
+
+				if (!state_grasp_ && usr_cmd_grasp) {
+					state_grasp_ = true;
+					usr_cmd_grasp = !usr_cmd_grasp;
+				}	
 			}
 			hand_->send_command();
 		}
@@ -400,46 +412,42 @@ namespace robin
 			}
 			else if (prim3_type == Primitive3Type::PRIMITIVE3_CUBOID || prim3_type == Primitive3Type::PRIMITIVE3_CYLINDER)
 			{
-				// Angle of the projection of the Primitive3 axis into the xOy plane of the camera.
+				// Angle of the projection of the Primitive3 axis into the xOy plane of the camera [-Pi,+Pi].
 				float projected_angle(std::atan2(prim->getProperty_axis_y(), prim->getProperty_axis_x()));
 
-				switch (int(target_grasp_type_.value)) {
+				// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
+				if (hand_->isRightHand()) {
+					// Right-hand prosthesis (positive angle)
+					if (hand_supination_angle_.value + projected_angle < 0) { projected_angle += M_PI; }
+					else if (hand_supination_angle_.value + projected_angle > M_PI) { projected_angle -= M_PI; }
+				}
+				else {
+					// Left-hand prosthesis (negative angle)
+					if (hand_supination_angle_.value + projected_angle > 0) { projected_angle -= M_PI; }
+					else if (hand_supination_angle_.value + projected_angle < -M_PI) { projected_angle += M_PI; }
+				}
 
+				// Current absolute tilt angle of the Primitive3
+				tilt_angle = hand_supination_angle_.value + projected_angle;
+
+				// Shifting the tilt angle of the Primitive3
+				switch (int(target_grasp_type_.value))
+				{
 				case int(robin::hand::GRASP::PALMAR):
-					// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
-					if (hand_->isRightHand()) {
-						// Right-hand prosthesis (positive angle)
-						if (hand_supination_angle_.value + projected_angle < 0) { projected_angle += M_PI; }
-						else if (hand_supination_angle_.value + projected_angle > M_PI) { projected_angle -= M_PI; }
-
-					}
-					else {
-						// Left-hand prosthesis (negative angle)
-						if (hand_supination_angle_.value + projected_angle > 0) { projected_angle -= M_PI; }
-						else if (hand_supination_angle_.value + projected_angle < -M_PI) { projected_angle += M_PI; }
-					}
-
-					// Current absolute tilt angle of the Primitive3
-					tilt_angle = hand_supination_angle_.value + projected_angle;
-
+					// Do nothing else.
 					break;
 				case int(robin::hand::GRASP::LATERAL):
-					// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
+					// The tilt angle shall be shifted by Pi/2 or -Pi/2.
 					if (hand_->isRightHand()) {
 						// Right-hand prosthesis (positive angle)
-						if (hand_supination_angle_.value + projected_angle + M_PI/2 < 0) { projected_angle += M_PI; }
-						else if (hand_supination_angle_.value + projected_angle + M_PI/2 > M_PI) { projected_angle -= M_PI; }
-
+						if (tilt_angle <= M_PI/4) { tilt_angle += M_PI/2; }
+						else { tilt_angle -= M_PI / 2; }
 					}
 					else {
 						// Left-hand prosthesis (negative angle)
-						if (hand_supination_angle_.value + projected_angle + M_PI/2 > 0) { projected_angle -= M_PI; }
-						else if (hand_supination_angle_.value + projected_angle + M_PI/2 < -M_PI) { projected_angle += M_PI; }
+						if (tilt_angle <= -M_PI/4) { tilt_angle -= M_PI/2; }
+						else { tilt_angle += M_PI/2; }
 					}
-
-					// Current absolute tilt angle of the Primitive3
-					tilt_angle = hand_supination_angle_.value + projected_angle + M_PI/2;
-
 					break;
 				}
 			}
