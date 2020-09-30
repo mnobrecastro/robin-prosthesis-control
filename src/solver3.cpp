@@ -26,6 +26,12 @@ namespace robin
 	void Solver3::setSegmentation(pcl::SACSegmentation<pcl::PointXYZ>* seg_obj)
 	{
 		seg_obj_ptr_ = seg_obj;
+
+		// Initialization of the SACSegmentation objects for each Primitive3
+		// (in case the user calls for multiple simultaneous fitting).
+		seg_obj_sph_ = new pcl::SACSegmentation<pcl::PointXYZ>(*seg_obj_ptr_);
+		seg_obj_cub_ = new pcl::SACSegmentation<pcl::PointXYZ>(*seg_obj_ptr_);
+		seg_obj_cyl_ = new pcl::SACSegmentation<pcl::PointXYZ>(*seg_obj_ptr_);
 	}
 
 	void Solver3::setUseNormals(bool seg_normals)
@@ -233,42 +239,41 @@ namespace robin
 				}
 			}
 
+			// Check whether a specific/non-generice Primitive3 has been provided
 			if (typeid(*primitive_) != typeid(robin::Primitive3d3)) {
 				this->fitPrimitive(primitive_, cloud_, seg_obj_ptr_);
 			}
 			else {
-				// Erase the dummy/generic Primitive3d3
-				//delete primitive_;
+				// Multiple simultaneous fitting of pre-defined Primtive3's 
 
-				robin::Primitive3d3* p_sph = new robin::Primitive3Sphere;
-				robin::Primitive3d3* p_cub = new robin::Primitive3Cuboid;
-				robin::Primitive3d3* p_cyl = new robin::Primitive3Cylinder;
-
+				// Define a copy of the PointCloud for each Primitive3				
 				pcl::PointCloud<pcl::PointXYZ>::Ptr c_sph(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
 				pcl::PointCloud<pcl::PointXYZ>::Ptr c_cub(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
 				pcl::PointCloud<pcl::PointXYZ>::Ptr c_cyl(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
 
-				pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_sph = new pcl::SACSegmentation<pcl::PointXYZ>(*seg_obj_ptr_);
-				pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_cub = new pcl::SACSegmentation<pcl::PointXYZ>(*seg_obj_ptr_);
-				pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_cyl = new pcl::SACSegmentation<pcl::PointXYZ>(*seg_obj_ptr_);
-
-				std::thread t_sph = std::thread(&Solver3::fitPrimitive, this, std::ref(p_sph), std::ref(c_sph), std::ref(seg_obj_sph));
-				std::thread t_cub = std::thread(&Solver3::fitPrimitive, this, std::ref(p_cub), std::ref(c_cub), std::ref(seg_obj_cub));
-				std::thread t_cyl = std::thread(&Solver3::fitPrimitive, this, std::ref(p_cyl), std::ref(c_cyl), std::ref(seg_obj_cyl));
-
+				// Fit each primitive to its respective PointCloud copy
+#ifdef MULTITHREADING
+				std::thread t_sph = std::thread(&Solver3::fitPrimitive, this, std::ref(p_sph_), std::ref(c_sph), std::ref(seg_obj_sph_));
+				std::thread t_cub = std::thread(&Solver3::fitPrimitive, this, std::ref(p_cub_), std::ref(c_cub), std::ref(seg_obj_cub_));
+				std::thread t_cyl = std::thread(&Solver3::fitPrimitive, this, std::ref(p_cyl_), std::ref(c_cyl), std::ref(seg_obj_cyl_));
 				t_sph.join();
 				t_cub.join();
 				t_cyl.join();
+#else
+				p_sph_->fit(c_sph, seg_obj_sph_);
+				p_cub_->fit(c_cub, seg_obj_cub_);
+				p_cyl_->fit(c_cyl, seg_obj_cyl_);
+#endif
 
 				// Selection of the best fitting Primitive3d3
 				float cloud_size(cloud_->points.size());
 				float fit_percent(0.0);
 
-				float sph_size(p_sph->getPointCloud()->points.size());
+				float sph_size(p_sph_->getPointCloud()->points.size());
 				std::cout << "Sphere FitPercent: " << sph_size / cloud_size << std::endl;
-				float cub_size(p_cub->getPointCloud()->points.size());
+				float cub_size(p_cub_->getPointCloud()->points.size());
 				std::cout << "Cuboid FitPercent: " << cub_size / cloud_size << std::endl;
-				float cyl_size(p_cyl->getPointCloud()->points.size());
+				float cyl_size(p_cyl_->getPointCloud()->points.size());
 				std::cout << "Cylinder FitPercent: " << cyl_size / cloud_size << std::endl;
 				
 				if (fairselectionOnOff_) {
@@ -283,17 +288,17 @@ namespace robin
 				// Pick the biggest fit cloud that corresponds to the correct primitive fitting
 				if (fit_percent < sph_size / cloud_size) {
 					fit_percent = sph_size / cloud_size;
-					primitive_ = p_sph;
+					primitive_ = p_sph_;
 					cloud_ = c_sph;
 				}
 				if (fit_percent < cub_size / cloud_size) {
 					fit_percent = cub_size / cloud_size;
-					primitive_ = p_cub;
-					cloud_ = c_cyl;
+					primitive_ = p_cub_;
+					cloud_ = c_cub;
 				}
 				if (fit_percent < cyl_size / cloud_size) {
 					fit_percent = cyl_size / cloud_size;
-					primitive_ = p_cyl;
+					primitive_ = p_cyl_;
 					cloud_ = c_cyl;
 				}
 			}

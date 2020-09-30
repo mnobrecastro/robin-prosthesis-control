@@ -95,6 +95,15 @@ namespace robin
 		pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_ptr_ = nullptr;
 
 		virtual void segment();
+
+		/* Primitive3's for multiple simultaneous fitting of a generic Primitive3d3. */
+		robin::Primitive3d3* p_sph_ = new robin::Primitive3Sphere;
+		robin::Primitive3d3* p_cub_ = new robin::Primitive3Cuboid;
+		robin::Primitive3d3* p_cyl_ = new robin::Primitive3Cylinder;
+
+		pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_sph_;
+		pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_cub_;
+		pcl::SACSegmentation<pcl::PointXYZ>* seg_obj_cyl_;
 		
 		/* Auxiliary Primitive fitting function for multithreading. */
 		void fitPrimitive(robin::Primitive3d3*& prim, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::SACSegmentation<pcl::PointXYZ>*& seg_obj);

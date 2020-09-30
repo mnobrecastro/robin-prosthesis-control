@@ -1,3 +1,5 @@
+#define MULTITHREADING
+
 #include "../src/hand_michelangelo.h"
 #include "../src/control_simple.h"
 #include "../src/solver3.h"
@@ -15,8 +17,6 @@
 
 #include <chrono>
 #include <thread>
-
-#define MULTITHREADING
 
 int main(int argc, char** argv)
 {
