@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_PROSAC); //PROSAC?
 	seg->setMaxIterations(1000); //100
-	seg->setDistanceThreshold(0.001); //0.001
+	seg->setDistanceThreshold(0.0005); //0.001
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 	

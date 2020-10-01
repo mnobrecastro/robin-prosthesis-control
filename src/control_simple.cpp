@@ -442,13 +442,13 @@ namespace robin
 					// The tilt angle shall be shifted by Pi/2 or -Pi/2.
 					if (hand_->isRightHand()) {
 						// Right-hand prosthesis (positive angle)
-						if (tilt_angle <= M_PI/4) { tilt_angle += M_PI/2; }
-						else { tilt_angle -= M_PI / 2; }
+						if (tilt_angle <= M_PI/4) { tilt_angle -= M_PI/2; }
+						else { tilt_angle += M_PI / 2; }
 					}
 					else {
 						// Left-hand prosthesis (negative angle)
-						if (tilt_angle <= -M_PI/4) { tilt_angle -= M_PI/2; }
-						else { tilt_angle += M_PI/2; }
+						if (tilt_angle <= -M_PI/4) { tilt_angle += M_PI/2; }
+						else { tilt_angle -= M_PI/2; }
 					}
 					break;
 				}
