@@ -1,3 +1,5 @@
+#define MULTITHREADING
+
 #pragma once
 #include "solver.h"
 #include "sensor3.h"

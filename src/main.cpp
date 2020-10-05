@@ -1,4 +1,4 @@
-#define MULTITHREADING
+//#define MULTITHREADING
 
 #include "../src/hand_michelangelo.h"
 #include "../src/control_simple.h"

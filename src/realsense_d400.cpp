@@ -80,7 +80,7 @@ namespace robin {
 		if (!disparity) {
 			depth_table.depthUnits = 1000; // 0.001m
 			depth_table.depthClampMin = 0;
-			depth_table.depthClampMax = 200; // mm
+			depth_table.depthClampMax = 300; // mm
 			depth_table.disparityShift = 0;
 		}
 		else {
