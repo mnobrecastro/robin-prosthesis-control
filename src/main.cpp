@@ -18,9 +18,10 @@
 #include <chrono>
 #include <thread>
 
+#include "gnuplot-iostream.h"
+
 int main(int argc, char** argv)
 {
-	//std::cout << '\a';
 	Beep(523, 100); // 523 hertz (C5) for 500 milliseconds
 	//ascending pitch beep
 	/*for (int i = 0; i < 3000; i += 10) {
@@ -113,7 +114,14 @@ int main(int argc, char** argv)
 	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
 	viewer->addCoordinateSystem(0.25);
 
+	// Create a Gnuplot canvas
+	Gnuplot gp;
+	std::vector<std::pair<double, double>> gnup_grasp_size, gnup_tilt_angle, gnup_emg1, gnup_emg2;
+	size_t kdata(0);
+
+
 	bool RENDER(true);
+	bool PLOT(true);
 	bool HAND_CONTROL(true);
 	std::vector<double> freq;
 
@@ -130,6 +138,10 @@ int main(int argc, char** argv)
 			controller.evaluate(prim);
 			std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
 			std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
+			if (PLOT) {
+				gnup_grasp_size.emplace_back(kdata, controller.getGraspSize());
+				gnup_tilt_angle.emplace_back(kdata, controller.getTiltAngle() * 180.0 / 3.14159);
+			}
 
 			if (myhand.isRightHand()) {
 				// Right-hand prosthesis (positive tilt angle)
@@ -140,6 +152,10 @@ int main(int argc, char** argv)
 				// Left-hand prosthesis (negative tilt angle)
 				std::cout << "Hand grasp_size: " << myhand.getGraspSize() << std::endl;
 				std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
+			}
+			if (PLOT) {
+				gnup_emg1.emplace_back(kdata, controller.getEMG()[0]);
+				gnup_emg2.emplace_back(kdata, controller.getEMG()[1]);
 			}
 
 			std::cout << "Bools: ";
@@ -199,6 +215,33 @@ int main(int argc, char** argv)
 			//-----
 
 			viewer->spinOnce(1, true);
+		}
+
+		//---- PLOTTING ----
+		if (PLOT) {
+
+			// Gnuplots
+			//gp << "set multiplot layout 2, 1 rowsfirst";
+
+			/*gp << "set yrange [0.0:0.5]\n";
+			//gp << "unset key";
+			gp << "plot '-' with lines title 'gnup_grasp_size'\n";
+			gp.send1d(gnup_grasp_size);*/
+			
+			//gp << "set yrange [-180.0:180.0]\n";
+			////gp << "unset key";
+			//gp << "plot '-' with lines title 'gnup_tilt_angle'\n";
+			//gp.send1d(gnup_tilt_angle);
+
+			// '-' means read from stdin.  The send1d() function sends data to gnuplot's stdin.
+			gp << "set yrange [0.0:1.0]\n";
+			gp << "plot '-' with lines title 'emg1', '-' with lines title 'emg2'\n";
+			gp.send1d(gnup_emg1);
+			gp.send1d(gnup_emg2);
+			
+			//gp << "unset multiplot";
+			gp.flush();
+			++kdata;
 		}
 
 		//---- PROFILING ---

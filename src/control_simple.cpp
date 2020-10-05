@@ -210,6 +210,14 @@ namespace robin
 			return target_tilt_angle_.value;
 		}
 
+		std::vector<float> ControlSimple::getEMG()
+		{
+			std::vector<float> emg;
+			emg.push_back(emg_cmd_flexion_.value);
+			emg.push_back(emg_cmd_extension_.value);
+			return emg;
+		}
+
 		/* Receives a Primitive3 object and evaluates its type. */
 		Primitive3Type ControlSimple::find_primitive3_type(robin::Primitive3* prim)
 		{

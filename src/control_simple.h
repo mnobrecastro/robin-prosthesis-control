@@ -34,6 +34,7 @@ namespace robin
 
 			float getGraspSize();
 			float getTiltAngle();
+			std::vector<float> getEMG();
 
 			bool getStateAuto() { return state_auto_; }
 			bool getStateGrasp() { return state_grasp_; }
