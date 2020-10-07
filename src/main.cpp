@@ -46,6 +46,7 @@ int main(int argc, char** argv)
 
 
 	robin::hand::Michelangelo myhand(false);
+	//myhand.calibrateEMG();
 
 	//robin::hand::Hand myhand(TRUE);
 
@@ -121,7 +122,7 @@ int main(int argc, char** argv)
 
 
 	bool RENDER(true);
-	bool PLOT(true);
+	bool PLOT(false);
 	bool HAND_CONTROL(true);
 	std::vector<double> freq;
 
@@ -154,8 +155,10 @@ int main(int argc, char** argv)
 				std::cout << "Hand tilt_angle: " << -myhand.getWristSupProAngle() << " (" << -myhand.getWristSupProAngle() * 180.0 / 3.14159 << ")" << std::endl;
 			}
 			if (PLOT) {
-				gnup_emg1.emplace_back(kdata, controller.getEMG()[0]);
-				gnup_emg2.emplace_back(kdata, controller.getEMG()[1]);
+				//gnup_emg1.emplace_back(kdata, controller.getEMG()[0]);
+				//gnup_emg2.emplace_back(kdata, controller.getEMG()[1]);
+				//gnup_emg1.emplace_back(kdata, *(myhand.getEMGSolvers()[0]->getPreprocessed().end()));
+				//gnup_emg2.emplace_back(kdata, *(myhand.getEMGSolvers()[1]->getPreprocessed().end()));
 			}
 
 			std::cout << "Bools: ";

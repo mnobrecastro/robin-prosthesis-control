@@ -14,6 +14,18 @@ namespace robin
 
 	//
 
+	std::vector<Sensor1*> Sensor1Array::getSensors() const
+	{
+		return sensors_;
+	}
+
+	void Sensor1Array::addSensor(Sensor1* s)
+	{
+		sensors_.push_back(s);
+	}
+
+	//
+
 	std::vector<Sensor2*> Sensor2Array::getSensors() const
 	{
 		return sensors_;

@@ -1,5 +1,6 @@
 #pragma once
 #include "hand_udp.h"
+#include "solver1_emg.h"
 
 #include <algorithm>
 #include <iostream>
@@ -7,6 +8,8 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+
+#include "gnuplot-iostream.h"
 
 #define IP_ADDRESS "127.0.0.1"
 #define PORT_IN 8052
@@ -29,6 +32,9 @@ namespace robin
 			Michelangelo(bool right_hand, const char* ip, short port_in, short port_out);
 			~Michelangelo();
 
+			/* Calibrate the EMG channels (ex. normalize to MVC). */
+			void calibrateEMG();
+
 			/* Set a configuration state for the prosthesis. */
 			void setConfigState() {}
 
@@ -42,6 +48,8 @@ namespace robin
 			float getGraspSize();
 			float getGraspForce();
 			std::vector<float> getEMG();
+			
+			std::vector<Solver1EMG*> getEMGSolvers() const { return emg_solvers_; }
 
 			/* Prothesis commands available. */
 			void pronate(float vel, bool send = true);
@@ -98,10 +106,10 @@ namespace robin
 			/* Print a received packet (variables according to the manufacturer). */
 			void print_recv_packet(const uint8_t* packet, size_t packet_byte_length);
 
-			void updateConfigState();// std::atomic<bool>& program_is_running, unsigned int update_interval_millisecs);//void updateConfigState();
-
 			//void grasp_palmar();
 			//void grasp_lateral();
+
+			std::vector<Solver1EMG*> emg_solvers_;
 
 		private:
 			/* Suppressed Commands */
@@ -114,6 +122,23 @@ namespace robin
 			bool is_dumping_ = false;
 			std::thread thread_configstate_;
 			std::mutex mu_configstate_;
+			std::thread thread_emgproc_;
+			std::mutex mu_emgproc_;
+			
+			/* Function to be called by thread_configstate_ */
+			void updateConfigState();
+
+			void feedChildren();
+
+			/* Function to be called by thread_emgproc_ */
+			void updateEMG();
+
+			// Create a Gnuplot canvas
+			Gnuplot gp_;
+			std::vector<std::pair<double, double>> gnup_emg0_, gnup_emg1_, gnup_emg2_, gnup_emg3_, gnup_emg4_, gnup_emg5_, gnup_emg6_, gnup_emg7_;
+			std::size_t kdata_ = 0;
+
+			float dummy = 0.05;
 		};
 	}
 }

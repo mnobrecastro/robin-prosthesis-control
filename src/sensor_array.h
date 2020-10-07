@@ -1,5 +1,6 @@
 #pragma once
 #include "sensor.h"
+#include "sensor1.h"
 #include "sensor2.h"
 #include "sensor3.h"
 #include "sensor4.h"
@@ -20,6 +21,20 @@ namespace robin {
 		~SensorArray() {}
 
 		std::vector<Sensor*> sensors_;
+	};
+
+	class Sensor1Array :
+		public SensorArray
+	{
+	public:
+		Sensor1Array() {}
+		~Sensor1Array() {}
+
+		std::vector<Sensor1*> getSensors() const;
+		void addSensor(Sensor1* s);
+
+	protected:
+		std::vector<Sensor1*> sensors_;
 	};
 
 	class Sensor2Array :

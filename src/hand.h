@@ -1,5 +1,6 @@
 #pragma once
-
+#include "sensor1.h"
+#include "solver1_emg.h"
 #include <iostream>
 #include <vector>
 
@@ -18,7 +19,8 @@ namespace robin
 			LATERAL
 		};
 
-		class Hand
+		class Hand :
+			public Sensor1
 		{
 		public:
 			Hand() = delete;
@@ -30,14 +32,16 @@ namespace robin
 			/* Set a configuration state for the prosthesis. */
 			virtual void setConfigState() {}
 
+			void setControlMode(CONTROL ctrl);
+			void setGrasp(GRASP grasp);
+
 			/* Read the current configuration state of the prosthesis. */
 			virtual std::vector<float> getConfigState() { return std::vector<float>(); }
 
 			/* Read the current sEMG channels provided by the prosthesis. */
-			virtual std::vector<float> getEMG() { return configstate_.emg_channels; }
+			virtual std::vector<float> getEMG() { return std::vector<float>(); }//{ return configstate_.emg_channels; }
 
-			void setControlMode(CONTROL ctrl);
-			void setGrasp(GRASP grasp);
+			virtual std::vector<Solver1EMG*> getEMGSolvers() { std::vector<Solver1EMG*>(); }
 
 			virtual float getWristFleExtAngle();
 			virtual float getWristAbdAddAngle();

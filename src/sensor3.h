@@ -2,10 +2,8 @@
 #include "sensor.h"
 
 #include <iostream>
-#include <array>
+#include <vector>
 #include <mutex>
-#include <typeinfo>
-#include <ctime>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>

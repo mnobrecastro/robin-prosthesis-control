@@ -4,20 +4,31 @@ namespace robin
 {
 	namespace hand
 	{
-
 		Michelangelo::Michelangelo(bool right_hand, const char* ip, short port_in, short port_out)
 			: HandUDP(right_hand, ip, port_in, port_out)
 		{
-			configstate_.emg_channels.push_back(0.0); //0
-			configstate_.emg_channels.push_back(0.0); //1
-			configstate_.emg_channels.push_back(0.0); //2
-			configstate_.emg_channels.push_back(0.0); //3
-			configstate_.emg_channels.push_back(0.0); //4
-			configstate_.emg_channels.push_back(0.0); //5
-			configstate_.emg_channels.push_back(0.0); //6
-			configstate_.emg_channels.push_back(0.0); //7
+			// Michelangelo hand provides 8 integrated EMG channels
+			for (size_t i(0); i < 8; ++i) {
+				// Initialise the EMG values
+				configstate_.emg_channels.push_back(0.0);
 
+				// Create an EMG channel Sensor1
+				Sensor1* emg_ch = new Sensor1();
+				this->addChild(emg_ch);
+
+				// Create an Solver1EMG for each EMG channel
+				Solver1EMG* emg_solver = new Solver1EMG();
+				emg_solver->addSensor(emg_ch);
+				emg_solver->setFilter(fname::MOVING_AVERAGE, 20); //fname::MOVING_AVERAGE, 100 // 40
+				emg_solvers_.push_back(emg_solver);
+			}
+			
 			thread_configstate_ = std::thread(&Michelangelo::updateConfigState, this);
+
+			// Gnuplot
+			gp_ << "set yrange [0.0:1.0]\n";
+
+			thread_emgproc_ = std::thread(&Michelangelo::updateEMG, this);
 		}
 
 		Michelangelo::Michelangelo(bool right_hand)
@@ -25,6 +36,15 @@ namespace robin
 
 		Michelangelo::~Michelangelo() {}
 
+
+		void Michelangelo::calibrateEMG()
+		{
+			//thread_emgproc_ = std::thread(&Michelangelo::updateEMG, this);
+			
+			//for (auto emg : emg_solvers_) {
+			//	emg->calibrate();
+			//}
+		}
 
 		float Michelangelo::getWristFleExtAngle()
 		{
@@ -122,28 +142,6 @@ namespace robin
 				 * byte3 = uint8 : Lateral Grip Closing command in range[0, 255]
 				 * byte4 = uint8 : Lateral Grip Opening command in range[0, 255]
 				 */
-				/*if (command_buffer_[1] == 0.0 && command_buffer_[2] == 0.0 && command_buffer_[3] == 0.0 && command_buffer_[4] == 0.0) {
-					command_buffer_[1] = 0.0;
-					command_buffer_[2] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
-					command_buffer_[3] = 0.0;
-					command_buffer_[4] = 0.0;
-					std::cout << "O0O0O0O0O0O0O0O0O0O0O0O0O0O0O0" << std::endl;
-				}
-				else if (command_buffer_[1] > 0.0 || command_buffer_[2] > 0.0) {
-					command_buffer_[1] = 0.0;
-					command_buffer_[2] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
-					command_buffer_[3] = 0.0;
-					command_buffer_[4] = 0.0;
-					std::cout << "O1O1O1O1O1O1O1O1O1O1O1O1O1O1O1" << std::endl;
-				}
-				else if(command_buffer_[3] > 0.0 || command_buffer_[4] > 0.0){
-					command_buffer_[1] = 0.0;
-					command_buffer_[2] = 0.0;
-					command_buffer_[3] = 0.0;
-					command_buffer_[4] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
-					std::cout << "O2O2O2O2O2O2O2O2O2O2O2O2O2O2O2" << std::endl;
-				}*/
-
 				command_buffer_[1] = 0.0;
 				command_buffer_[2] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
 				command_buffer_[3] = 0.0;
@@ -168,21 +166,15 @@ namespace robin
 					command_buffer_[2] = 0.0;
 					command_buffer_[3] = 0.0;
 					command_buffer_[4] = 0.0;
-					std::cout << "PPPPPPPPPPPPPPPPPPPPPPPPPPPPP" << std::endl;
 					break;
 				case GRASP::LATERAL:
 					command_buffer_[1] = 0.0;
 					command_buffer_[2] = 0.0;
 					command_buffer_[3] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
 					command_buffer_[4] = 0.0;
-					std::cout << "LLLLLLLLLLLLLLLLLLLLLLLLLLLLL" << std::endl;
 					break;
 				}
 				
-				//command_buffer_[1] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
-				//command_buffer_[2] = 0.0;
-				//command_buffer_[3] = 0.0;
-				//command_buffer_[4] = 0.0;
 				if (send) {
 					this->send_command();
 					is_moving_ = true;
@@ -393,6 +385,66 @@ namespace robin
 
 					mu_configstate_.unlock();
 				}
+			}
+		}
+
+		void Michelangelo::feedChildren()
+		{
+			std::vector<float> emg = this->getEMG();
+			for (size_t i(0); i < children_.size(); ++i) {
+				children_[i]->fromParent(emg[i]);				
+				//children_[i]->fromParent(float(i)*0.1+dummy);
+			}
+			//dummy *= -1.0;
+			//printf("\n\t>>>> %f, %f, %f, %f, %f, %f, %f, %f\n", emg[0], emg[1], emg[2], emg[3], emg[4], emg[5], emg[6], emg[7]);
+		}
+
+		void Michelangelo::updateEMG()
+		{
+			while (true) {
+
+				// Feed the children Sensors
+				this->feedChildren();
+
+				std::vector<float> emg;
+				for (auto emg_slv : emg_solvers_) {	
+					// Solve and apply filters
+					emg_slv->solve();
+					// Update filtered values
+					emg.push_back(emg_slv->getSample());
+				}
+				//printf("\n\t<<<< %f, %f, %f, %f, %f, %f, %f, %f\n", emg[0], emg[1], emg[2], emg[3], emg[4], emg[5], emg[6], emg[7]);
+
+				// PLOT
+				if (true) {
+					// Update plot buffers
+					gnup_emg0_.emplace_back(kdata_, emg[0]);
+					gnup_emg1_.emplace_back(kdata_, emg[1]);
+					gnup_emg2_.emplace_back(kdata_, emg[2]);
+					gnup_emg3_.emplace_back(kdata_, emg[3]);
+					gnup_emg4_.emplace_back(kdata_, emg[4]);
+					gnup_emg5_.emplace_back(kdata_, emg[5]);
+					gnup_emg6_.emplace_back(kdata_, emg[6]);
+					gnup_emg7_.emplace_back(kdata_, emg[7]);
+
+					// Gnuplots
+					//gp << "set multiplot layout 2, 1 rowsfirst";
+					gp_ << "plot '-' with lines title 'emg0', '-' with lines title 'emg1', '-' with lines title 'emg2', '-' with lines title 'emg3', '-' with lines title 'emg4', '-' with lines title 'emg5', '-' with lines title 'emg6', '-' with lines title 'emg7'\n";
+					gp_.send1d(gnup_emg0_);
+					gp_.send1d(gnup_emg1_);
+					gp_.send1d(gnup_emg2_);
+					gp_.send1d(gnup_emg3_);
+					gp_.send1d(gnup_emg4_);
+					gp_.send1d(gnup_emg5_);
+					gp_.send1d(gnup_emg6_);
+					gp_.send1d(gnup_emg7_);
+
+					//gp << "unset multiplot";
+					gp_.flush();
+					++kdata_;
+				}
+
+				emg.clear();
 			}
 		}
 	}

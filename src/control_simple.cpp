@@ -13,6 +13,8 @@ namespace robin
 
 		void ControlSimple::evaluate(robin::Primitive3* prim)
 		{
+			//std::vector<Solver1EMG*> emg_chs = hand_->getEMGSolvers();
+
 			std::vector<float> emg_channels = hand_->getEMG();
 			// Current EMG "flexion" command (channel 1)
 			emg_cmd_flexion_.buffer.push_back(emg_channels[0]);
