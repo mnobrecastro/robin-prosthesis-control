@@ -4,6 +4,9 @@
 #include "primitive3_sphere.h"
 #include "primitive3_cuboid.h"
 #include "primitive3_cylinder.h"
+// ---- dynamic_cast
+#include "hand_michelangelo.h"
+// ----
 
 #include <typeinfo>
 #include <algorithm>

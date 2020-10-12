@@ -13,29 +13,29 @@ namespace robin
 
 		void ControlSimple::evaluate(robin::Primitive3* prim)
 		{
-			//std::vector<Solver1EMG*> emg_chs = hand_->getEMGSolvers();
-
-			std::vector<float> emg_channels = hand_->getEMG();
+			//std::vector<float> emg_channels = hand_->getEMG();
+			std::vector<Solver1EMG*> emg_channels = dynamic_cast<robin::hand::Michelangelo*>(hand_)->getEMGSolvers();
 			// Current EMG "flexion" command (channel 1)
-			emg_cmd_flexion_.buffer.push_back(emg_channels[0]);
-			emg_cmd_flexion_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 10);
+			emg_cmd_flexion_.buffer.push_back(emg_channels[0]->getSample());
+			emg_cmd_flexion_.update(robin::control::ControlVar::fname::MEDIAN, 10);
 			// Current EMG "extension" command (channel 2)
-			emg_cmd_extension_.buffer.push_back(emg_channels[1]);
-			emg_cmd_extension_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 10);
+			emg_cmd_extension_.buffer.push_back(emg_channels[1]->getSample());
+			emg_cmd_extension_.update(robin::control::ControlVar::fname::MEDIAN, 10);
 
 			// Current Force measure
 			force_detection_.buffer.push_back(hand_->getGraspForce());
 			force_detection_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 10);
 
 			// Interpret user commands
-			float emg_threshold(0.5); // [0-1]
+			float emg_contract_threshold(0.5); // [0-1]
+			float emg_coactiv_threshold(0.2); // [0-1]
 			float force_threshold(5.0); // [N]
 			bool usr_cmd_rotate(false), usr_cmd_stop(false);
 			
-			if (!state_auto_ && emg_cmd_flexion_.value >= emg_threshold/5.0 && emg_cmd_extension_.value >= emg_threshold/5.0) {
+			if (!state_auto_ && emg_cmd_flexion_.value >= emg_coactiv_threshold && emg_cmd_extension_.value >= emg_coactiv_threshold) {
 				usr_cmd_rotate = true;
 				flag_rotate_ = true;
-			} else if (state_auto_ && emg_cmd_extension_.value >= emg_threshold) { //median_cmd_move
+			} else if (state_auto_ && emg_cmd_extension_.value >= emg_contract_threshold) {
 				usr_cmd_stop = true;
 				flag_auto_ = true;
 			}
@@ -140,7 +140,7 @@ namespace robin
 				}
 
 				// Checks if a stopping cmd has been received
-				if (flag_auto_ && emg_cmd_extension_.value < emg_threshold/2.0) {
+				if (flag_auto_ && emg_cmd_extension_.value < emg_contract_threshold/2) {
 					hand_->stop();
 					state_auto_ = false;
 					//usr_cmd_stop = !usr_cmd_stop;
@@ -152,7 +152,7 @@ namespace robin
 				// Checks if a switch cmd has been triggered
 				if (flag_rotate_){
 					// NOTE: these two if() statements cannot be in a single if-clause.
-					if (emg_cmd_flexion_.value < emg_threshold/5.0 && emg_cmd_extension_.value < emg_threshold/5.0) {
+					if (emg_cmd_flexion_.value < emg_coactiv_threshold && emg_cmd_extension_.value < emg_coactiv_threshold) {
 						hand_->stop();
 						state_rotate_ = !state_rotate_;
 						//usr_cmd_rotate = !usr_cmd_rotate;
@@ -162,9 +162,9 @@ namespace robin
 				} 
 				else if (!state_rotate_) {
 					// The hand is in Manual [Open/Close] mode
-					if (emg_cmd_flexion_.value > emg_threshold/2.0) {
+					if (emg_cmd_flexion_.value > emg_contract_threshold/2) {
 						hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), emg_cmd_flexion_.value, false);
-					} else if (emg_cmd_extension_.value > emg_threshold/2.0) {
+					} else if (emg_cmd_extension_.value > emg_contract_threshold/2) {
 						hand_->open(emg_cmd_extension_.value, false);						
 						if (state_grasp_) {
 							// Successful grasp completion - reset all state variables
@@ -181,9 +181,9 @@ namespace robin
 					}
 				} else {
 					// The hand is in Manual [Supination/Pronation] mode
-					if (emg_cmd_flexion_.value > emg_threshold/2.0) {
+					if (emg_cmd_flexion_.value > emg_contract_threshold/2) {
 						hand_->pronate(emg_cmd_flexion_.value, false);
-					} else if (emg_cmd_extension_.value > emg_threshold/2.0) {
+					} else if (emg_cmd_extension_.value > emg_contract_threshold/2) {
 						hand_->supinate(emg_cmd_extension_.value, false);
 					} else {
 						// Stop moving the hand in case no EMG signal is recorded
