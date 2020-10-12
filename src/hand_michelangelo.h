@@ -1,6 +1,8 @@
 #pragma once
 #include "hand_udp.h"
+// ---- dynamic_cast
 #include "solver1_emg.h"
+// ----
 
 #include <algorithm>
 #include <iostream>
@@ -16,6 +18,8 @@
 #define PORT_OUT 8051
 #define PACKET_IN_LENGTH 35
 #define PACKET_OUT_LENGTH 9
+
+#define EMG_CHANNELS 8
 
 #define M_PI	3.14159265358979323846   // pi
 
@@ -133,11 +137,13 @@ namespace robin
 			/* Function to be called by thread_emgproc_ */
 			void updateEMG();
 
+			bool calibratedOnOff_ = false;
+
 			// Create a Gnuplot canvas
 			Gnuplot gp_;
 			std::vector<std::pair<double, double>> gnup_emg0_, gnup_emg1_, gnup_emg2_, gnup_emg3_, gnup_emg4_, gnup_emg5_, gnup_emg6_, gnup_emg7_;
 			std::size_t kdata_ = 0;
-
+			
 			float dummy = 0.05;
 		};
 	}

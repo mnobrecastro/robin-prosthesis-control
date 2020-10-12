@@ -44,8 +44,22 @@ namespace robin
 
 	void Solver1::setFilter(fname f, std::size_t window_size)
 	{
+		filterOnOff_ = true;
 		filt_ = f;
 		window_size_ = window_size;
+	}
+
+	void Solver1::setBaselineRemoval(float val)
+	{
+		baselineOnOff_ = true;
+		baseval_ = val;
+	}
+
+	void Solver1::setNormalization(float val, bool saturate)
+	{
+		normalizeOnOff_ = true;
+		saturateOnOff_ = saturate;
+		normval_ = val;
 	}
 
 
@@ -53,56 +67,82 @@ namespace robin
 	void Solver1::solve()
 	{		
 		// Retrieve the most recent sample from the sensor
+		this->readSample();
+
 		float val(0.0);
-		if (sensors_.size() == 1) { 
+
+		this->filter(val, filt_, window_size_);
+
+		this->baseline(val);
+
+		this->normalize(val);
+
+		// Update the buffer/signal according to the chosen filter
+		this->update(val);
+	}
+
+	void Solver1::readSample()
+	{
+		float val(0.0);
+		if (sensors_.size() == 1) {
 			val = sensors_[0]->getSample();
 		}
 		mu_raw_.lock();
 		raw_buffer_.push_back(val);
 		mu_raw_.unlock();
-
-		// Update the buffer/signal according to the chosen filter
-		this->update(filt_, window_size_);
 	}
 
-	void Solver1::update(fname f, std::size_t window_size)
+	void Solver1::filter(float& val, fname f, std::size_t window_size)
 	{
 		switch (f) {
 		case fname::NONE:
-			this->f_None();
+			val = this->f_None();
 			break;
 		case fname::MEDIAN:
-			this->f_Median(window_size);
+			val = this->f_Median(window_size);
 			break;
 		case fname::MODE:
-			this->f_Mode(window_size);
+			val = this->f_Mode(window_size);
 			break;
 		case fname::MOVING_AVERAGE:
-			this->f_MovingAverage(window_size);
+			val = this->f_MovingAverage(window_size);
 			break;
 		case fname::EXP_MOVING_AVERAGE:
-			//this->f_ExpMovingAverage(window_size);
+			//val = this->f_ExpMovingAverage(window_size);
 			break;
 		}
 	}
 
+	void Solver1::baseline(float& val)
+	{
+		if (baselineOnOff_) {
+			val -= baseval_;
+		}
+	}
+
+	void Solver1::normalize(float& val)
+	{
+		if (normalizeOnOff_) {
+			val /= normval_;
+			if (saturateOnOff_ && val > 1.0) {
+				val = 1.0;
+			}
+		}
+	}
+
 	/* Median Value window filter */
-	void Solver1::f_None()
+	float Solver1::f_None()
 	{
 		// Retrive the last value in the raw_buffer
 		float val(0.0);
 		mu_raw_.lock();
 		val = raw_buffer_.back();
-		mu_raw_.unlock();
-		
-		// Copy the value to the data_buffer
-		mu_data_.lock();
-		data_buffer_.push_back(val);
-		mu_data_.unlock();
+		mu_raw_.unlock();		
+		return val;
 	}
 
 	/* Median Value window filter */
-	void Solver1::f_Median(std::size_t window_size)
+	float Solver1::f_Median(std::size_t window_size)
 	{
 		// Retrive the window of a given size from the raw_buffer
 		std::vector<float> temp;
@@ -122,13 +162,11 @@ namespace robin
 		} else {
 			val = temp[temp.size() / 2];
 		}
-		mu_data_.lock();
-		data_buffer_.push_back(val);
-		mu_data_.unlock();
+		return val;
 	}
 
 	/* Mode (Majority Voting) window filter */
-	void Solver1::f_Mode(std::size_t window_size)
+	float Solver1::f_Mode(std::size_t window_size)
 	{
 		// Retrive the window of a given size from the raw_buffer
 		std::vector<float> temp;
@@ -159,13 +197,11 @@ namespace robin
 			}
 		}
 		val = best_val;
-		mu_data_.lock();
-		data_buffer_.push_back(val);
-		mu_data_.unlock();
+		return val;
 	}
 
 	/* Moving Average window filter */
-	void Solver1::f_MovingAverage(std::size_t window_size)
+	float Solver1::f_MovingAverage(std::size_t window_size)
 	{
 		std::vector<float> temp;
 		mu_raw_.lock();
@@ -183,6 +219,12 @@ namespace robin
 			val += a;
 		}
 		val /= temp.size();
+		return val;
+	}
+
+	void Solver1::update(float& val)
+	{
+		// Copy the value to the data_buffer
 		mu_data_.lock();
 		data_buffer_.push_back(val);
 		mu_data_.unlock();

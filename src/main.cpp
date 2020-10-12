@@ -46,7 +46,7 @@ int main(int argc, char** argv)
 
 
 	robin::hand::Michelangelo myhand(false);
-	//myhand.calibrateEMG();
+	myhand.calibrateEMG();
 
 	//robin::hand::Hand myhand(TRUE);
 

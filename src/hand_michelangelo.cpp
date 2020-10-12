@@ -8,7 +8,7 @@ namespace robin
 			: HandUDP(right_hand, ip, port_in, port_out)
 		{
 			// Michelangelo hand provides 8 integrated EMG channels
-			for (size_t i(0); i < 8; ++i) {
+			for (size_t i(0); i < EMG_CHANNELS; ++i) {
 				// Initialise the EMG values
 				configstate_.emg_channels.push_back(0.0);
 
@@ -39,11 +39,67 @@ namespace robin
 
 		void Michelangelo::calibrateEMG()
 		{
-			//thread_emgproc_ = std::thread(&Michelangelo::updateEMG, this);
-			
-			//for (auto emg : emg_solvers_) {
-			//	emg->calibrate();
-			//}
+			std::cout << "Press ENTER to start the calibration of the EMG sensors... " << std::endl;
+			std::cin.get();
+			for (size_t i(0); i < 2; ++i) {
+				std::vector<float> buffer_baseline, buffer_normalize;
+
+				std::cout << "Calibrating EMG sensor " << i << ":" << std::endl;
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+
+
+				std::cout << "\t- baseline (please do not move)";
+				std::this_thread::sleep_for(std::chrono::seconds(5));
+				std::cout << " >> measuring...";
+				std::this_thread::sleep_for(std::chrono::seconds(3));
+
+				Beep(2000, 100);
+				auto tic = std::chrono::high_resolution_clock::now();
+				std::chrono::duration<double, std::ratio<1>> t = tic - tic;
+				while (t.count() < 3.0) {
+					buffer_baseline.push_back(emg_solvers_[i]->getSample());
+					t = std::chrono::high_resolution_clock::now() - tic;
+				}
+				Beep(523, 100);
+				std::cout << "OK!" << std::endl;
+
+				// Calculate the Baseline
+				float baseval(0.0);
+				for (auto val : buffer_baseline) {
+					baseval += val;
+				}
+				baseval /= buffer_baseline.size();
+				emg_solvers_[i]->setBaselineRemoval(baseval);
+
+
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+				
+
+				std::cout << "\t- MVC (please contract the muscle)";
+				std::this_thread::sleep_for(std::chrono::seconds(5));
+				std::cout << " >> measuring...";
+				std::this_thread::sleep_for(std::chrono::seconds(3));
+
+				Beep(2000, 100);
+				tic = std::chrono::high_resolution_clock::now();
+				t = tic - tic;
+				while (t.count() < 3.0) {
+					buffer_normalize.push_back(emg_solvers_[i]->getSample());
+					t = std::chrono::high_resolution_clock::now() - tic;
+				}
+				Beep(523, 100);
+				std::cout << "OK!" << std::endl;
+				
+				// Calculate the maximum contraction value
+				float normval(-1.0e+10);
+				for (auto val : buffer_normalize) {
+					if (val > normval) { normval = val; }
+				}
+				emg_solvers_[i]->setNormalization(normval, true);
+
+				std::cin.get();
+			}
+			calibratedOnOff_ = true;
 		}
 
 		float Michelangelo::getWristFleExtAngle()
@@ -416,7 +472,7 @@ namespace robin
 				//printf("\n\t<<<< %f, %f, %f, %f, %f, %f, %f, %f\n", emg[0], emg[1], emg[2], emg[3], emg[4], emg[5], emg[6], emg[7]);
 
 				// PLOT
-				if (true) {
+				if (calibratedOnOff_) {
 					// Update plot buffers
 					gnup_emg0_.emplace_back(kdata_, emg[0]);
 					gnup_emg1_.emplace_back(kdata_, emg[1]);

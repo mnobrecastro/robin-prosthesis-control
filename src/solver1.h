@@ -31,13 +31,11 @@ namespace robin
 
 		void addSensor(robin::Sensor1*);
 
-		//void setSegmentation(pcl::SACSegmentation<pcl::PointXYZ>* seg_obj);
+		void setFilter(fname f, std::size_t window_size);
 
-		//void setUseNormals(bool seg_normals);
+		void setBaselineRemoval(float val);
 
-		//void setPlaneRemoval(bool seg_plane_removal);
-
-		//void setCrop(float, float, float, float, float, float);
+		void setNormalization(float val, bool saturate = false);
 
 		//void setDownsample(float);
 
@@ -46,8 +44,6 @@ namespace robin
 		//void setFairSelection(bool fairness);
 
 		//std::vector<robin::Sensor3*> getSensors() const;
-
-		void setFilter(fname f, std::size_t window_size);
 
 		void solve();
 
@@ -65,26 +61,40 @@ namespace robin
 		std::vector<float> raw_buffer_;
 		std::mutex mu_raw_;
 
-		/* Filtering vars. */
-		bool FILTER_ = false;
+		/* Retrieve the most recent sample from the sensor. */
+		void readSample();
+
+		/* Filtering vars and method. */
+		bool filterOnOff_ = false;
 		fname filt_ = fname::NONE;
 		std::size_t window_size_ = 1;
-
+		void filter(float& val, fname f, std::size_t window_size);
 
 		/* No filter */
-		void f_None();
+		float f_None();
 		/* Median Value window filter */
-		void f_Median(std::size_t window_size);
+		float f_Median(std::size_t window_size);
 		/* Mode (Majority Voting) window filter */
-		void f_Mode(std::size_t window_size);
+		float f_Mode(std::size_t window_size);
 		/* Moving Average window filter */
-		void f_MovingAverage(std::size_t window_size);
+		float f_MovingAverage(std::size_t window_size);
 		/* Exponential Moving Average window filter */
-		void f_ExpMovingAverage(std::size_t window_size);
+		float f_ExpMovingAverage(std::size_t window_size);
+
+		/* Baseline removal. */
+		bool baselineOnOff_ = false;
+		float baseval_ = 0.0;
+		void baseline(float& val);
+
+		/* Normalization of the data to a max value. */
+		bool normalizeOnOff_ = false;
+		bool saturateOnOff_ = false;
+		float normval_ = 1.0;
+		void normalize(float& val);
 
 		/* The update method works, on purpose, at a different pace (F) of that of the sensor (Fs).
 		 * Hence, some new samples constantly made available by the sensor are dropped in case the
-		 * processing time of the Solver1::update() works at F < Fs. */
-		void update(fname f, std::size_t window_size);
+		 * processing time of the Solver1::solve() works at F < Fs. */
+		void update(float& val);
 	};
 }
