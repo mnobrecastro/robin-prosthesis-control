@@ -102,7 +102,7 @@ namespace robin
 				for (auto a : temp) {
 					this->value += a;
 				}
-				this->value /= window_size;
+				this->value /= temp.size();
 			}
 		};
 

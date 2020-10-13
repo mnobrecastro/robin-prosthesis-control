@@ -47,12 +47,18 @@ namespace robin
 			ControlVar emg_cmd_extension_;
 			ControlVar force_detection_;
 
+			// Channel locking variables
+			bool emg0_lock_ = false;
+			float emg0_prev_ = 0.0;
+			bool emg1_lock_ = false;
+			float emg1_prev_ = 0.0;
+
 			// State auto:=true corresponds to "auto" mode, while move:=false corresponds to "manual" mode
 			bool state_auto_ = true;
-			bool flag_auto_ = false;
+			bool flag_switch_ = false;
 			// State rotation:=true corresponds to pro/sup movements, rotation:=false corresponds to 
 			bool state_rotate_ = false;
-			bool flag_rotate_ = false;
+			bool flag_coactiv_ = false;
 			// State grasp:=false corresponds to grasp "force" detected
 			bool state_grasp_ = false;
 

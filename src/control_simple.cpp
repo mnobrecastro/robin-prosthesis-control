@@ -17,33 +17,54 @@ namespace robin
 			std::vector<Solver1EMG*> emg_channels = dynamic_cast<robin::hand::Michelangelo*>(hand_)->getEMGSolvers();
 			// Current EMG "flexion" command (channel 1)
 			emg_cmd_flexion_.buffer.push_back(emg_channels[0]->getSample());
-			emg_cmd_flexion_.update(robin::control::ControlVar::fname::MEDIAN, 10);
+			emg_cmd_flexion_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 1); //10
 			// Current EMG "extension" command (channel 2)
 			emg_cmd_extension_.buffer.push_back(emg_channels[1]->getSample());
-			emg_cmd_extension_.update(robin::control::ControlVar::fname::MEDIAN, 10);
+			emg_cmd_extension_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 1); //10
 
 			// Current Force measure
 			force_detection_.buffer.push_back(hand_->getGraspForce());
 			force_detection_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 10);
 
 			// Interpret user commands
-			float emg_contract_threshold(0.5); // [0-1]
+			float emg_contract_threshold(0.25); // [0-1]
 			float emg_coactiv_threshold(0.2); // [0-1]
 			float force_threshold(5.0); // [N]
-			bool usr_cmd_rotate(false), usr_cmd_stop(false);
-			
-			if (!state_auto_ && emg_cmd_flexion_.value >= emg_coactiv_threshold && emg_cmd_extension_.value >= emg_coactiv_threshold) {
+			bool usr_cmd_rotate(false); //usr_cmd_stop(false);
+						
+			//// EMG ch0
+			if (emg0_prev_ >= emg_contract_threshold && emg_cmd_flexion_.value < emg_contract_threshold) {
+				emg0_lock_ = true;
+			}
+			else if (emg0_prev_ < emg_coactiv_threshold) {
+				emg0_lock_ = false;
+			}
+			emg0_prev_ = emg_cmd_flexion_.value;
+
+			// EMG ch1
+			if (emg1_prev_ >= emg_contract_threshold && emg_cmd_extension_.value < emg_contract_threshold) {
+				emg1_lock_ = true;
+			}
+			else if (emg1_prev_ < emg_coactiv_threshold) {
+				emg1_lock_ = false;
+			}
+			emg1_prev_ = emg_cmd_extension_.value;
+
+			if (!flag_coactiv_ && (!emg0_lock_ && !emg1_lock_) && emg_cmd_flexion_.value >= emg_coactiv_threshold && emg_cmd_extension_.value >= emg_coactiv_threshold) {
+				// Flag is raised
+				flag_coactiv_ = true;
+			}
+			else if (flag_coactiv_ && emg_cmd_flexion_.value < emg_coactiv_threshold && emg_cmd_extension_.value < emg_coactiv_threshold) {
+				// Flag is lowered
+				flag_coactiv_ = false;
+				// usr_cmd_rotate is triggered 
 				usr_cmd_rotate = true;
-				flag_rotate_ = true;
-			} else if (state_auto_ && emg_cmd_extension_.value >= emg_contract_threshold) {
-				usr_cmd_stop = true;
-				flag_auto_ = true;
 			}
 
 			// Set current GRASP command
-			bool usr_cmd_grasp(false);
+			bool hand_cmd_grasp(false);
 			if (force_detection_.value >= force_threshold) { // [N]
-				usr_cmd_grasp = true;
+				hand_cmd_grasp = true;
 			}
 
 			std::cout << "*******  EMG1: " << emg_cmd_flexion_.value 
@@ -55,151 +76,177 @@ namespace robin
 			// The prosthetic hand automatically starts in "auto" mode, being the user able to
 			// switch to "manual" mode. Consequently, the "manual" mode starts in "Open/Close"
 			// operation, which can also be alternated to "Supination/Pronation" upon user input.
-			
+
 			if (state_auto_)
 			{
-				// Current absolute supination angle of the prosthesis
-				// (measured from the full pronated wrist position ref frame).
-				//
-				//			                 (Z)
-				//                           /
-				//                          /
-				//		                   /_ _ _ _ (X)
-				//                         |
-				//                  A      |      A
-				// (Sup Right-hand) |__    |    __| (Sup Left-hand) 
-				//                        (Y)
-				//
-				float supination_angle;
-				if (hand_->isRightHand()) {
-					// Right-hand prosthesis (positive angle)
-					supination_angle = hand_->getWristSupProAngle();
+				// Checks if the switch flag is still raised
+				if (flag_switch_) {
+					if (emg_cmd_extension_.value < emg_coactiv_threshold) {
+						flag_switch_ = false;
+					}
 				}
 				else {
-					// Left-hand prosthesis (negative angle)
-					supination_angle = -hand_->getWristSupProAngle();
-				}
-				hand_supination_angle_.value = supination_angle;
-				hand_supination_angle_.buffer.push_back(supination_angle);
+					// Checks if a stopping cmd has been received
+					if (!flag_coactiv_ && emg_cmd_extension_.value > emg_contract_threshold) {
+						hand_->stop();
+						state_auto_ = false;
+						flag_switch_ = true;
 
-				// Current grasp size of the prosthesis
-				hand_grasp_size_.value = hand_->getGraspSize();
-				hand_grasp_size_.buffer.push_back(hand_->getGraspSize());
-
-
-				this->estimate_grasp_size(prim);
-				this->estimate_grasp_type(prim);
-				this->estimate_tilt_angle(prim);
-
-				// Tolerances
-				float grasp_size_error_tol(0.01);
-				float tilt_angle_error_tol(5 * M_PI / 180);
-
-
-				float grasp_size_error(target_grasp_size_.value - hand_grasp_size_.value);
-				if (std::abs(grasp_size_error) > grasp_size_error_tol) {
-					if (grasp_size_error > 0.0) {
-						hand_->open(0.01, false);
+						//usr_cmd_stop = false;
+						Beep(2000, 100);
 					}
 					else {
-						hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.01, false); //*
-					}
-				}
-				else {
-					hand_->open(0.0, false);
-				}
-
-				float tilt_angle_error(target_tilt_angle_.value - hand_supination_angle_.value);
-				if (hand_->isRightHand()) {
-					// Right-hand prosthesis (positive tilt angle)				
-					if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
-						if (tilt_angle_error > 0.0) {
-							hand_->supinate(0.01, false);
+						// Current absolute supination angle of the prosthesis
+						// (measured from the full pronated wrist position ref frame).
+						//
+						//			                 (Z)
+						//                           /
+						//                          /
+						//		                   /_ _ _ _ (X)
+						//                         |
+						//                  A      |      A
+						// (Sup Right-hand) |__    |    __| (Sup Left-hand) 
+						//                        (Y)
+						//
+						float supination_angle;
+						if (hand_->isRightHand()) {
+							// Right-hand prosthesis (positive angle)
+							supination_angle = hand_->getWristSupProAngle();
 						}
 						else {
-							hand_->pronate(0.01, false);
+							// Left-hand prosthesis (negative angle)
+							supination_angle = -hand_->getWristSupProAngle();
 						}
-					}
-					else {
-						hand_->supinate(0.0, false);
-					}
-				}
-				else {
-					// Left-hand prosthesis (negative tilt angle)
-					if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
-						if (tilt_angle_error < 0.0) {
-							hand_->supinate(0.01, false);
+						hand_supination_angle_.value = supination_angle;
+						hand_supination_angle_.buffer.push_back(supination_angle);
+
+						// Current grasp size of the prosthesis
+						hand_grasp_size_.value = hand_->getGraspSize();
+						hand_grasp_size_.buffer.push_back(hand_->getGraspSize());
+
+
+						this->estimate_grasp_size(prim);
+						this->estimate_grasp_type(prim);
+						this->estimate_tilt_angle(prim);
+
+						// Tolerances
+						float grasp_size_error_tol(0.01);
+						float tilt_angle_error_tol(5 * M_PI / 180);
+
+
+						float grasp_size_error(target_grasp_size_.value - hand_grasp_size_.value);
+						if (std::abs(grasp_size_error) > grasp_size_error_tol) {
+							if (grasp_size_error > 0.0) {
+								hand_->open(0.01, false);
+							}
+							else {
+								hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.01, false); //*
+							}
 						}
 						else {
-							hand_->pronate(0.01, false);
+							hand_->open(0.0, false);
+						}
+
+						float tilt_angle_error(target_tilt_angle_.value - hand_supination_angle_.value);
+						if (hand_->isRightHand()) {
+							// Right-hand prosthesis (positive tilt angle)				
+							if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
+								if (tilt_angle_error > 0.0) {
+									hand_->supinate(0.01, false);
+								}
+								else {
+									hand_->pronate(0.01, false);
+								}
+							}
+							else {
+								hand_->supinate(0.0, false);
+							}
+						}
+						else {
+							// Left-hand prosthesis (negative tilt angle)
+							if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
+								if (tilt_angle_error < 0.0) {
+									hand_->supinate(0.01, false);
+								}
+								else {
+									hand_->pronate(0.01, false);
+								}
+							}
+							else {
+								hand_->supinate(0.0, false);
+							}
 						}
 					}
-					else {
-						hand_->supinate(0.0, false);
-					}
-				}
-
-				// Checks if a stopping cmd has been received
-				if (flag_auto_ && emg_cmd_extension_.value < emg_contract_threshold/2) {
-					hand_->stop();
-					state_auto_ = false;
-					//usr_cmd_stop = !usr_cmd_stop;
-					flag_auto_ = false;
-					Beep(2000, 100);
 				}
 			}
 			else {
-				// Checks if a switch cmd has been triggered
-				if (flag_rotate_){
-					// NOTE: these two if() statements cannot be in a single if-clause.
-					if (emg_cmd_flexion_.value < emg_coactiv_threshold && emg_cmd_extension_.value < emg_coactiv_threshold) {
-						hand_->stop();
-						state_rotate_ = !state_rotate_;
-						//usr_cmd_rotate = !usr_cmd_rotate;
-						flag_rotate_ = false;
-						Beep(2000, 100); Beep(2000, 100);
-					}
-				} 
-				else if (!state_rotate_) {
-					// The hand is in Manual [Open/Close] mode
-					if (emg_cmd_flexion_.value > emg_contract_threshold/2) {
-						hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), emg_cmd_flexion_.value, false);
-					} else if (emg_cmd_extension_.value > emg_contract_threshold/2) {
-						hand_->open(emg_cmd_extension_.value, false);						
-						if (state_grasp_) {
-							// Successful grasp completion - reset all state variables
-							hand_->open(0.5, true); // ("true" forces the command to be excuted right away)
-							state_auto_ = true;
-							state_rotate_ = false;
-							state_grasp_ = false;
-							Beep(523, 100);
-							std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-						}
-					} else {
-						// Stop moving the hand in case no EMG signal is recorded
-						hand_->stop();
-					}
-				} else {
-					// The hand is in Manual [Supination/Pronation] mode
-					if (emg_cmd_flexion_.value > emg_contract_threshold/2) {
-						hand_->pronate(emg_cmd_flexion_.value, false);
-					} else if (emg_cmd_extension_.value > emg_contract_threshold/2) {
-						hand_->supinate(emg_cmd_extension_.value, false);
-					} else {
-						// Stop moving the hand in case no EMG signal is recorded
-						hand_->stop();
+				// Checks if the switch flag is still raised
+				if (flag_switch_){
+					if (emg_cmd_extension_.value < emg_coactiv_threshold) {
+						flag_switch_ = false;
 					}
 				}
+				else {
+					// Checks if a rotate cmd has been triggered
+					if (usr_cmd_rotate) {
+						hand_->stop();
+						state_rotate_ = !state_rotate_;
+						usr_cmd_rotate = false;
+						Beep(2000, 100); Beep(2000, 100);
+					}
 
-				// Checks if the force sensor has been activated
-				if (!state_grasp_ && usr_cmd_grasp) {
-					state_grasp_ = true;
-					usr_cmd_grasp = !usr_cmd_grasp;
-				}	
+					if (!state_rotate_) {
+						// The hand is in Manual [Open/Close] mode
+						if (!flag_coactiv_)
+						{
+							if (emg_cmd_flexion_.value > emg_contract_threshold || emg_cmd_extension_.value > emg_contract_threshold)
+							{
+								if (emg_cmd_flexion_.value >= emg_cmd_extension_.value) {
+									hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), emg_cmd_flexion_.value, false);
+								}else {
+									// Checks if the force sensor has been activated
+									if (hand_cmd_grasp) {
+										// Successful grasp completion - reset all state variables
+										hand_->open(0.5, true); // ("true" forces the command to be excuted right away)
+										state_auto_ = true;
+										hand_cmd_grasp = false;
+										flag_switch_ = true;
+										Beep(523, 100);
+										std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+									}
+									else {
+										hand_->open(emg_cmd_extension_.value, false);
+									}
+								}
+							}
+							else {
+								// Stop moving the hand in case no EMG signal is recorded
+								hand_->stop();
+							}
+						}
+					}
+					else {
+						// The hand is in Manual [Supination/Pronation] mode
+						if (!flag_coactiv_)
+						{
+							if (emg_cmd_flexion_.value > emg_contract_threshold || emg_cmd_extension_.value > emg_contract_threshold)
+							{
+								if (emg_cmd_flexion_.value >= emg_cmd_extension_.value) {
+									hand_->pronate(emg_cmd_flexion_.value, false);
+								} else {
+									hand_->supinate(emg_cmd_extension_.value, false);
+								}
+							}
+							else {
+								// Stop moving the hand in case no EMG signal is recorded
+								hand_->stop();
+							}
+						}
+					}
+				}
 			}
 			hand_->send_command();
 		}
-
 
 
 		float ControlSimple::getGraspSize()
