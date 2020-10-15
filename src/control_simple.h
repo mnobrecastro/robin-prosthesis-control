@@ -49,9 +49,9 @@ namespace robin
 
 			// Channel locking variables
 			bool emg0_lock_ = false;
-			float emg0_prev_ = 0.0;
+			std::chrono::steady_clock::time_point emg0_time_;
 			bool emg1_lock_ = false;
-			float emg1_prev_ = 0.0;
+			std::chrono::steady_clock::time_point emg1_time_;			
 
 			// State auto:=true corresponds to "auto" mode, while move:=false corresponds to "manual" mode
 			bool state_auto_ = true;

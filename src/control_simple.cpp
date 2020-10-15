@@ -9,6 +9,9 @@ namespace robin
 		ControlSimple::ControlSimple(robin::hand::Hand& hand)
 		{
 			hand_ = &hand;
+
+			emg0_time_ = std::chrono::high_resolution_clock::now();
+			emg1_time_ = emg0_time_;
 		}
 
 		void ControlSimple::evaluate(robin::Primitive3* prim)
@@ -27,34 +30,49 @@ namespace robin
 			force_detection_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 10);
 
 			// Interpret user commands
-			float emg_contract_threshold(0.25); // [0-1]
-			float emg_coactiv_threshold(0.2); // [0-1]
+			float emg_contract_threshold(0.5); // [0-1]
+			float emg_coactiv_threshold(0.15); // [0-1]
+			float time_coactiv_threshold(150.0); // [ms]
 			float force_threshold(5.0); // [N]
 			bool usr_cmd_rotate(false); //usr_cmd_stop(false);
 						
 			//// EMG ch0
-			if (emg0_prev_ >= emg_contract_threshold && emg_cmd_flexion_.value < emg_contract_threshold) {
-				emg0_lock_ = true;
+			if (!emg0_lock_ && emg_cmd_flexion_.value >= emg_coactiv_threshold) {
+				auto t = std::chrono::high_resolution_clock::now();
+				if (!emg1_lock_) {
+					emg0_lock_ = true;
+					emg0_time_ = t;
+				}
+				else if(emg1_lock_ && std::chrono::duration<double, std::ratio<1>>(t - emg1_time_).count()*1000.0 <= time_coactiv_threshold) {
+					emg0_lock_ = true;
+					emg0_time_ = t;
+				}
 			}
-			else if (emg0_prev_ < emg_coactiv_threshold) {
+			else if (emg_cmd_flexion_.value < emg_coactiv_threshold) {
 				emg0_lock_ = false;
 			}
-			emg0_prev_ = emg_cmd_flexion_.value;
 
 			// EMG ch1
-			if (emg1_prev_ >= emg_contract_threshold && emg_cmd_extension_.value < emg_contract_threshold) {
-				emg1_lock_ = true;
+			if (!emg1_lock_ && emg_cmd_extension_.value >= emg_coactiv_threshold) {
+				auto t = std::chrono::high_resolution_clock::now();
+				if (!emg0_lock_) {
+					emg1_lock_ = true;
+					emg1_time_ = t;
+				}
+				else if (emg0_lock_ && std::chrono::duration<double, std::ratio<1>>(t - emg0_time_).count()*1000.0 <= time_coactiv_threshold) {
+					emg1_lock_ = true;
+					emg1_time_ = t;
+				}
 			}
-			else if (emg1_prev_ < emg_coactiv_threshold) {
+			else if (emg_cmd_extension_.value < emg_coactiv_threshold) {
 				emg1_lock_ = false;
 			}
-			emg1_prev_ = emg_cmd_extension_.value;
 
-			if (!flag_coactiv_ && (!emg0_lock_ && !emg1_lock_) && emg_cmd_flexion_.value >= emg_coactiv_threshold && emg_cmd_extension_.value >= emg_coactiv_threshold) {
+			if (!flag_coactiv_ && (emg0_lock_ && emg1_lock_)) {
 				// Flag is raised
 				flag_coactiv_ = true;
 			}
-			else if (flag_coactiv_ && emg_cmd_flexion_.value < emg_coactiv_threshold && emg_cmd_extension_.value < emg_coactiv_threshold) {
+			else if (flag_coactiv_ && (!emg0_lock_ && !emg1_lock_)) {
 				// Flag is lowered
 				flag_coactiv_ = false;
 				// usr_cmd_rotate is triggered 
