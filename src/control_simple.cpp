@@ -20,21 +20,22 @@ namespace robin
 			std::vector<Solver1EMG*> emg_channels = dynamic_cast<robin::hand::Michelangelo*>(hand_)->getEMGSolvers();
 			// Current EMG "flexion" command (channel 1)
 			emg_cmd_flexion_.buffer.push_back(emg_channels[0]->getSample());
-			emg_cmd_flexion_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 1); //10
+			emg_cmd_flexion_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 1);
 			// Current EMG "extension" command (channel 2)
 			emg_cmd_extension_.buffer.push_back(emg_channels[1]->getSample());
-			emg_cmd_extension_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 1); //10
+			emg_cmd_extension_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 1);
 
 			// Current Force measure
 			force_detection_.buffer.push_back(hand_->getGraspForce());
 			force_detection_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 10);
 
 			// Interpret user commands
-			float emg_contract_threshold(0.5); // [0-1]
-			float emg_coactiv_threshold(0.15); // [0-1]
+			float emg_contract_threshold(0.15); // [0.0-1.0]
+			float emg_coactiv_threshold(0.10); // [0.0-1.0]
 			float time_coactiv_threshold(150.0); // [ms]
 			float force_threshold(5.0); // [N]
-			bool usr_cmd_rotate(false); //usr_cmd_stop(false);
+			bool usr_cmd_rotate(false);
+			float hand_velocity(0.6); // [0.0-1.0]
 						
 			//// EMG ch0
 			if (!emg0_lock_ && emg_cmd_flexion_.value >= emg_coactiv_threshold) {
@@ -155,10 +156,10 @@ namespace robin
 						float grasp_size_error(target_grasp_size_.value - hand_grasp_size_.value);
 						if (std::abs(grasp_size_error) > grasp_size_error_tol) {
 							if (grasp_size_error > 0.0) {
-								hand_->open(0.01, false);
+								hand_->open(hand_velocity/2, false);
 							}
 							else {
-								hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.01, false); //*
+								hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity/2, false); //*
 							}
 						}
 						else {
@@ -170,10 +171,10 @@ namespace robin
 							// Right-hand prosthesis (positive tilt angle)				
 							if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
 								if (tilt_angle_error > 0.0) {
-									hand_->supinate(0.01, false);
+									hand_->supinate(hand_velocity, false);
 								}
 								else {
-									hand_->pronate(0.01, false);
+									hand_->pronate(hand_velocity, false);
 								}
 							}
 							else {
@@ -184,10 +185,10 @@ namespace robin
 							// Left-hand prosthesis (negative tilt angle)
 							if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
 								if (tilt_angle_error < 0.0) {
-									hand_->supinate(0.01, false);
+									hand_->supinate(hand_velocity, false);
 								}
 								else {
-									hand_->pronate(0.01, false);
+									hand_->pronate(hand_velocity, false);
 								}
 							}
 							else {
@@ -220,7 +221,7 @@ namespace robin
 							if (emg_cmd_flexion_.value > emg_contract_threshold || emg_cmd_extension_.value > emg_contract_threshold)
 							{
 								if (emg_cmd_flexion_.value >= emg_cmd_extension_.value) {
-									hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), emg_cmd_flexion_.value, false);
+									hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), (emg_cmd_flexion_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
 								}else {
 									// Checks if the force sensor has been activated
 									if (hand_cmd_grasp) {
@@ -233,7 +234,7 @@ namespace robin
 										std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 									}
 									else {
-										hand_->open(emg_cmd_extension_.value, false);
+										hand_->open((emg_cmd_extension_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
 									}
 								}
 							}
@@ -250,9 +251,9 @@ namespace robin
 							if (emg_cmd_flexion_.value > emg_contract_threshold || emg_cmd_extension_.value > emg_contract_threshold)
 							{
 								if (emg_cmd_flexion_.value >= emg_cmd_extension_.value) {
-									hand_->pronate(emg_cmd_flexion_.value, false);
+									hand_->pronate((emg_cmd_flexion_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
 								} else {
-									hand_->supinate(emg_cmd_extension_.value, false);
+									hand_->supinate((emg_cmd_extension_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
 								}
 							}
 							else {

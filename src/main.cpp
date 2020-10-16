@@ -51,7 +51,7 @@ int main(int argc, char** argv)
 	//robin::hand::Hand myhand(TRUE);
 
 	robin::control::ControlSimple controller(myhand);
-	controller.setFilter(robin::control::ControlVar::fname::MEDIAN, 40);
+	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 10); //MEDIAN, 40
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
 	//robin::Solver3Lasers mysolver;
