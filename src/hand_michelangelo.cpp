@@ -19,7 +19,7 @@ namespace robin
 				// Create an Solver1EMG for each EMG channel
 				Solver1EMG* emg_solver = new Solver1EMG();
 				emg_solver->addSensor(emg_ch);
-				emg_solver->setFilter(fname::MOVING_AVERAGE, 10); //fname::MOVING_AVERAGE, 100 // 40 // 20
+				emg_solver->setFilter(fname::MOVING_AVERAGE, 1); // 40 // 20 >>> 10
 				emg_solvers_.push_back(emg_solver);
 			}
 			
