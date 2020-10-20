@@ -3,6 +3,7 @@
 // ---- dynamic_cast
 #include "solver1_emg.h"
 // ----
+#include "data_manager.h"
 
 #include <algorithm>
 #include <iostream>
@@ -64,6 +65,8 @@ namespace robin
 
 			void send_command();
 
+			void setDataManager(robin::data::DataManager& dm);
+
 		protected:
 			/* Array to keep track of the command variables */
 			std::array<float, 9> command_buffer_ = { 1 / 255, 0.0,0.0, 0.0,0.0, 0.0,0.0, 0.0,0.0 };
@@ -113,7 +116,7 @@ namespace robin
 			//void grasp_palmar();
 			//void grasp_lateral();
 
-			std::vector<Solver1EMG*> emg_solvers_;
+			std::vector<Solver1EMG*> emg_solvers_;			
 
 		private:
 			/* Suppressed Commands */
@@ -145,6 +148,13 @@ namespace robin
 			std::size_t kdata_ = 0;
 			
 			float dummy = 0.05;
+
+
+
+			/* Declaration of a DataManager object. */
+			robin::data::DataManager* dm_ = nullptr;
+			int saveCalibration(const std::vector<float>& baseval, const std::vector<float>& normval) const;
+			int loadCalibration(std::vector<float>& baseval, std::vector<float>& normval) const;
 		};
 	}
 }

@@ -1,6 +1,8 @@
 #pragma once
 #include "sensor1.h"
 #include "solver1_emg.h"
+//#include "data_manager.h"
+
 #include <iostream>
 #include <vector>
 
@@ -64,6 +66,8 @@ namespace robin
 			virtual void stop() {}
 
 			virtual void send_command() {}
+
+			//virtual void setDataManager(robin::data::DataManager& dm) {}
 
 		protected:
 			struct ConfigState {

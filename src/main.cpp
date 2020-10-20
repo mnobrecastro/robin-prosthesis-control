@@ -1,5 +1,6 @@
 //#define MULTITHREADING
 
+#include "../src/data_manager.h"
 #include "../src/hand_michelangelo.h"
 #include "../src/control_simple.h"
 #include "../src/solver3.h"
@@ -22,6 +23,10 @@
 
 int main(int argc, char** argv)
 {
+	// ---
+	robin::data::DataManager mydm;
+	// ---
+	
 	Beep(523, 100); // 523 hertz (C5) for 500 milliseconds
 	//ascending pitch beep
 	/*for (int i = 0; i < 3000; i += 10) {
@@ -46,12 +51,15 @@ int main(int argc, char** argv)
 
 
 	robin::hand::Michelangelo myhand(false);
+	myhand.setDataManager(mydm);
 	myhand.calibrateEMG();
 
 	//robin::hand::Hand myhand(TRUE);
 
 	robin::control::ControlSimple controller(myhand);
 	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 10); //MEDIAN, 40
+	controller.setDataManager(mydm);
+
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
 	//robin::Solver3Lasers mysolver;
@@ -62,6 +70,8 @@ int main(int argc, char** argv)
 	mysolver.setFairSelection(false);
 	//solver.setUseNormals(true);
 	
+	
+
 	// Dummy Segmentation object
 	//pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
 	//seg->setNormalDistanceWeight(0.001);

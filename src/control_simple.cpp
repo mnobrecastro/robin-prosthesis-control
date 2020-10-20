@@ -111,6 +111,9 @@ namespace robin
 						state_auto_ = false;
 						flag_switch_ = true;
 
+						// Save event to DataManager
+						this->saveEvent();
+
 						//usr_cmd_stop = false;
 						Beep(2000, 100);
 					}
@@ -211,6 +214,10 @@ namespace robin
 						hand_->stop();
 						state_rotate_ = !state_rotate_;
 						usr_cmd_rotate = false;
+
+						// Save event to DataManager
+						this->saveEvent();
+
 						Beep(2000, 100); Beep(2000, 100);
 					}
 
@@ -230,11 +237,18 @@ namespace robin
 										state_auto_ = true;
 										hand_cmd_grasp = false;
 										flag_switch_ = true;
+
+										// Save event to DataManager
+										this->saveEvent(true);
+
 										Beep(523, 100);
 										std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 									}
 									else {
 										hand_->open((emg_cmd_extension_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
+
+										// Save event to DataManager
+										this->saveEvent();
 									}
 								}
 							}
@@ -252,8 +266,14 @@ namespace robin
 							{
 								if (emg_cmd_flexion_.value >= emg_cmd_extension_.value) {
 									hand_->pronate((emg_cmd_flexion_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
+
+									// Save event to DataManager
+									this->saveEvent();
 								} else {
 									hand_->supinate((emg_cmd_extension_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
+
+									// Save event to DataManager
+									this->saveEvent();
 								}
 							}
 							else {
@@ -285,6 +305,8 @@ namespace robin
 			emg.push_back(emg_cmd_extension_.value);
 			return emg;
 		}
+
+
 
 		/* Receives a Primitive3 object and evaluates its type. */
 		Primitive3Type ControlSimple::find_primitive3_type(robin::Primitive3* prim)
@@ -534,6 +556,34 @@ namespace robin
 
 			target_tilt_angle_.update(filter_, window_size_);
 			std::cout << " with median: " << target_tilt_angle_.value << std::endl;
+		}
+
+
+
+
+
+		void ControlSimple::setDataManager(robin::data::DataManager& dm)
+		{
+			dm_ = &dm;
+		}
+
+		int ControlSimple::saveEvent(bool flag) const
+		{
+			robin::data::EventData data;
+			data.mode = int(state_auto_); // Mode Auto[1]/Manual[0]
+			data.rotate = int(state_rotate_); // Rotation
+			data.grasp_type = int(target_grasp_type_.value);
+			data.grasp_size_estim = target_grasp_size_.value; // grasp_size from the CVsolver
+			data.grasp_size_slack = hand_->getGraspSize(); // grasp_size with slack/tolerance
+			data.tilt_angle_estim = target_tilt_angle_.value; // tilt_angle from the CVsolver
+			data.tilt_angle_slack = hand_->getWristSupProAngle(); // tilt_angle with slack/tolerance
+			data.flag = flag;
+			if (!hand_->isRightHand()) { data.tilt_angle_slack *= -1; }
+			
+			if (dm_->saveEvent(data) == 0)
+				return 0;
+			else
+				return -1;
 		}
 	}
 }

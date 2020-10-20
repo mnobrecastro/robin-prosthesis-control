@@ -5,6 +5,7 @@ pcl/
 dependencies/
 dlls/
 shapes/
+data/
 
 *.zip
 *.tar.gz

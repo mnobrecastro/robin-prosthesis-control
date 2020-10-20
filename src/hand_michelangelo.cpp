@@ -39,67 +39,99 @@ namespace robin
 
 		void Michelangelo::calibrateEMG()
 		{
-			std::cout << "Press ENTER to start the calibration of the EMG sensors... " << std::endl;
-			std::cin.get();
-			for (size_t i(0); i < 2; ++i) {
-				std::vector<float> buffer_baseline, buffer_normalize;
+			std::vector<float> basevals, normvals;
+			if (this->loadCalibration(basevals, normvals) == 0)
+			{
+				// Load calibration values for the EMG sensors if a file is found
+				std::cout << "A EMG calibration file has been found! Loading..." << std::endl;
 
-				std::cout << "Calibrating EMG sensor " << i << ":" << std::endl;
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-
-
-				std::cout << "\t- baseline (please do not move)";
-				std::this_thread::sleep_for(std::chrono::seconds(5));
-				std::cout << " >> measuring...";
-				std::this_thread::sleep_for(std::chrono::seconds(3));
-
-				Beep(2000, 100);
-				auto tic = std::chrono::high_resolution_clock::now();
-				std::chrono::duration<double, std::ratio<1>> t = tic - tic;
-				while (t.count() < 3.0) {
-					buffer_baseline.push_back(emg_solvers_[i]->getSample());
-					t = std::chrono::high_resolution_clock::now() - tic;
+				for (size_t i(0); i < 2; ++i) {					
+					// Calculate the Baseline
+					emg_solvers_[i]->setBaselineRemoval(basevals[i]);
+					// Calculate the maximum contraction value
+					emg_solvers_[i]->setNormalization(normvals[i], true);
 				}
-				Beep(523, 100);
-				std::cout << "OK!" << std::endl;
+				calibratedOnOff_ = true;
 
-				// Calculate the Baseline
-				float baseval(0.0);
-				for (auto val : buffer_baseline) {
-					baseval += val;
-				}
-				baseval /= buffer_baseline.size();
-				emg_solvers_[i]->setBaselineRemoval(baseval);
-
-
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-				
-
-				std::cout << "\t- MVC (please contract the muscle)";
-				std::this_thread::sleep_for(std::chrono::seconds(5));
-				std::cout << " >> measuring...";
-				std::this_thread::sleep_for(std::chrono::seconds(3));
-
-				Beep(2000, 100);
-				tic = std::chrono::high_resolution_clock::now();
-				t = tic - tic;
-				while (t.count() < 3.0) {
-					buffer_normalize.push_back(emg_solvers_[i]->getSample());
-					t = std::chrono::high_resolution_clock::now() - tic;
-				}
-				Beep(523, 100);
-				std::cout << "OK!" << std::endl;
-				
-				// Calculate the maximum contraction value
-				float normval(-1.0e+10);
-				for (auto val : buffer_normalize) {
-					if (val > normval) { normval = val; }
-				}
-				emg_solvers_[i]->setNormalization(normval, true);
-
+				std::cout << "Press ENTER to proceed..." << std::endl;
 				std::cin.get();
 			}
-			calibratedOnOff_ = true;
+			else {
+				// Prevent reading problems
+				basevals.clear();
+				normvals.clear();
+
+				std::cout << "Press ENTER to start the calibration of the EMG sensors... " << std::endl;
+				std::cin.get();
+
+				for (size_t i(0); i < 2; ++i) {
+					std::vector<float> buffer_baseline, buffer_normalize;
+
+					std::cout << "Calibrating EMG sensor " << i << ":" << std::endl;
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+
+					// BASELINE calibration
+					std::cout << "\t- baseline (please do not move)";
+					std::this_thread::sleep_for(std::chrono::seconds(5));
+					std::cout << " >> measuring...";
+					std::this_thread::sleep_for(std::chrono::seconds(3));
+
+					Beep(2000, 100);
+					auto tic = std::chrono::high_resolution_clock::now();
+					std::chrono::duration<double, std::ratio<1>> t = tic - tic;
+					while (t.count() < 3.0) {
+						buffer_baseline.push_back(emg_solvers_[i]->getSample());
+						t = std::chrono::high_resolution_clock::now() - tic;
+					}
+					Beep(523, 100);
+					std::cout << "OK!" << std::endl;
+
+					// Calculate the Baseline
+					float baseval(0.0);
+					for (auto val : buffer_baseline) {
+						baseval += val;
+					}
+					baseval /= buffer_baseline.size();
+					emg_solvers_[i]->setBaselineRemoval(baseval);
+
+					// Store the calibration data
+					basevals.push_back(baseval);
+
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+
+					// MVC calibration
+					std::cout << "\t- MVC (please contract the muscle)";
+					std::this_thread::sleep_for(std::chrono::seconds(5));
+					std::cout << " >> measuring...";
+					std::this_thread::sleep_for(std::chrono::seconds(3));
+
+					Beep(2000, 100);
+					tic = std::chrono::high_resolution_clock::now();
+					t = tic - tic;
+					while (t.count() < 3.0) {
+						buffer_normalize.push_back(emg_solvers_[i]->getSample());
+						t = std::chrono::high_resolution_clock::now() - tic;
+					}
+					Beep(523, 100);
+					std::cout << "OK!" << std::endl;
+
+					// Calculate the maximum contraction value
+					float normval(-1.0e+10);
+					for (auto val : buffer_normalize) {
+						if (val > normval) { normval = val; }
+					}
+					emg_solvers_[i]->setNormalization(normval, true);
+
+					// Store the calibration data
+					normvals.push_back(normval);
+
+					std::cin.get();
+				}
+				calibratedOnOff_ = true;
+
+				// Save the Calibration data into a file
+				saveCalibration(basevals, normvals);
+			}
 		}
 
 		float Michelangelo::getWristFleExtAngle()
@@ -502,6 +534,38 @@ namespace robin
 
 				emg.clear();
 			}
+		}
+
+
+
+
+		void Michelangelo::setDataManager(robin::data::DataManager& dm)
+		{
+			dm_ = &dm;
+		}
+
+		int Michelangelo::saveCalibration(const std::vector<float>& basevals, const std::vector<float>& normvals) const
+		{
+			robin::data::CalibData data;
+			data.basevals = std::vector<float>(basevals);
+			data.normvals = std::vector<float>(normvals);
+			if (dm_->saveCalibration(data) == 0)
+				return 0;
+			else
+				return -1;
+		}
+
+		int Michelangelo::loadCalibration(std::vector<float>& basevals, std::vector<float>& normvals) const
+		{
+			robin::data::CalibData data;
+			if (dm_->loadCalibration(data) == 0) {
+				basevals = std::vector<float>(data.basevals);
+				normvals = std::vector<float>(data.normvals);
+				return 0;
+			}
+			else {
+				return -1;
+			}			
 		}
 	}
 }

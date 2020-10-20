@@ -7,6 +7,7 @@
 // ---- dynamic_cast
 #include "hand_michelangelo.h"
 // ----
+#include "data_manager.h"
 
 #include <typeinfo>
 #include <algorithm>
@@ -42,6 +43,8 @@ namespace robin
 			bool getStateAuto() { return state_auto_; }
 			bool getStateGrasp() { return state_grasp_; }
 
+			void setDataManager(robin::data::DataManager& dm);
+
 		protected:
 			ControlVar emg_cmd_flexion_;
 			ControlVar emg_cmd_extension_;
@@ -51,7 +54,7 @@ namespace robin
 			bool emg0_lock_ = false;
 			std::chrono::steady_clock::time_point emg0_time_;
 			bool emg1_lock_ = false;
-			std::chrono::steady_clock::time_point emg1_time_;			
+			std::chrono::steady_clock::time_point emg1_time_;
 
 			// State auto:=true corresponds to "auto" mode, while move:=false corresponds to "manual" mode
 			bool state_auto_ = true;
@@ -80,6 +83,12 @@ namespace robin
 
 			/* Estimation of the "tilt angle" from a primitive3 object. */
 			void estimate_tilt_angle(robin::Primitive3* prim);						
+
+
+
+			/* Declaration of a DataManager object. */
+			robin::data::DataManager* dm_ = nullptr;
+			int saveEvent(bool flag=false) const;
 		};
 	}
 }
