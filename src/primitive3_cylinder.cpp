@@ -37,6 +37,21 @@ namespace robin
 		coefficients_->values[6] = 0.001;
 	}
 
+	void Primitive3Cylinder::setCoefficients(std::vector<float> v)
+	{
+		if (v.size() == 7) {
+			coefficients_->values[0] = v[0];
+			coefficients_->values[1] = v[1];
+			coefficients_->values[2] = v[2];
+			coefficients_->values[3] = v[3];
+			coefficients_->values[4] = v[4];
+			coefficients_->values[5] = v[5];
+			coefficients_->values[6] = v[6];
+		}
+	}
+
+
+
 	void Primitive3Cylinder::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals)
 	{
 		if (normals) {

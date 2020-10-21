@@ -82,6 +82,24 @@ namespace robin
 		coefficients_->values[9] = 0.000;
 	}
 
+	void Primitive3Cuboid::setCoefficients(std::vector<float> v)
+	{
+		if (v.size() == 10) {
+			coefficients_->values[0] = v[0];
+			coefficients_->values[1] = v[1];
+			coefficients_->values[2] = v[2];
+			coefficients_->values[3] = v[3];
+			coefficients_->values[4] = v[4];
+			coefficients_->values[5] = v[5];
+			coefficients_->values[6] = v[6];
+			coefficients_->values[7] = v[7];
+			coefficients_->values[8] = v[8];
+			coefficients_->values[9] = v[9];
+		}
+	}
+
+
+
 
 	void Primitive3Cuboid::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals)
 	{

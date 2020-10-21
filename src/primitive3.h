@@ -47,7 +47,7 @@ namespace robin
 		float getProperty_e1_y() { return properties_.e1_y; }
 		float getProperty_e1_z() { return properties_.e1_z; }
 
-		void setCoefficients();
+		virtual void setCoefficients(std::vector<float> v) {}
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr getPointCloud() const;
 		pcl::ModelCoefficients::Ptr getCoefficients() const;

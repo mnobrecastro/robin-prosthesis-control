@@ -17,6 +17,8 @@ namespace robin
 
 		void reset();
 
+		void setCoefficients(std::vector<float> v);
+
 		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;
 
 		void fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals);

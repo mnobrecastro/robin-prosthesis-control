@@ -30,6 +30,17 @@ namespace robin
 		coefficients_->values[3] = 0.001;
 	}
 
+	void Primitive3Sphere::setCoefficients(std::vector<float> v)
+	{
+		if (v.size() == 4) {
+			coefficients_->values[0] = v[0];
+			coefficients_->values[1] = v[1];
+			coefficients_->values[2] = v[2];
+			coefficients_->values[3] = v[3];
+		}
+	}
+
+
 
 	void Primitive3Sphere::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals)
 	{

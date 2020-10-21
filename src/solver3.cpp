@@ -246,6 +246,11 @@ namespace robin
 			else {
 				// Multiple simultaneous fitting of pre-defined Primtive3's 
 
+				// Set the coefficients for each Primitive3 (i.e. initial guess)
+				p_sph_->setCoefficients({ 0.000, 0.000, 0.150, 0.050 });
+				//p_cub_->setCoefficients({ 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000 }); // N/A
+				p_cyl_->setCoefficients({ 0.000, 0.000, 0.150, 0.000, 0.000, 0.100, 0.050 });
+
 				// Define a copy of the PointCloud for each Primitive3				
 				pcl::PointCloud<pcl::PointXYZ>::Ptr c_sph(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
 				pcl::PointCloud<pcl::PointXYZ>::Ptr c_cub(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
