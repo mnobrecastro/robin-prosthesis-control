@@ -59,7 +59,7 @@ int main(int argc, char** argv)
 
 	robin::control::ControlSimple controller(myhand);
 	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 10); //MEDIAN, 40
-	controller.setFullManual(true);
+	controller.setFullManual(false);
 	controller.setDataManager(mydm);
 
 	// Declare a solver3

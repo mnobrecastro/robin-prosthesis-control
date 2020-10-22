@@ -31,7 +31,7 @@ namespace robin
 
 			// Interpret user commands
 			float emg_contract_threshold(0.15); // [0.0-1.0]
-			float emg_coactiv_threshold(0.10); // [0.0-1.0]
+			float emg_coactiv_threshold(0.2); // [0.0-1.0]
 			float time_coactiv_threshold(150.0); // [ms]
 			float force_threshold(5.0); // [N]
 			bool usr_cmd_rotate(false);
@@ -159,11 +159,12 @@ namespace robin
 						this->estimate_tilt_angle(prim);
 
 						// Tolerances
+						float grasp_size_slack(0.005);
 						float grasp_size_error_tol(0.01);
 						float tilt_angle_error_tol(5 * M_PI / 180);
 
 
-						float grasp_size_error(target_grasp_size_.value - hand_grasp_size_.value);
+						float grasp_size_error(target_grasp_size_.value + grasp_size_slack - hand_grasp_size_.value);
 						if (std::abs(grasp_size_error) > grasp_size_error_tol) {
 							if (grasp_size_error > 0.0) {
 								hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity/2, false);
