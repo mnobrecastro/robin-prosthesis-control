@@ -60,8 +60,8 @@ namespace robin
 			virtual void pronate(float vel, bool send = true) {}
 			virtual void supinate(float vel, bool send = true) {}
 			
-			virtual void open(float vel, bool send = true) {}
-			virtual void close(robin::hand::GRASP g, float vel, bool send = true) {}
+			virtual void open(GRASP g, float vel, bool send = true) {}
+			virtual void close(GRASP g, float vel, bool send = true) {}
 			
 			virtual void stop() {}
 

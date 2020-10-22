@@ -33,9 +33,6 @@ namespace robin
 		public:
 			ControlSimple(robin::hand::Hand& hand);
 
-			/* Evaluates the controller at a new time instant. */
-			void evaluate(robin::Primitive3* prim);
-
 			float getGraspSize();
 			float getTiltAngle();
 			std::vector<float> getEMG();
@@ -43,7 +40,12 @@ namespace robin
 			bool getStateAuto() { return state_auto_; }
 			bool getStateGrasp() { return state_grasp_; }
 
+			void setFullManual(bool b=false) { full_manual_ = b; }
+
 			void setDataManager(robin::data::DataManager& dm);
+
+			/* Evaluates the controller at a new time instant. */
+			void evaluate(robin::Primitive3* prim);
 
 		protected:
 			ControlVar emg_cmd_flexion_;
@@ -56,6 +58,8 @@ namespace robin
 			bool emg1_lock_ = false;
 			std::chrono::steady_clock::time_point emg1_time_;
 
+			// Full manual control option
+			bool full_manual_ = false;
 			// State auto:=true corresponds to "auto" mode, while move:=false corresponds to "manual" mode
 			bool state_auto_ = true;
 			bool flag_switch_ = false;

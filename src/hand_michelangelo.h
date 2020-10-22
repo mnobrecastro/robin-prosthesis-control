@@ -37,6 +37,8 @@ namespace robin
 			Michelangelo(bool right_hand, const char* ip, short port_in, short port_out);
 			~Michelangelo();
 
+			void plotEMG(bool b=false) { plotEMGOnOff_ = b; }
+
 			/* Calibrate the EMG channels (ex. normalize to MVC). */
 			void calibrateEMG();
 
@@ -59,7 +61,7 @@ namespace robin
 			/* Prothesis commands available. */
 			void pronate(float vel, bool send = true);
 			void supinate(float vel, bool send = true);
-			void open(float vel, bool send = true);
+			void open(GRASP g, float vel, bool send = true);
 			void close(GRASP g, float vel, bool send = true);
 			void stop();
 
@@ -141,6 +143,7 @@ namespace robin
 			void updateEMG();
 
 			bool calibratedOnOff_ = false;
+			bool plotEMGOnOff_ = false;
 
 			// Create a Gnuplot canvas
 			Gnuplot gp_;

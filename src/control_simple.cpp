@@ -35,7 +35,7 @@ namespace robin
 			float time_coactiv_threshold(150.0); // [ms]
 			float force_threshold(5.0); // [N]
 			bool usr_cmd_rotate(false);
-			float hand_velocity(0.6); // [0.0-1.0]
+			float hand_velocity(0.5); // [0.0-1.0]
 						
 			//// EMG ch0
 			if (!emg0_lock_ && emg_cmd_flexion_.value >= emg_coactiv_threshold) {
@@ -92,9 +92,15 @@ namespace robin
 
 			// ----
 
+			// Check whether full manual control has been set
+			if (full_manual_) {
+				state_auto_ = false;
+			}
+
 			// The prosthetic hand automatically starts in "auto" mode, being the user able to
 			// switch to "manual" mode. Consequently, the "manual" mode starts in "Open/Close"
 			// operation, which can also be alternated to "Supination/Pronation" upon user input.
+
 
 			if (state_auto_)
 			{
@@ -143,8 +149,9 @@ namespace robin
 						hand_supination_angle_.buffer.push_back(supination_angle);
 
 						// Current grasp size of the prosthesis
-						hand_grasp_size_.value = hand_->getGraspSize();
-						hand_grasp_size_.buffer.push_back(hand_->getGraspSize());
+						float hand_grasp_size = hand_->getGraspSize();
+						hand_grasp_size_.value = hand_grasp_size;
+						hand_grasp_size_.buffer.push_back(hand_grasp_size);
 
 
 						this->estimate_grasp_size(prim);
@@ -159,14 +166,14 @@ namespace robin
 						float grasp_size_error(target_grasp_size_.value - hand_grasp_size_.value);
 						if (std::abs(grasp_size_error) > grasp_size_error_tol) {
 							if (grasp_size_error > 0.0) {
-								hand_->open(hand_velocity/2, false);
+								hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity/2, false);
 							}
 							else {
 								hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity/2, false); //*
 							}
 						}
 						else {
-							hand_->open(0.0, false);
+							hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.0, false);
 						}
 
 						float tilt_angle_error(target_tilt_angle_.value - hand_supination_angle_.value);
@@ -233,10 +240,22 @@ namespace robin
 									// Checks if the force sensor has been activated
 									if (hand_cmd_grasp) {
 										// Successful grasp completion - reset all state variables
-										hand_->open(0.5, true); // ("true" forces the command to be excuted right away)
+										hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.5, true); // ("true" forces the command to be excuted right away)
 										state_auto_ = true;
 										hand_cmd_grasp = false;
 										flag_switch_ = true;
+
+										// Change the grasp_type in case of full manual mode
+										if (full_manual_) {
+											if (static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)) == robin::hand::GRASP::PALMAR) {
+												target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::LATERAL));
+												target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+											}
+											else {
+												target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::PALMAR));
+												target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+											}
+										}
 
 										// Save event to DataManager
 										this->saveEvent(true);
@@ -245,7 +264,7 @@ namespace robin
 										std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 									}
 									else {
-										hand_->open((emg_cmd_extension_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
+										hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), (emg_cmd_extension_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
 
 										// Save event to DataManager
 										this->saveEvent();
@@ -508,7 +527,7 @@ namespace robin
 			if (prim3_type == Primitive3Type::PRIMITIVE3_SPHERE)
 			{
 				/* To be further implemented. */
-				tilt_angle = hand_supination_angle_.value; // Hand stays as it is.
+				tilt_angle = 0.0; //hand_supination_angle_.value; // Hand stays as it is.
 			}
 			else if (prim3_type == Primitive3Type::PRIMITIVE3_CUBOID || prim3_type == Primitive3Type::PRIMITIVE3_CYLINDER)
 			{

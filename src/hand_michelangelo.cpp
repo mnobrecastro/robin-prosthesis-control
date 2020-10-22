@@ -222,7 +222,7 @@ namespace robin
 			}
 		}
 
-		void Michelangelo::open(float vel, bool send)
+		void Michelangelo::open(GRASP g, float vel, bool send)
 		{
 			if (is_dumping_) {
 				/* byte1 = uint8 : Palmar Grip Closing command in range[0, 255]
@@ -230,10 +230,20 @@ namespace robin
 				 * byte3 = uint8 : Lateral Grip Closing command in range[0, 255]
 				 * byte4 = uint8 : Lateral Grip Opening command in range[0, 255]
 				 */
-				command_buffer_[1] = 0.0;
-				command_buffer_[2] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
-				command_buffer_[3] = 0.0;
-				command_buffer_[4] = 0.0;
+				switch (g) {
+				case GRASP::PALMAR:
+					command_buffer_[1] = 0.0;
+					command_buffer_[2] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
+					command_buffer_[3] = 0.0;
+					command_buffer_[4] = 0.0;
+					break;
+				case GRASP::LATERAL:
+					command_buffer_[1] = 0.0;
+					command_buffer_[2] = 0.0;
+					command_buffer_[3] = 0.0;
+					command_buffer_[4] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
+					break;
+				}
 				if (send) {
 					this->send_command();
 					is_moving_ = true;
@@ -261,8 +271,7 @@ namespace robin
 					command_buffer_[3] = std::min(std::max(0.0f, std::abs(vel)), 1.0f);
 					command_buffer_[4] = 0.0;
 					break;
-				}
-				
+				}				
 				if (send) {
 					this->send_command();
 					is_moving_ = true;
@@ -504,7 +513,7 @@ namespace robin
 				//printf("\n\t<<<< %f, %f, %f, %f, %f, %f, %f, %f\n", emg[0], emg[1], emg[2], emg[3], emg[4], emg[5], emg[6], emg[7]);
 
 				// PLOT
-				if (calibratedOnOff_) {
+				if (plotEMGOnOff_ && calibratedOnOff_) {
 					// Update plot buffers
 					gnup_emg0_.emplace_back(kdata_, emg[0]);
 					gnup_emg1_.emplace_back(kdata_, emg[1]);
