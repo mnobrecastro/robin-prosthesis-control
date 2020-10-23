@@ -113,6 +113,9 @@ namespace robin
 				else {
 					// Checks if a stopping cmd has been received
 					if (!flag_coactiv_ && emg_cmd_extension_.value > emg_contract_threshold) {
+						// Save event to DataManager (double)
+						this->saveEvent();
+						
 						hand_->stop();
 						state_auto_ = false;
 						flag_switch_ = true;
@@ -241,6 +244,10 @@ namespace robin
 									// Checks if the force sensor has been activated
 									if (hand_cmd_grasp) {
 										// Successful grasp completion - reset all state variables
+
+										// Save event to DataManager (double)
+										this->saveEvent();
+																				
 										hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.5, true); // ("true" forces the command to be excuted right away)
 										state_auto_ = true;
 										hand_cmd_grasp = false;
@@ -493,13 +500,13 @@ namespace robin
 					if (target_grasp_size_.value < grasp_size_threshold) {
 						grasp_type = robin::hand::GRASP::LATERAL;
 					}else {
-						//Eigen::Vector3f cam_axis(0.0, 0.0, 1.0);
-						float projection = std::abs( axis.dot(cam_axis)/(axis.norm()*cam_axis.norm()) );
+						/* float projection = std::abs( axis.dot(cam_axis)/(axis.norm()*cam_axis.norm()) );
 						if (projection < projection_threshold) {
 							grasp_type = robin::hand::GRASP::LATERAL;
 						} else {
 							grasp_type = robin::hand::GRASP::PALMAR;
-						}
+						} */
+						grasp_type = robin::hand::GRASP::PALMAR;
 					}
 				} else {
 					grasp_type = robin::hand::GRASP::PALMAR;

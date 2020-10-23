@@ -54,7 +54,7 @@ namespace robin
 				calibratedOnOff_ = true;
 
 				std::cout << "Press ENTER to proceed..." << std::endl;
-				std::cin.get();
+				std::cin.get(); std::cin.get();
 			}
 			else {
 				// Prevent reading problems
