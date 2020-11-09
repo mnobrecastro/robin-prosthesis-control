@@ -27,6 +27,12 @@ namespace robin
 			UNKNOWN
 		};
 
+		enum class MyocontrolMenu {
+			MYOMENU_PALMAR,
+			MYOMENU_LATERAL,
+			MYOMENU_ROTATE
+		};
+
 		class ControlSimple :
 			public Control
 		{
@@ -64,7 +70,8 @@ namespace robin
 			bool state_auto_ = true;
 			bool flag_switch_ = false;
 			// State rotation:=true corresponds to pro/sup movements, rotation:=false corresponds to 
-			bool state_rotate_ = false;
+			MyocontrolMenu state_myomenu_ = MyocontrolMenu::MYOMENU_PALMAR;
+			//bool state_rotate_ = false;
 			bool flag_coactiv_ = false;
 			// State grasp:=false corresponds to grasp "force" detected
 			bool state_grasp_ = false;

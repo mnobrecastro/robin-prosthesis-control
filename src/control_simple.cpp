@@ -34,7 +34,7 @@ namespace robin
 			float emg_coactiv_threshold(0.2); // [0.0-1.0]
 			float time_coactiv_threshold(150.0); // [ms]
 			float force_threshold(5.0); // [N]
-			bool usr_cmd_rotate(false);
+			bool usr_cmd_myomenu(false);
 			float hand_velocity(0.5); // [0.0-1.0]
 						
 			//// EMG ch0
@@ -76,8 +76,8 @@ namespace robin
 			else if (flag_coactiv_ && (!emg0_lock_ && !emg1_lock_)) {
 				// Flag is lowered
 				flag_coactiv_ = false;
-				// usr_cmd_rotate is triggered 
-				usr_cmd_rotate = true;
+				// usr_cmd_myomenu is triggered 
+				usr_cmd_myomenu = true;
 			}
 
 			// Set current GRASP command
@@ -97,10 +97,10 @@ namespace robin
 				state_auto_ = false;
 			}
 
-			// The prosthetic hand automatically starts in "auto" mode, being the user able to
-			// switch to "manual" mode. Consequently, the "manual" mode starts in "Open/Close"
-			// operation, which can also be alternated to "Supination/Pronation" upon user input.
-
+			/* The prosthetic hand automatically starts in "auto" mode, being the user able to
+			 * switch to "manual" mode. Consequently, the "manual" mode starts in "Open/Close"
+			 * operation, which can also be alternated to "Supination/Pronation" upon user input.
+			 */
 
 			if (state_auto_)
 			{
@@ -120,6 +120,20 @@ namespace robin
 						state_auto_ = false;
 						flag_switch_ = true;
 
+
+						// Change the target_grasp_type_ accordingly
+						switch (static_cast<robin::hand::GRASP>(int(target_grasp_type_.value))) {
+						case robin::hand::GRASP::PALMAR:
+							state_myomenu_ = MyocontrolMenu::MYOMENU_PALMAR;
+							break;
+						case robin::hand::GRASP::LATERAL:
+							state_myomenu_ = MyocontrolMenu::MYOMENU_LATERAL;
+							break;
+						default:
+							/* do nothing */
+							break;
+						}
+
 						// Save event to DataManager
 						this->saveEvent();
 
@@ -127,18 +141,18 @@ namespace robin
 						Beep(2000, 100);
 					}
 					else {
-						// Current absolute supination angle of the prosthesis
-						// (measured from the full pronated wrist position ref frame).
-						//
-						//			                 (Z)
-						//                           /
-						//                          /
-						//		                   /_ _ _ _ (X)
-						//                         |
-						//                  A      |      A
-						// (Sup Right-hand) |__    |    __| (Sup Left-hand) 
-						//                        (Y)
-						//
+						/* Current absolute supination angle of the prosthesis
+						 * (measured from the full pronated wrist position ref frame).
+						 *
+						 *			                 (Z)
+						 *                           /
+						 *                          /
+						 *		                   /_ _ _ _ (X)
+						 *                         |
+						 *                  A      |      A
+						 * (Sup Right-hand) |__    |    __| (Sup Left-hand) 
+						 *                        (Y)
+						 */
 						float supination_angle;
 						if (hand_->isRightHand()) {
 							// Right-hand prosthesis (positive angle)
@@ -221,10 +235,30 @@ namespace robin
 				}
 				else {
 					// Checks if a rotate cmd has been triggered
-					if (usr_cmd_rotate) {
+					if (usr_cmd_myomenu) {
 						hand_->stop();
-						state_rotate_ = !state_rotate_;
-						usr_cmd_rotate = false;
+						if (state_myomenu_ == MyocontrolMenu::MYOMENU_ROTATE) {
+							state_myomenu_ = MyocontrolMenu::MYOMENU_PALMAR;
+						} else {
+							state_myomenu_ = static_cast<MyocontrolMenu>(int(state_myomenu_) + 1);
+						}
+						usr_cmd_myomenu = false;
+
+
+						// Change the target_grasp_type_ accordingly
+						switch (state_myomenu_) {
+						case MyocontrolMenu::MYOMENU_PALMAR:
+							target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::PALMAR));
+							target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+							break;
+						case MyocontrolMenu::MYOMENU_LATERAL:
+							target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::LATERAL));
+							target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+							break;
+						default:
+							/* do nothing */
+							break;
+						}
 
 						// Save event to DataManager
 						this->saveEvent();
@@ -232,7 +266,7 @@ namespace robin
 						Beep(2000, 100); Beep(2000, 100);
 					}
 
-					if (!state_rotate_) {
+					if (state_myomenu_ != MyocontrolMenu::MYOMENU_ROTATE) {
 						// The hand is in Manual [Open/Close] mode
 						if (!flag_coactiv_)
 						{
@@ -240,7 +274,7 @@ namespace robin
 							{
 								if (emg_cmd_flexion_.value >= emg_cmd_extension_.value) {
 									hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), (emg_cmd_flexion_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
-								}else {
+								} else {
 									// Checks if the force sensor has been activated
 									if (hand_cmd_grasp) {
 										// Successful grasp completion - reset all state variables
@@ -253,7 +287,7 @@ namespace robin
 										hand_cmd_grasp = false;
 										flag_switch_ = true;
 
-										// Change the grasp_type in case of full manual mode
+										/*// Change the grasp_type in case of full manual mode
 										if (full_manual_) {
 											if (static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)) == robin::hand::GRASP::PALMAR) {
 												target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::LATERAL));
@@ -263,7 +297,7 @@ namespace robin
 												target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::PALMAR));
 												target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
 											}
-										}
+										}*/
 
 										// Save event to DataManager
 										this->saveEvent(true);
@@ -598,7 +632,7 @@ namespace robin
 		{
 			robin::data::EventData data;
 			data.mode = int(state_auto_); // Mode Auto[1]/Manual[0]
-			data.rotate = int(state_rotate_); // Rotation
+			data.rotate = int(state_myomenu_); // Rotation
 			data.grasp_type = int(target_grasp_type_.value);
 			data.grasp_size_estim = target_grasp_size_.value; // grasp_size from the CVsolver
 			data.grasp_size_slack = hand_->getGraspSize(); // grasp_size with slack/tolerance
