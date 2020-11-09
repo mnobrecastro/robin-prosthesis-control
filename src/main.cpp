@@ -19,7 +19,7 @@
 #include <chrono>
 #include <thread>
 
-#include "gnuplot-iostream.h"
+#include "../dependencies/gnuplot-iostream/gnuplot-iostream.h"
 
 int main(int argc, char** argv)
 {
@@ -131,7 +131,7 @@ int main(int argc, char** argv)
 	size_t kdata(0);
 
 
-	bool RENDER(true);
+	bool RENDER(false);
 	bool PLOT(false);
 	bool HAND_CONTROL(true);
 	std::vector<double> freq;

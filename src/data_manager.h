@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <filesystem>
+#include <vector>
 #include <chrono>
 
 #define FOLDERPATH "../data"

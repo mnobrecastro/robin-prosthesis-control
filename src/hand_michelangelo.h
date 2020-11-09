@@ -12,7 +12,7 @@
 #include <thread>
 #include <mutex>
 
-#include "gnuplot-iostream.h"
+#include "../dependencies/gnuplot-iostream/gnuplot-iostream.h"
 
 #define IP_ADDRESS "127.0.0.1"
 #define PORT_IN 8052

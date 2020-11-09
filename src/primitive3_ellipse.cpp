@@ -116,10 +116,10 @@ namespace robin
 	/* Update the properties of the Primitive3. */
 	void Primitive3Ellipse::update_properties()
 	{
-		properties_.f1_x = coefficients_->values[0];
-		properties_.f1_y = coefficients_->values[1];
-		properties_.f2_x = coefficients_->values[2];
-		properties_.f2_y = coefficients_->values[3];
+		//properties_.f1_x = coefficients_->values[0];
+		//properties_.f1_y = coefficients_->values[1];
+		//properties_.f2_x = coefficients_->values[2];
+		//properties_.f2_y = coefficients_->values[3];
 		properties_.radius = coefficients_->values[4];
 	}
 }
