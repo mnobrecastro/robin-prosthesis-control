@@ -1,7 +1,5 @@
 #include "control_simple.h"
 
-#include <windows.h>
-
 namespace robin
 {
 	namespace control
@@ -102,6 +100,23 @@ namespace robin
 			 * operation, which can also be alternated to "Supination/Pronation" upon user input.
 			 */
 
+			// Checks if a key has been pressed to RESET the hand position
+			char key = 'a';
+			bool pressed = isKeyPressed(&key);
+			if (pressed && key == ' ') {
+				key_pressed_ = true;
+				flag_key_ = true;
+
+				state_auto_ = true;
+			}
+			else if (key_pressed_ && !flag_key_) {
+				key_pressed_ = false;
+
+				if (full_manual_) {
+					state_auto_ = false;
+				}
+			}
+
 			if (state_auto_)
 			{
 				// Checks if the switch flag is still raised
@@ -175,6 +190,15 @@ namespace robin
 						this->estimate_grasp_type(prim);
 						this->estimate_tilt_angle(prim);
 
+						if (flag_key_) {
+							// Set target_grasp_type to GRASP::PALMAR
+							target_grasp_type_.value = int(robin::hand::GRASP::PALMAR);
+							// Set taget_tilt_angle to neutral
+							target_tilt_angle_.value = 0.0;
+							// Set target_grasp_size to full opened hand
+							target_grasp_size_.value = 0.10;
+						}
+
 						// Tolerances
 						float grasp_size_slack(0.005);
 						float grasp_size_error_tol(0.01);
@@ -207,6 +231,11 @@ namespace robin
 							}
 							else {
 								hand_->supinate(0.0, false);
+
+								// Upon key_pressed
+								if (key_pressed_ && flag_key_) {
+									flag_key_ = false;
+								}
 							}
 						}
 						else {
@@ -221,6 +250,11 @@ namespace robin
 							}
 							else {
 								hand_->supinate(0.0, false);
+
+								// Upon key_pressed
+								if (key_pressed_ && flag_key_) {
+									flag_key_ = false;
+								}
 							}
 						}
 					}
@@ -645,6 +679,19 @@ namespace robin
 				return 0;
 			else
 				return -1;
+		}
+
+
+
+
+		bool ControlSimple::isKeyPressed(char* c)
+		{
+			if (kbhit()) {
+				*c = getch();
+				return true;
+			} else {
+				return false;
+			}
 		}
 	}
 }

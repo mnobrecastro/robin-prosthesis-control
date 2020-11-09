@@ -16,6 +16,9 @@
 #include <chrono>
 #include <thread>
 
+#include <windows.h>
+#include <conio.h>
+
 namespace robin
 {
 	namespace control
@@ -71,7 +74,6 @@ namespace robin
 			bool flag_switch_ = false;
 			// State rotation:=true corresponds to pro/sup movements, rotation:=false corresponds to 
 			MyocontrolMenu state_myomenu_ = MyocontrolMenu::MYOMENU_PALMAR;
-			//bool state_rotate_ = false;
 			bool flag_coactiv_ = false;
 			// State grasp:=false corresponds to grasp "force" detected
 			bool state_grasp_ = false;
@@ -100,6 +102,12 @@ namespace robin
 			/* Declaration of a DataManager object. */
 			robin::data::DataManager* dm_ = nullptr;
 			int saveEvent(bool flag=false) const;
+
+			/* isKeyPressed aux method to reset the hand position. */
+			// (NOTE: WindowsOS only! )
+			bool key_pressed_ = false;
+			bool flag_key_ = false;
+			bool isKeyPressed(char* c);
 		};
 	}
 }
