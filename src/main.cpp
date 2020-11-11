@@ -58,14 +58,14 @@ int main(int argc, char** argv)
 	//robin::hand::Hand myhand(TRUE);
 
 	robin::control::ControlSimple controller(myhand);
-	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 10); //MEDIAN, 40
+	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 20); //20=~200ms     //MEDIAN, 40
 	controller.setFullManual(false);
 	controller.setDataManager(mydm);
 
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
 	//robin::Solver3Lasers mysolver;
-	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.215); //0.105 or 0.160
+	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315); //0.105 or 0.160 //(0.115, 0.215)
 	mysolver.setDownsample(0.002f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f
 	//mysolver.setResample(2, 0.005);
 	mysolver.setPlaneRemoval(false);
@@ -79,7 +79,7 @@ int main(int argc, char** argv)
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_PROSAC); //PROSAC?
 	seg->setMaxIterations(1000); //100
-	seg->setDistanceThreshold(0.0005); //0.001
+	seg->setDistanceThreshold(0.001); //0.001 //0.0005
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 	
@@ -131,7 +131,7 @@ int main(int argc, char** argv)
 	size_t kdata(0);
 
 
-	bool RENDER(false);
+	bool RENDER(true);
 	bool PLOT(false);
 	bool HAND_CONTROL(true);
 	std::vector<double> freq;

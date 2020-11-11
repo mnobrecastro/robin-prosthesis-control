@@ -208,10 +208,10 @@ namespace robin
 						float grasp_size_error(target_grasp_size_.value + grasp_size_slack - hand_grasp_size_.value);
 						if (std::abs(grasp_size_error) > grasp_size_error_tol) {
 							if (grasp_size_error > 0.0) {
-								hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity/2, false);
+								hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity, false); //* hand_velocity/2
 							}
 							else {
-								hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity/2, false); //*
+								hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity, false); //* hand_velocity/2
 							}
 						}
 						else {
@@ -489,7 +489,7 @@ namespace robin
 			std::cout << "Estimated grasp_size: " << grasp_size;
 
 			target_grasp_size_.update(filter_, window_size_);
-			std::cout << " with median: " << target_grasp_size_.value << std::endl;
+			std::cout << " with movavg: " << target_grasp_size_.value << std::endl;
 		}
 
 		void ControlSimple::estimate_grasp_type(robin::Primitive3* prim)
@@ -581,17 +581,27 @@ namespace robin
 				}
 				break;
 			}
-			target_grasp_type_.buffer.push_back(int(grasp_type));
-			target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
-			
+			target_grasp_type_.buffer.push_back(int(grasp_type));						
 			std::cout << "Estimated grasp_type: ";
-			switch (int(target_grasp_type_.value)) {
+			switch (int(grasp_type)) {
 			case int(robin::hand::GRASP::PALMAR):
-				std::cout << "PALMAR" << std::endl;
+				std::cout << "PALMAR";
 				break;
 			case int(robin::hand::GRASP::LATERAL):
-				std::cout << "LATERAL" << std::endl;
+				std::cout << "LATERAL";
 				break;
+			}
+
+			target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+			//target_grasp_size_.update(robin::control::ControlVar::fname::MODE, window_size_);
+			std::cout << " with majvote: ";
+			switch (int(target_grasp_type_.value)) {
+			case int(robin::hand::GRASP::PALMAR) :
+					std::cout << "PALMAR" << std::endl;
+					break;
+			case int(robin::hand::GRASP::LATERAL) :
+						std::cout << "LATERAL" << std::endl;
+					break;
 			}
 		}
 
@@ -650,7 +660,7 @@ namespace robin
 			std::cout << "Estimated tilt_angle: " << tilt_angle;
 
 			target_tilt_angle_.update(filter_, window_size_);
-			std::cout << " with median: " << target_tilt_angle_.value << std::endl;
+			std::cout << " with movavg: " << target_tilt_angle_.value << std::endl;
 		}
 
 
