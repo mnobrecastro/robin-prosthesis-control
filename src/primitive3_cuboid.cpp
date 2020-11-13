@@ -20,6 +20,9 @@ namespace robin
 		coefficients_->values.push_back(0.0); //7
 		coefficients_->values.push_back(0.0); //8
 		coefficients_->values.push_back(0.0); //9
+
+		// Initialization of intersection point
+		inters_point_ = Eigen::Vector3f(0.0, 0.0, 0.0);
 	}
 	Primitive3Cuboid::~Primitive3Cuboid() {}
 
@@ -65,6 +68,14 @@ namespace robin
 		//viewer->addLine<pcl::PointXYZ>(pBDL, pFDL, 255, 255, 255, "cLD");
 		//viewer->addLine<pcl::PointXYZ>(pBUR, pFUR, 255, 255, 255, "cRU");
 		//viewer->addLine<pcl::PointXYZ>(pBDR, pFDR, 255, 255, 255, "cRD");
+
+		// Intersection point (as a sphere)
+		pcl::ModelCoefficients::Ptr coefs(new pcl::ModelCoefficients);
+		coefs->values.push_back(inters_point_.x());
+		coefs->values.push_back(inters_point_.y());
+		coefs->values.push_back(inters_point_.z());
+		coefs->values.push_back(0.005);
+		viewer->addSphere(*coefs, "inters_sph");
 	}
 
 	void Primitive3Cuboid::reset()
@@ -153,7 +164,7 @@ namespace robin
 		}
 
 		size_t n_planes(0); int n_pts(cloud->points.size());
-		while (cloud->points.size() > 0.3 * n_pts && n_planes < 3) { //3 
+		while (cloud->points.size() > 0.1 * n_pts && n_planes < 3) { //0.3 //3 
 			// A minimum of 2 planes are enough to fully define the Primitive3Cuboid.
 			if (n_planes == 0) {
 				Primitive3Plane* plane(new Primitive3Plane());

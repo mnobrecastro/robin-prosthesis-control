@@ -58,6 +58,9 @@ namespace robin
 		/* Variable to enable the control over the visualization of primitives. */
 		void setVisualizeOnOff(bool);
 
+		/* Render the intersection point p obtained by the cam axis. */
+		virtual void setIntersectionPoint(Eigen::Vector3f p) {}
+
 		virtual void reset();
 
 		/* Receives a PointCloud object by reference and extracts/segments it by fitting to it. */

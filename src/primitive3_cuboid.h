@@ -23,6 +23,8 @@ namespace robin
 
 		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;	
 
+		void setIntersectionPoint(Eigen::Vector3f p) { inters_point_ = p; };
+
 		void setCoefficients(std::vector<float> v);
 
 		void fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals);
@@ -45,6 +47,8 @@ namespace robin
 		std::vector<Primitive3Plane*> planes_;
 
 		std::array<float,12> plot_;
+
+		Eigen::Vector3f inters_point_;
 
 		/* Checks if the fit is valid. */
 		bool is_fit_valid();

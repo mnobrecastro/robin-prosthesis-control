@@ -123,7 +123,7 @@ int main(int argc, char** argv)
 	viewer->setSize(800, 600);
 	float bckgr_gray_level = 0.0;  // Black:=0.0
 	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
-	viewer->addCoordinateSystem(0.25);
+	viewer->addCoordinateSystem(0.1);
 
 	// Create a Gnuplot canvas
 	Gnuplot gp;
