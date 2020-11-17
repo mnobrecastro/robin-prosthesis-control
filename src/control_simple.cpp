@@ -337,7 +337,7 @@ namespace robin
 										this->saveEvent(true);
 
 										Beep(523, 100);
-										std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+										std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 									}
 									else {
 										hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), (emg_cmd_extension_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
@@ -685,7 +685,7 @@ namespace robin
 			bool found(false);
 			//
 
-			robin::hand::GRASP grasp_type(robin::hand::GRASP::PALMAR);
+			robin::hand::GRASP grasp_type(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)));
 			switch (find_primitive3_type(prim)) {
 			case Primitive3Type::PRIMITIVE3_SPHERE:
 				if (target_grasp_size_.value < grasp_size_threshold) {
@@ -956,12 +956,11 @@ namespace robin
 		void ControlSimple::estimate_tilt_angle(robin::Primitive3* prim)
 		{						
 			// Tilt angle calculated as an absolute supination angle, i.e. measured from the full pronated wrist position.
-			float tilt_angle;
+			float tilt_angle(hand_supination_angle_.value); // Hand stays as it is.
 			Primitive3Type prim3_type = find_primitive3_type(prim);
 			if (prim3_type == Primitive3Type::PRIMITIVE3_SPHERE)
 			{
-				/* To be further implemented. */
-				tilt_angle = 0.0; //hand_supination_angle_.value; // Hand stays as it is.
+				tilt_angle = 0.0; // Palm facing down.
 			}
 			else if (prim3_type == Primitive3Type::PRIMITIVE3_CUBOID || prim3_type == Primitive3Type::PRIMITIVE3_CYLINDER)
 			{
