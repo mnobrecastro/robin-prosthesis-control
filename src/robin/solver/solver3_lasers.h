@@ -1,8 +1,9 @@
 #pragma once
 #include "solver3.h"
-#include "sensor3.h"
-#include "primitive3.h"
-#include "laser_array.h"
+#include "robin/sensor/sensor3.h"
+#include "robin/sensor/laser_array.h"
+#include "robin/primitive/primitive3.h"
+
 
 #include <typeinfo>
 

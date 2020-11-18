@@ -2,11 +2,11 @@
 
 #pragma once
 #include "solver.h"
-#include "sensor3.h"
-#include "primitive3_plane.h"
-#include "primitive3_sphere.h"
-#include "primitive3_cuboid.h"
-#include "primitive3_cylinder.h"
+#include "robin/sensor/sensor3.h"
+#include "robin/primitive/primitive3_plane.h"
+#include "robin/primitive/primitive3_sphere.h"
+#include "robin/primitive/primitive3_cuboid.h"
+#include "robin/primitive/primitive3_cylinder.h"
 
 #include <vector>
 #include <typeinfo>

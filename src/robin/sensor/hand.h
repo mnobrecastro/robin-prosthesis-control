@@ -1,6 +1,6 @@
 #pragma once
 #include "sensor1.h"
-#include "solver1_emg.h"
+#include "robin/solver/solver1_emg.h"
 //#include "data_manager.h"
 
 #include <iostream>
@@ -43,7 +43,7 @@ namespace robin
 			/* Read the current sEMG channels provided by the prosthesis. */
 			virtual std::vector<float> getEMG() { return std::vector<float>(); }//{ return configstate_.emg_channels; }
 
-			virtual std::vector<Solver1EMG*> getEMGSolvers() { std::vector<Solver1EMG*>(); }
+			virtual std::vector<Solver1EMG*> getEMGSolvers() { return std::vector<Solver1EMG*>(); }
 
 			virtual float getWristFleExtAngle();
 			virtual float getWristAbdAddAngle();

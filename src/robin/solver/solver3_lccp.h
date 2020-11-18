@@ -1,6 +1,6 @@
 #pragma once
 #include "solver3.h"
-#include "sensor3.h"
+#include "robin/sensor/sensor3.h"
 
 #include <vector>
 

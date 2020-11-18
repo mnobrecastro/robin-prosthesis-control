@@ -1,7 +1,7 @@
 #pragma once
-#include "sensor.h"
-#include "sensor_array.h"
-#include "primitive.h"
+#include "robin/sensor/sensor.h"
+#include "robin/sensor/sensor_array.h"
+#include "robin/primitive/primitive.h"
 
 #include <vector>
 

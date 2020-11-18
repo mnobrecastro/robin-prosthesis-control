@@ -1,9 +1,9 @@
 #pragma once
 #include "hand_udp.h"
 // ---- dynamic_cast
-#include "solver1_emg.h"
+#include "robin/solver/solver1_emg.h"
 // ----
-#include "data_manager.h"
+#include "robin/utils/data_manager.h"
 
 #include <algorithm>
 #include <iostream>
