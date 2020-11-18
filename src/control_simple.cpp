@@ -200,8 +200,8 @@ namespace robin
 						}
 
 						// Tolerances
-						float grasp_size_slack(0.005);
-						float grasp_size_error_tol(0.01);
+						float grasp_size_slack(0.030); // 3 cm
+						float grasp_size_error_tol(0.010); // 1 cm
 						float tilt_angle_error_tol(5 * M_PI / 180);
 
 
