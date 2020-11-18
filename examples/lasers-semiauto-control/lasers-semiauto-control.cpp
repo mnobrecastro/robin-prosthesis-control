@@ -1,25 +1,25 @@
 //#define MULTITHREADING
 
-#include "../src/data_manager.h"
-#include "../src/hand_michelangelo.h"
-#include "../src/control_simple.h"
-#include "../src/solver3.h"
-#include "../src/solver3_lccp.h"
-#include "../src/solver3_lasers.h"
-#include "../src/realsense_d400.h"
-#include "../src/royale_picoflexx.h"
-#include "../src/laser_scanner.h"
-#include "../src/laser_array.h"
-#include "../src/primitive3_sphere.h"
-#include "../src/primitive3_cylinder.h"
-#include "../src/primitive3_cuboid.h"
-#include "../src/primitive3_line.h"
-#include "../src/primitive3_circle.h"
+#include "src/data_manager.h"
+#include "src/hand_michelangelo.h"
+#include "src/control_simple.h"
+#include "src/solver3.h"
+#include "src/solver3_lccp.h"
+#include "src/solver3_lasers.h"
+#include "src/realsense_d400.h"
+#include "src/royale_picoflexx.h"
+#include "src/laser_scanner.h"
+#include "src/laser_array.h"
+#include "src/primitive3_sphere.h"
+#include "src/primitive3_cylinder.h"
+#include "src/primitive3_cuboid.h"
+#include "src/primitive3_line.h"
+#include "src/primitive3_circle.h"
 
 #include <chrono>
 #include <thread>
 
-#include "../dependencies/gnuplot-iostream/gnuplot-iostream.h"
+#include "dependencies/gnuplot-iostream/gnuplot-iostream.h"
 
 int main(int argc, char** argv)
 {
