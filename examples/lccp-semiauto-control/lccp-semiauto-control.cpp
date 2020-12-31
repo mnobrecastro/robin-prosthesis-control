@@ -1,25 +1,30 @@
 //#define MULTITHREADING
+//#define GNUPLOT
 
-#include "robin/utils/data_manager.h"
-#include "robin/sensor/hand_michelangelo.h"
-#include "robin/control/control_simple.h"
-#include "robin/solver/solver3.h"
-#include "robin/solver/solver3_lccp.h"
-#include "robin/solver/solver3_lasers.h"
-#include "robin/sensor/realsense_d400.h"
-#include "robin/sensor/royale_picoflexx.h"
-#include "robin/sensor/laser_scanner.h"
-#include "robin/sensor/laser_array.h"
-#include "robin/primitive/primitive3_sphere.h"
-#include "robin/primitive/primitive3_cylinder.h"
-#include "robin/primitive/primitive3_cuboid.h"
-#include "robin/primitive/primitive3_line.h"
-#include "robin/primitive/primitive3_circle.h"
+#include <robin/utils/data_manager.h>
+#include <robin/sensor/hand_michelangelo.h>
+#include <robin/control/control_simple.h>
+#include <robin/solver/solver3.h>
+#include <robin/solver/solver3_lccp.h>
+#include <robin/solver/solver3_lasers.h>
+#include <robin/sensor/realsense_d400.h>
+#include <robin/sensor/royale_picoflexx.h>
+#include <robin/sensor/laser_scanner.h>
+#include <robin/sensor/laser_array.h>
+#include <robin/primitive/primitive3_sphere.h>
+#include <robin/primitive/primitive3_cylinder.h>
+#include <robin/primitive/primitive3_cuboid.h>
+#include <robin/primitive/primitive3_line.h>
+#include <robin/primitive/primitive3_circle.h>
 
 #include <chrono>
 #include <thread>
 
+#ifdef GNUPLOT
 #include "gnuplot-iostream/gnuplot-iostream.h"
+#endif
+
+#pragma comment(lib,"robin.lib")
 
 int main(int argc, char** argv)
 {
@@ -125,11 +130,12 @@ int main(int argc, char** argv)
 	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
 	viewer->addCoordinateSystem(0.1);
 
+#ifdef GNUPLOT
 	// Create a Gnuplot canvas
 	Gnuplot gp;
 	std::vector<std::pair<double, double>> gnup_grasp_size, gnup_tilt_angle, gnup_emg1, gnup_emg2;
 	size_t kdata(0);
-
+#endif
 
 	bool RENDER(true);
 	bool PLOT(false);
@@ -149,10 +155,12 @@ int main(int argc, char** argv)
 			controller.evaluate(prim);
 			std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
 			std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
+#ifdef GNUPLOT
 			if (PLOT) {
 				gnup_grasp_size.emplace_back(kdata, controller.getGraspSize());
 				gnup_tilt_angle.emplace_back(kdata, controller.getTiltAngle() * 180.0 / 3.14159);
 			}
+#endif
 
 			if (myhand.isRightHand()) {
 				// Right-hand prosthesis (positive tilt angle)
@@ -230,6 +238,7 @@ int main(int argc, char** argv)
 			viewer->spinOnce(1, true);
 		}
 
+#ifdef GNUPLOT
 		//---- PLOTTING ----
 		if (PLOT) {
 
@@ -256,6 +265,7 @@ int main(int argc, char** argv)
 			gp.flush();
 			++kdata;
 		}
+#endif
 
 		//---- PROFILING ---
 		auto toc = std::chrono::high_resolution_clock::now();
