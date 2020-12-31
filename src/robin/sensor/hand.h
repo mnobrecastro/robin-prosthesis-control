@@ -1,6 +1,6 @@
 #pragma once
 #include "sensor1.h"
-#include "solver1_emg.h"
+#include "robin/solver/solver1_emg.h"
 //#include "data_manager.h"
 
 #include <iostream>

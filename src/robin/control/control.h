@@ -1,6 +1,6 @@
 #pragma once
-#include "hand.h"
-#include "solver.h"
+#include "robin/sensor/hand.h"
+#include "robin/solver/solver.h"
 
 #include <vector>
 

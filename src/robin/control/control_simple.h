@@ -1,13 +1,13 @@
 #pragma once
 #include "control.h"
-#include "primitive3.h"
-#include "primitive3_sphere.h"
-#include "primitive3_cuboid.h"
-#include "primitive3_cylinder.h"
+#include "robin/primitive/primitive3.h"
+#include "robin/primitive/primitive3_sphere.h"
+#include "robin/primitive/primitive3_cuboid.h"
+#include "robin/primitive/primitive3_cylinder.h"
 // ---- dynamic_cast
-#include "hand_michelangelo.h"
+#include "robin/sensor/hand_michelangelo.h"
 // ----
-#include "data_manager.h"
+#include "robin/utils/data_manager.h"
 
 #include <typeinfo>
 #include <algorithm>
