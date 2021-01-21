@@ -210,7 +210,7 @@ namespace robin
 			subprims_.push_back(subprim_arr_circle);
 		} else {
 			subprims_.push_back(subprim_arr_line);
-		}		
+		}
 	}
 
 	/* Receives a PointCloud cut and a segmentation object by reference and extracts/segments it by fitting to it. */
@@ -227,13 +227,13 @@ namespace robin
 			*cloud_ += *cut_prim->getPointCloud();
 			subprim_arr_circle.push_back(cut_prim);
 			++n_subprims_circle;
-			std::cout << "\t" << cut_prim->getPointCloud()->size() << "/" << cloud_circle->size() << std::endl;
+			std::cout << "\t" << cut_prim->getPointCloud()->points.size() << "/" << cur_size << std::endl;
 		}
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_line(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
 		std::vector<Primitive3d1*> subprim_arr_line;
 		size_t n_subprims_line(0), n_pts_line(cloud_line->points.size());
-		while (cloud_line->points.size() > 0.3 * n_pts_line && n_subprims_line < MAX_SUBPRIMS-1) {
+		while (cloud_line->points.size() > 0.3 * n_pts_line && n_subprims_line < MAX_SUBPRIMS) { //MAX_SUBPRIMS-1
 			size_t cur_size(cloud_line->points.size());
 
 			Primitive3Line* cut_prim(new Primitive3Line);
@@ -241,7 +241,7 @@ namespace robin
 			*cloud_ += *cut_prim->getPointCloud();
 			subprim_arr_line.push_back(cut_prim);
 			++n_subprims_line;
-			std::cout << "\t" << cut_prim->getPointCloud()->size() << "/" << cloud_line->size() << std::endl;
+			std::cout << "\t" << cut_prim->getPointCloud()->points.size() << "/" << cur_size << std::endl;
 		}
 
 		if (cloud_circle->points.size() < cloud_line->points.size()) {
@@ -252,6 +252,28 @@ namespace robin
 		}
 	}
 
+	/* Checks if the cut sub-primitives are valid. */
+	bool Primitive3Cylinder::is_cut_valid()
+	{		
+		bool valid_subprims(true);
+		if (!subprims_.empty()) {
+			for (auto arr : subprims_) {
+				for (auto sp : arr) {
+					if (sp->getPointCloud()->empty()) {
+						valid_subprims = false;
+						break;
+					}
+				}
+				if (!valid_subprims) { break; }
+			}
+			if (valid_subprims) { return true; }
+		}
+
+		this->reset();
+		return false;
+	}
+
+
 	void Primitive3Cylinder::heuristic_laser_array_single()
 	{
 		/* Not implemented yet. */
@@ -260,9 +282,6 @@ namespace robin
 	void Primitive3Cylinder::heuristic_laser_array_cross()
 	{
 		float cylinder_radius(0.001), cylinder_height(0.001);
-		std::list<float> save_cylinder_radius, save_cylinder_height;
-
-		size_t MOVING_AVG_SIZE(50);
 
 		// Computing the boundaries of the line primitives
 		//   [-]
@@ -282,7 +301,7 @@ namespace robin
 			bounds_vertical.push_back({ bounds_temp[2] ,bounds_temp[3] });
 		}
 
-		// Finding the front cube_face spaned by the intersection '+'
+		// Finding the "front face" spaned by the intersection '+'
 		int vertical_idx(-1), horizontal_idx(-1);
 		for (int k1(0); k1 < bounds_vertical.size(); ++k1) {
 			for (int k2(0); k2 < bounds_horizontal.size(); ++k2) {
@@ -298,10 +317,11 @@ namespace robin
 			std::cout << "vert_idx: " << vertical_idx << " hori_idx: " << horizontal_idx << std::endl;
 
 			// Find the centroid/center among the points of each subprimitives
-			Eigen::Vector3f false_bottom, dir, v_center(0.0, 0.0, 0.0), h_center(0.0, 0.0, 0.0);
-			float v_radius, h_radius;
+			Eigen::Vector3f false_bottom(0.0, 0.0, 0.0), dir(0.0, 0.0, 0.0), v_center(0.0, 0.0, 0.0), h_center(0.0, 0.0, 0.0);
+			float v_radius(0.0), h_radius(0.0);
 			bool has_line(false);
 
+			// Horizontal primitive
 			if (subprims_[0][horizontal_idx]->getCoefficients()->values.size() == 6 && !has_line) {
 				// Subprimitive is a Line
 				false_bottom = Eigen::Vector3f(
@@ -326,6 +346,7 @@ namespace robin
 				h_radius = subprims_[0][horizontal_idx]->getCoefficients()->values[6];
 			}
 
+			// Vertical primitive
 			if (subprims_[1][vertical_idx]->getCoefficients()->values.size() == 6 && !has_line) {
 				// Subprimitive is a Line
 				false_bottom = Eigen::Vector3f(
@@ -350,8 +371,15 @@ namespace robin
 				v_radius = subprims_[1][vertical_idx]->getCoefficients()->values[6];
 			}
 
+			std::cout << "false_btm:\n" << false_bottom << std::endl;
+			std::cout << "dir:\n" << dir << std::endl;
+			std::cout << "Hcenter:\n" << h_center << std::endl;
+			std::cout << "Hrad: " << h_radius << std::endl;
+			std::cout << "Vcenter:\n" << v_center << std::endl;
+			std::cout << "Vrad: " << v_radius << std::endl;
+
 			// Find the cylinder bottom center
-			Eigen::Vector3f center, cyl_bottom_center;
+			Eigen::Vector3f center(0.0, 0.0, 0.0), cyl_bottom_center(0.0, 0.0, 0.0);
 			if (v_center.isZero() ^ h_center.isZero()) { //XOR
 				if (v_center.isZero()) {
 					center = h_center;
@@ -361,7 +389,6 @@ namespace robin
 					center = v_center;
 					cylinder_radius = v_radius;
 				}
-				//cylinder_radius = moving_average(cylinder_radius, save_cylinder_radius, MOVING_AVG_SIZE, EXPONENTIAL);
 
 				Eigen::Vector3f vec(false_bottom.x() - center.x(), false_bottom.y() - center.y(), false_bottom.z() - center.z());
 				cyl_bottom_center = Eigen::Vector3f(
@@ -372,7 +399,6 @@ namespace robin
 
 				// Cylinder primitive parameters
 				cylinder_height = dir.norm();
-				//cylinder_height = moving_average(cylinder_height, save_cylinder_height, MOVING_AVG_SIZE, EXPONENTIAL);
 			}
 
 			// Cylinder coefficients(point_x, point_y, point_z, axis_x, axis_y, axis_z, radius)
@@ -383,6 +409,8 @@ namespace robin
 			coefficients_->values[4] = dir.y(); //axis_y
 			coefficients_->values[5] = dir.z(); //axis_z
 			coefficients_->values[6] = cylinder_radius; //radius
+
+			std::cout << *coefficients_ << std::endl;
 		}
 	}
 

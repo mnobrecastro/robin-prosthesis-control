@@ -208,6 +208,8 @@ namespace robin
 		this->crop();
 		this->downsample();
 		//this->resample();
+
+		// Store the pre-processed cloud
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_preproc(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
 		cloud_preproc_ = cloud_preproc;
 
@@ -226,7 +228,7 @@ namespace robin
 			return;
 		}
 		
-		// Check whether a Primitive3 has been provided
+		// Check whether any Primitive3 has been provided
 		if (primitive_ != nullptr) {
 			// Perform initial plane removal
 			if (seg_plane_removal_) {
