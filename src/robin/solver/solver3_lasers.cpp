@@ -19,9 +19,9 @@ namespace robin
 		}
 	}
 
-	void Solver3Lasers::solve(robin::Primitive3d3& prim)
+	void Solver3Lasers::solve(robin::Primitive3d3*& prim)
 	{
-		primitive_ = &prim;
+		primitive_ = prim;
 
 		// Reset the solver's (temp) PointCloud 
 		cloud_->clear();
@@ -42,7 +42,11 @@ namespace robin
 			*cloud_temp += *cloud_;
 		}
 
-		cloud_ = cloud_temp;
+		// Store the pre-processed cloud
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_preproc(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
+		cloud_preproc_ = cloud_preproc;
+
+		cloud_ = cloud_temp; //(Redundant)
 
 		// Check whether the PointCloud has enough points to proceed
 		if (has_invalid_cloud) {
@@ -53,5 +57,4 @@ namespace robin
 
 		primitive_->heuristic(cloud_arr, seg_obj_ptr_, heu_);
 	}
-		
 }

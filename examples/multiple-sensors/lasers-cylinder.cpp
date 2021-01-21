@@ -5,33 +5,42 @@
 
 #include <robin/solver/solver3.h>
 #include <robin/sensor/realsense_d400.h>
-#include "robin/solver/solver3_lasers.h"
+/*#include <robin/sensor/laser_scanner.h>*/
 #include <robin/sensor/laser_array.h>
 #include <robin/primitive/primitive3_cylinder.h>
 
 int main(int argc, char** argv)
 {	
 	// Declare a solver3
-	robin::Solver3Lasers mysolver;
+	robin::Solver3 mysolver;
 	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315);
-	//mysolver.setDownsample(0.002f);
+	mysolver.setDownsample(0.002f);
 	mysolver.setPlaneRemoval(false);
 
 	// Create a sensor from a camera
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
 	mycam->printInfo();
 	mycam->setDisparity(false);
+	//mysolver.addSensor(mycam);
 
 	// Create a virtual array of sensors from another sensor
-	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002)); //0.001
+	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.001));
 	mysolver.addSensor(myarr);
+
+	/*
+	// Multiple sensors from camera added together
+	robin::LaserScanner* mylaser_h(new robin::LaserScanner(mycam, 0.0, 1.0, 0.0, 0.0, 0.001));
+	mysolver.addSensor(mylaser_h);
+	robin::LaserScanner* mylaser_v(new robin::LaserScanner(mycam, 1.0, 0.0, 0.0, 0.0, 0.001));
+	mysolver.addSensor(mylaser_v);
+	*/
 
 	// Segmentation object
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
 	seg->setMaxIterations(1000);
-	seg->setDistanceThreshold(0.005); // little slack
+	seg->setDistanceThreshold(0.001);
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 
@@ -64,7 +73,7 @@ int main(int argc, char** argv)
 		preproc_color_h.setInputCloud(mysolver.getPreprocessed());
 		viewer->addPointCloud(mysolver.getPreprocessed(), preproc_color_h, "preproc");
 
-		///
+			///
 
 		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);
 		solver_color_h.setInputCloud(mysolver.getPointCloud());

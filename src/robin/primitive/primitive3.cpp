@@ -243,10 +243,10 @@ namespace robin
 			}
 		}		
 		
-		/*if (!this->heuristic_check(heu)) {
+		if (!this->heuristic_check(heu)) {
 			std::cout << "The number of sub-primitives does not match the Heuristic." << std::endl;
 			return;
-		}*/
+		} //(redundant?)
 
 		this->heuristic_prim(heu);
 

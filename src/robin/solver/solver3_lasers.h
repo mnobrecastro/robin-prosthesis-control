@@ -18,8 +18,8 @@ namespace robin
 
 		void addSensor(robin::Sensor3Array*);
 
-		void solve(robin::Primitive3& prim) = delete;
-		void solve(robin::Primitive3d3& prim);
+		//void solve(robin::Primitive3& prim) = delete;
+		void solve(robin::Primitive3d3*& prim);
 
 		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer, std::string draw = "wireframe") const;
 
@@ -29,6 +29,7 @@ namespace robin
 
 		unsigned int MIN_POINTS_PROCEED_ = 20;
 
+		/* Remove the method from the interface. */
 		using Solver3::addSensor;
 
 	};
