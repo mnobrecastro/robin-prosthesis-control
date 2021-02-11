@@ -1,6 +1,7 @@
 #pragma once
 #include "primitive3.h"
 #include "primitive3_circle.h"
+#include "primitive3_ellipse.h"
 #include "primitive3_line.h"
 
 #include <typeinfo>
