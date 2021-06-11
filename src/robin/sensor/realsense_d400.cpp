@@ -34,24 +34,25 @@ namespace robin {
 		for (rs2::sensor& sensor : sensors) {
 			std::cout << "Sensor " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
 			for (rs2::stream_profile& profile : sensor.get_stream_profiles()) {
-				if (profile.is<rs2::video_stream_profile>() && profile.stream_name() == "Depth") {
+				if (profile.is<rs2::video_stream_profile>()) {
 					rs2::video_stream_profile video_stream_profile = profile.as<rs2::video_stream_profile>();
-					std::cout << " Video stream: " << video_stream_profile.format() << " " <<
-						video_stream_profile.width() << "x" << video_stream_profile.height() << " @" << video_stream_profile.fps() << "Hz" << std::endl;
+					std::cout << " stream " << video_stream_profile.stream_name() << " " << video_stream_profile.format() << " " <<
+						video_stream_profile.width() << "x" << video_stream_profile.height() << " @" << video_stream_profile.fps() << " Hz" << std::endl;
 				}
-				if (profile.is<rs2::motion_stream_profile>() && profile.stream_name() == "Accel") {
+				if (profile.is<rs2::motion_stream_profile>()) {
 					rs2::motion_stream_profile motion_stream_profile = profile.as<rs2::motion_stream_profile>();
-					std::cout << " Motion stream: " << motion_stream_profile.format() << " " <<
-						motion_stream_profile.stream_type() << " @" << motion_stream_profile.fps() << "Hz" << std::endl;
+					std::cout << " stream " << motion_stream_profile.stream_name() << " " << motion_stream_profile.format() << " " <<
+						motion_stream_profile.stream_type() << " @" << motion_stream_profile.fps() << " Hz" << std::endl;
 				}
-				if (profile.is<rs2::pose_stream_profile>() && profile.stream_name() == "Gyro") {
+				if (profile.is<rs2::pose_stream_profile>()) {
 					rs2::pose_stream_profile pose_stream_profile = profile.as<rs2::pose_stream_profile>();
-					std::cout << " Pose stream: " << pose_stream_profile.format() << " " <<
-						pose_stream_profile.stream_type() << " @" << pose_stream_profile.fps() << "Hz" << std::endl;
+					std::cout << " stream " << pose_stream_profile.stream_name() << " " << pose_stream_profile.format() << " " <<
+						pose_stream_profile.stream_type() << " @" << pose_stream_profile.fps() << " Hz" << std::endl;
 				}
-				//std::cout << "  stream " << profile.stream_name() << " " << profile.stream_type() << " " << profile.format() << " " << " " << profile.fps() << std::endl;
+				//std::cout << "  stream " << profile.stream_type() << " " << profile.stream_name() << " " << profile.format() << " @" << profile.fps() << " Hz" << std::endl;
 			}
 		}
+		std::cout << std::endl;
 	}
 
 	void RealsenseD400::setDisparity(bool disparity)
@@ -65,10 +66,13 @@ namespace robin {
 		std::cout << "Opening pipeline for " << serialnumber_ << std::endl;
 		cfg_.enable_device(serialnumber_);
 		if (!disparity) {
-			//cfg.enable_stream(RS2_STREAM_DEPTH, 256, 144, RS2_FORMAT_Z16, 90); //works fine!
+			// Depth stream
+			//cfg_.enable_stream(RS2_STREAM_DEPTH, 256, 144, RS2_FORMAT_Z16, 90); //works fine!
 			cfg_.enable_stream(RS2_STREAM_DEPTH, 424, 240, RS2_FORMAT_Z16, 90); //works fine!
-			//cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 60);
-			////cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_BGR8, 60);
+			//cfg_.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 60);
+
+			// Color stream
+			cfg_.enable_stream(RS2_STREAM_COLOR, 424, 240, RS2_FORMAT_BGR8, 60);
 		}
 		else {
 			//cfg.enable_stream(RS2_STREAM_DEPTH, 848, 480, RS2_FORMAT_Z16, 30);
@@ -105,12 +109,17 @@ namespace robin {
 			// Wait for the next set of frames from the camera
 			rs2::frameset frames(pipe_.wait_for_frames());
 			rs2::depth_frame depth(frames.get_depth_frame());
+			rs2::video_frame color(frames.get_color_frame());
 
-			// Generate the pointcloud and texture mappings
+			// Map Color texture to each point
+			
+
+			// Generate the pointcloud and color texture mappings
 			rs2::pointcloud pc;
+			pc.map_to(color); // RGB texture
 			rs2::points pts = pc.calculate(depth);
 
-			// Transform rs2::pointcloud into pcl::PointCloud<PointT>::Ptr
+			// Transform rs2::pointcloud into pcl::PointCloud<PointXYZ>::Ptr
 			this->points_to_pcl(pts);
 
 			// Feed the children Sensors
