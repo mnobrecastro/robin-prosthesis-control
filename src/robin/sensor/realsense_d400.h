@@ -24,7 +24,8 @@ namespace robin
 		void start(bool);// override;
 		
 	protected:
-		void points_to_pcl(rs2::points pts);
+		std::tuple<uint8_t, uint8_t, uint8_t> get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords);
+		void points_to_pcl(const rs2::points pts, const rs2::video_frame color);
 		void captureFrame();
 
 	private:

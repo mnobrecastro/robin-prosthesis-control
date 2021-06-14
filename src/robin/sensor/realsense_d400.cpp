@@ -111,16 +111,13 @@ namespace robin {
 			rs2::depth_frame depth(frames.get_depth_frame());
 			rs2::video_frame color(frames.get_color_frame());
 
-			// Map Color texture to each point
-			
-
 			// Generate the pointcloud and color texture mappings
 			rs2::pointcloud pc;
 			pc.map_to(color); // RGB texture
 			rs2::points pts = pc.calculate(depth);
 
 			// Transform rs2::pointcloud into pcl::PointCloud<PointXYZ>::Ptr
-			this->points_to_pcl(pts);
+			this->points_to_pcl(pts, color);
 
 			// Feed the children Sensors
 			this->feedChildren();
@@ -130,24 +127,80 @@ namespace robin {
 		}
 	}
 
-	void RealsenseD400::points_to_pcl(rs2::points pts)
+	std::tuple<uint8_t, uint8_t, uint8_t> RealsenseD400::get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords)
 	{
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
+		const int w = texture.get_width(), h = texture.get_height();
+		int x = std::min(std::max(int(texcoords.u * w + .5f), 0), w - 1);
+		int y = std::min(std::max(int(texcoords.v * h + .5f), 0), h - 1);
+		int idx = x * texture.get_bytes_per_pixel() + y * texture.get_stride_in_bytes();
+		const auto texture_data = reinterpret_cast<const uint8_t*>(texture.get_data());
+		return std::tuple<uint8_t, uint8_t, uint8_t>(texture_data[idx], texture_data[idx + 1], texture_data[idx + 2]);
+	}
 
+	void RealsenseD400::points_to_pcl(const rs2::points pts, const rs2::video_frame color)
+	{
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_raw(new pcl::PointCloud<pcl::PointXYZ>());
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_clr(new pcl::PointCloud<pcl::PointXYZRGB>());
+
+		// rs2::points
 		auto sp = pts.get_profile().as<rs2::video_stream_profile>();
-		cloud->width = sp.width();
-		cloud->height = sp.height();
-		cloud->is_dense = false;
-		cloud->points.resize(pts.size());
-		auto ptr = pts.get_vertices();
-		for (auto& p : cloud->points) {
-			p.x = ptr->x;
-			p.y = ptr->y;
-			p.z = ptr->z;
-			ptr++;
+		auto ptr_v = pts.get_vertices();
+		auto ptr_tc = pts.get_texture_coordinates();
+		
+		// pcl::PointXYZ
+		cloud_raw->width = sp.width();
+		cloud_raw->height = sp.height();
+		cloud_raw->is_dense = false;
+		cloud_raw->points.resize(pts.size());
+		auto p_raw = cloud_raw->points.begin();
+
+		// pcl::PointXYZRGB
+		cloud_clr->width = sp.width();
+		cloud_clr->height = sp.height();
+		cloud_clr->is_dense = false;
+		cloud_clr->points.resize(pts.size());
+		auto p_clr = cloud_clr->points.begin();
+
+		/*while (ptr_v != NULL) {
+			// pcl::PointXYZ
+			p_raw->x = ptr_v->x;
+			p_raw->y = ptr_v->y;
+			p_raw->z = ptr_v->z;
+			p_raw++;
+
+			// pcl::PointXYZRGB
+			p_clr->x = ptr_v->x;
+			p_clr->y = ptr_v->y;
+			p_clr->z = ptr_v->z;
+			std::tuple<uint8_t, uint8_t, uint8_t> rgb (get_texcolor(color, *ptr_tc));
+			p_clr->r = std::get<0>(rgb);
+			p_clr->g = std::get<1>(rgb);
+			p_clr->b = std::get<2>(rgb);
+			p_clr++;
+			
+			// rs2::points
+			ptr_v++;
+			ptr_tc++;
+		}*/
+		for (size_t i(0); i < pts.size(); ++i) {
+			// pcl::PointXYZ
+			cloud_raw->points[i].x = ptr_v[i].x;
+			cloud_raw->points[i].y = ptr_v[i].y;
+			cloud_raw->points[i].z = ptr_v[i].z;
+
+			// pcl::PointXYZRGB
+			cloud_clr->points[i].x = ptr_v[i].x;
+			cloud_clr->points[i].y = ptr_v[i].y;
+			cloud_clr->points[i].z = ptr_v[i].z;
+			std::tuple<uint8_t, uint8_t, uint8_t> rgb(get_texcolor(color, ptr_tc[i]));
+			cloud_clr->points[i].r = std::get<0>(rgb);
+			cloud_clr->points[i].g = std::get<1>(rgb);
+			cloud_clr->points[i].b = std::get<2>(rgb);
 		}
+
 		mu_cloud_.lock();		
-		cloud_ = cloud;
+		cloud_ = cloud_raw;
+		cloud_clr_ = cloud_clr;
 		mu_cloud_.unlock();
 	}
 }

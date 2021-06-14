@@ -23,6 +23,14 @@ namespace robin {
 		return cloud;
 	}
 
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr Sensor3::getRawColored()
+	{
+		mu_cloud_.lock();
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>(*cloud_clr_));
+		mu_cloud_.unlock();
+		return cloud;
+	}
+
 	//
 
 	void Sensor3::addChild(Sensor3* s)
@@ -35,11 +43,19 @@ namespace robin {
 		mu_cloud_.lock();
 		for (Sensor3* s : children_) {
 			s->fromParent(*cloud_);
+			s->fromParent(*cloud_clr_);
 		}
 		mu_cloud_.unlock();
 	}
 
 	void Sensor3::fromParent(const pcl::PointCloud<pcl::PointXYZ>& cloud)
+	{
+		mu_cloud_.lock();
+		pcl::copyPointCloud(cloud, *cloud_);
+		mu_cloud_.unlock();
+	}
+
+	void Sensor3::fromParent(const pcl::PointCloud<pcl::PointXYZRGB>& cloud)
 	{
 		mu_cloud_.lock();
 		pcl::copyPointCloud(cloud, *cloud_);
