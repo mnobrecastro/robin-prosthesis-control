@@ -36,6 +36,8 @@ namespace robin
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr getPointCloud() const;
 
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr getRawColored() const;
+
 		pcl::PointCloud<pcl::PointXYZ>::Ptr getPreprocessed() const;
 
 		void addSensor(robin::Sensor3*);
@@ -66,6 +68,9 @@ namespace robin
 
 		/* Point cloud (temp) that can be manipulated. */
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
+
+		/* Raw coloured point cloud. */
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw_clr_;
 
 		/* Pre-processed point cloud (after cropping and downsampling). */
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_preproc_;

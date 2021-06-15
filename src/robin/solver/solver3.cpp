@@ -6,12 +6,18 @@ namespace robin
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
 		cloud_ = cloud;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw_clr(new pcl::PointCloud<pcl::PointXYZRGB>());
+		cloud_raw_clr_ = cloud_raw_clr;
 	}
 
 	Solver3::~Solver3() {}
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr Solver3::getPointCloud() const {
 		return cloud_;
+	}
+
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr Solver3::getRawColored() const {
+		return cloud_raw_clr_;
 	}
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr Solver3::getPreprocessed() const {
@@ -198,11 +204,13 @@ namespace robin
 	{
 		primitive_ = prim;
 
-		// Reset the solver's (temp) PointCloud 
+		// Reset the solver's (temp and coloured) PointClouds
 		cloud_->clear();
+		cloud_raw_clr_->clear();
 
 		for (Sensor3* s : sensors_) {
 			*cloud_ += *s->getPointCloud();
+			*cloud_raw_clr_ += *s->getRawColored();
 		}
 
 		this->crop();
