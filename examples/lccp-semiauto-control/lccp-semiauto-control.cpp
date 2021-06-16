@@ -219,7 +219,7 @@ int main(int argc, char** argv)
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);
 			solver_color_h.setInputCloud(mysolver.getPointCloud());
 			viewer->addPointCloud(mysolver.getPointCloud(), solver_color_h, "solver");
-			//mysolver.visualize(viewer); //lccp:"marker"
+			mysolver.visualize(viewer); //lccp:"marker"
 
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 			primitive_color_h.setInputCloud(prim->getPointCloud());
@@ -271,6 +271,6 @@ int main(int argc, char** argv)
 		auto toc = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double, std::ratio<1>> t = toc - tic;
 		std::cout << "Cycle duration: " << 1.0/t.count() << " Hz (in " << t.count()*1000.0 << " ms).\n" << std::endl;
-		freq.push_back(t.count());
+		freq.push_back(1.0/t.count());
 	}	
 }

@@ -72,8 +72,8 @@ namespace robin
 		lccp.relabelCloud(*lccp_labeled_cloud);
 
 		// Retrieve the number of labels and respective clouds
-		std::vector<int> lccp_pc_sizes = this->getCentroids(*lccp_labeled_cloud, labels_, centroids_);
-		uint32_t label = this->selectCentroid(labels_, centroids_, lccp_pc_sizes);
+		pc_sizes_ = this->getCentroids(*lccp_labeled_cloud, labels_, centroids_);
+		uint32_t label = this->selectCentroid(labels_, centroids_, pc_sizes_);
 
 		if (label != std::pow(2, 32) - 1) {
 			// Retrieve the PointCloud with the smallest centroid projection about the global Z-axis
@@ -165,39 +165,41 @@ namespace robin
 		std::string id;
 		for (int i(0); i < centroids_.size(); ++i) {
 
-			if (draw == "wireframe") {
-				pcl::PointXYZ pFUL(centroids_[i][0] - 0.005, centroids_[i][1] - 0.005, centroids_[i][2] - 0.005);
-				pcl::PointXYZ pFUR(centroids_[i][0] + 0.005, centroids_[i][1] - 0.005, centroids_[i][2] - 0.005);
-				pcl::PointXYZ pFDL(centroids_[i][0] - 0.005, centroids_[i][1] + 0.005, centroids_[i][2] - 0.005);
-				pcl::PointXYZ pFDR(centroids_[i][0] + 0.005, centroids_[i][1] + 0.005, centroids_[i][2] - 0.005);
+			if (pc_sizes_[i] > MIN_POINTS_PROCEED_) {
+				if (draw == "wireframe") {
+					pcl::PointXYZ pFUL(centroids_[i][0] - 0.005, centroids_[i][1] - 0.005, centroids_[i][2] - 0.005);
+					pcl::PointXYZ pFUR(centroids_[i][0] + 0.005, centroids_[i][1] - 0.005, centroids_[i][2] - 0.005);
+					pcl::PointXYZ pFDL(centroids_[i][0] - 0.005, centroids_[i][1] + 0.005, centroids_[i][2] - 0.005);
+					pcl::PointXYZ pFDR(centroids_[i][0] + 0.005, centroids_[i][1] + 0.005, centroids_[i][2] - 0.005);
 
-				pcl::PointXYZ pBUL(centroids_[i][0] - 0.005, centroids_[i][1] - 0.005, centroids_[i][2] + 0.005);
-				pcl::PointXYZ pBUR(centroids_[i][0] + 0.005, centroids_[i][1] - 0.005, centroids_[i][2] + 0.005);
-				pcl::PointXYZ pBDL(centroids_[i][0] - 0.005, centroids_[i][1] + 0.005, centroids_[i][2] + 0.005);
-				pcl::PointXYZ pBDR(centroids_[i][0] + 0.005, centroids_[i][1] + 0.005, centroids_[i][2] + 0.005);
+					pcl::PointXYZ pBUL(centroids_[i][0] - 0.005, centroids_[i][1] - 0.005, centroids_[i][2] + 0.005);
+					pcl::PointXYZ pBUR(centroids_[i][0] + 0.005, centroids_[i][1] - 0.005, centroids_[i][2] + 0.005);
+					pcl::PointXYZ pBDL(centroids_[i][0] - 0.005, centroids_[i][1] + 0.005, centroids_[i][2] + 0.005);
+					pcl::PointXYZ pBDR(centroids_[i][0] + 0.005, centroids_[i][1] + 0.005, centroids_[i][2] + 0.005);
 
-				viewer->addLine<pcl::PointXYZ>(pFUL, pFUR, 255, 255, 255, std::to_string(i) + "FU", vp);
-				viewer->addLine<pcl::PointXYZ>(pFUR, pFDR, 255, 255, 255, std::to_string(i) + "FR", vp);
-				viewer->addLine<pcl::PointXYZ>(pFDR, pFDL, 255, 255, 255, std::to_string(i) + "FD", vp);
-				viewer->addLine<pcl::PointXYZ>(pFDL, pFUL, 255, 255, 255, std::to_string(i) + "FL", vp);
+					viewer->addLine<pcl::PointXYZ>(pFUL, pFUR, 255, 255, 255, std::to_string(i) + "FU", vp);
+					viewer->addLine<pcl::PointXYZ>(pFUR, pFDR, 255, 255, 255, std::to_string(i) + "FR", vp);
+					viewer->addLine<pcl::PointXYZ>(pFDR, pFDL, 255, 255, 255, std::to_string(i) + "FD", vp);
+					viewer->addLine<pcl::PointXYZ>(pFDL, pFUL, 255, 255, 255, std::to_string(i) + "FL", vp);
 
-				viewer->addLine<pcl::PointXYZ>(pBUL, pBUR, 255, 255, 255, std::to_string(i) + "BU", vp);
-				viewer->addLine<pcl::PointXYZ>(pBUR, pBDR, 255, 255, 255, std::to_string(i) + "BR", vp);
-				viewer->addLine<pcl::PointXYZ>(pBDR, pBDL, 255, 255, 255, std::to_string(i) + "BD", vp);
-				viewer->addLine<pcl::PointXYZ>(pBDL, pBUL, 255, 255, 255, std::to_string(i) + "BL", vp);
+					viewer->addLine<pcl::PointXYZ>(pBUL, pBUR, 255, 255, 255, std::to_string(i) + "BU", vp);
+					viewer->addLine<pcl::PointXYZ>(pBUR, pBDR, 255, 255, 255, std::to_string(i) + "BR", vp);
+					viewer->addLine<pcl::PointXYZ>(pBDR, pBDL, 255, 255, 255, std::to_string(i) + "BD", vp);
+					viewer->addLine<pcl::PointXYZ>(pBDL, pBUL, 255, 255, 255, std::to_string(i) + "BL", vp);
 
-				viewer->addLine<pcl::PointXYZ>(pBUL, pFUL, 255, 255, 255, std::to_string(i) + "LU", vp);
-				viewer->addLine<pcl::PointXYZ>(pBDL, pFDL, 255, 255, 255, std::to_string(i) + "LD", vp);
-				viewer->addLine<pcl::PointXYZ>(pBUR, pFUR, 255, 255, 255, std::to_string(i) + "RU", vp);
-				viewer->addLine<pcl::PointXYZ>(pBDR, pFDR, 255, 255, 255, std::to_string(i) + "RD", vp);
-			}
-			else if (draw == "marker") {
-				pcl::ModelCoefficients marker_coef;
-				marker_coef.values.push_back(centroids_[i][0]);
-				marker_coef.values.push_back(centroids_[i][1]);
-				marker_coef.values.push_back(centroids_[i][2]);
-				marker_coef.values.push_back(0.005);
-				viewer->addSphere(marker_coef, std::to_string(labels_[i]));
+					viewer->addLine<pcl::PointXYZ>(pBUL, pFUL, 255, 255, 255, std::to_string(i) + "LU", vp);
+					viewer->addLine<pcl::PointXYZ>(pBDL, pFDL, 255, 255, 255, std::to_string(i) + "LD", vp);
+					viewer->addLine<pcl::PointXYZ>(pBUR, pFUR, 255, 255, 255, std::to_string(i) + "RU", vp);
+					viewer->addLine<pcl::PointXYZ>(pBDR, pFDR, 255, 255, 255, std::to_string(i) + "RD", vp);
+				}
+				else if (draw == "marker") {
+					pcl::ModelCoefficients marker_coef;
+					marker_coef.values.push_back(centroids_[i][0]);
+					marker_coef.values.push_back(centroids_[i][1]);
+					marker_coef.values.push_back(centroids_[i][2]);
+					marker_coef.values.push_back(0.005);
+					viewer->addSphere(marker_coef, std::to_string(labels_[i]));
+				}
 			}
 		}
 	}

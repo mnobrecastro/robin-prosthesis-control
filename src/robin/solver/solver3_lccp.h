@@ -24,7 +24,7 @@ namespace robin
 		Solver3LCCP() {}
 		~Solver3LCCP() {}
 
-		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer, std::string draw = "wireframe") const;
+		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer, std::string draw = "marker") const;
 
 	protected:
 		std::vector<int> pc_sizes_;
