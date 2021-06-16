@@ -211,6 +211,8 @@ namespace robin
 		} else {
 			subprims_.push_back(subprim_arr_line);
 		}		
+
+		//subprims_.push_back(subprim_arr_ellipse);
 	}
 
 	/* Receives a PointCloud cut and a segmentation object by reference and extracts/segments it by fitting to it. */

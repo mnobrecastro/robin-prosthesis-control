@@ -43,18 +43,6 @@ int main(int argc, char** argv)
 	}*/
 	
 	// Create a hand
-	//robin::hand::HandUDP myhand(false, "127.0.0.1", 8052, 8051);
-	//system("C:\\Users\\MMC\\Documents\\AAU\\Projects\\Robin\\Software\\Mikey\\DLLs\\MichelangeloGUI.exe");
-
-	//uint8_t packet[9] = { 1, 20,0,0,0, 20,0,0,0 };
-	//uint8_t packet[1] = { 0 };
-	//myhand.send_packet(packet, sizeof(packet)/sizeof(uint8_t));		
-	
-	//uint8_t packpack[1024];
-	//int byte_len = myhand.receive_packet(packpack);
-	//myhand.print_recv_packet(packpack, byte_len);
-
-
 	robin::hand::Michelangelo myhand(false);
 	myhand.setDataManager(mydm);
 	myhand.plotEMG(false);
@@ -69,7 +57,6 @@ int main(int argc, char** argv)
 
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
-	//robin::Solver3Lasers mysolver;
 	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315); //0.105 or 0.160 //(0.115, 0.215)
 	mysolver.setDownsample(0.002f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f
 	//mysolver.setResample(2, 0.005);
@@ -94,26 +81,6 @@ int main(int argc, char** argv)
 	mycam->printInfo();
 	mycam->setDisparity(false);
 	mysolver.addSensor(mycam);
-
-	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.001));
-	//mysolver.addSensor(myarr);
-
-	//-----
-	// Create a sensor from another sensor
-	/*robin::LaserScanner* mylaser_h(new robin::LaserScanner(mycam, 0.0, 1.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(mylaser_h);
-	robin::LaserScanner* mylaser_v(new robin::LaserScanner(mycam, 1.0, 0.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(mylaser_v);*/
-
-	/*robin::LaserScanner* laser_0(new robin::LaserScanner(mycam, 0.0, 1.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(laser_0);
-	robin::LaserScanner* laser_1(new robin::LaserScanner(mycam, -1.0, 1.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(laser_1);
-	robin::LaserScanner* laser_2(new robin::LaserScanner(mycam, 1.0, 0.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(laser_2);
-	robin::LaserScanner* laser_3(new robin::LaserScanner(mycam, 1.0, 1.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(laser_3);*/
-	//-----
 
 	// Create a Primitive
 	robin::Primitive3d3* prim;
