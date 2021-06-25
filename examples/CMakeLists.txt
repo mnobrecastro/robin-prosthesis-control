@@ -1,4 +1,6 @@
 
+add_subdirectory(prosthesis-manual)
+
 add_subdirectory(solver3-sac-sphere)
 add_subdirectory(solver3-sac-cylinder)
 add_subdirectory(solver3-sac-cuboid)
