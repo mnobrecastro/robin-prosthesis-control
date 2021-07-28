@@ -32,23 +32,12 @@ int main(int argc, char** argv)
 	robin::data::DataManager mydm;
 	// ---
 	
-	Beep(523, 100); // 523 hertz (C5) for 500 milliseconds
-	//ascending pitch beep
-	/*for (int i = 0; i < 3000; i += 10) {
-		Beep(i, 100);
-	}*/
-	//descending pitch beep
-	/*for (int i = 3000; i > 0; i -= 10) {
-		Beep(i, 100);
-	}*/
-	
-	// Create a hand
+	Beep(523, 100);
+
 	robin::hand::Michelangelo myhand(false);
 	myhand.setDataManager(mydm);
 	myhand.plotEMG(false);
 	myhand.calibrateEMG();
-
-	//robin::hand::Hand myhand(TRUE);
 
 	robin::control::ControlSimple controller(myhand);
 	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 20); //20=~200ms     //MEDIAN, 40
@@ -120,8 +109,8 @@ int main(int argc, char** argv)
 		///
 		if (HAND_CONTROL) {
 			controller.evaluate(prim);
-			std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
-			std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
+			std::cout << "Target grasp_size: " << controller.getGraspSize() << std::endl;
+			std::cout << "Target tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
 #ifdef GNUPLOT
 			if (PLOT) {
 				gnup_grasp_size.emplace_back(kdata, controller.getGraspSize());

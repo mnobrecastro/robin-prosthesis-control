@@ -963,6 +963,8 @@ namespace robin
 		{						
 			// Tilt angle calculated as an absolute supination angle, i.e. measured from the full pronated wrist position.
 			float tilt_angle(hand_supination_angle_.value); // Hand stays as it is.
+			std::cout << ">>>>>>>> HAND_SUP_ANGLE: " << hand_supination_angle_.value << std::endl;
+
 			Primitive3Type prim3_type = find_primitive3_type(prim);
 			if (prim3_type == Primitive3Type::PRIMITIVE3_SPHERE)
 			{
