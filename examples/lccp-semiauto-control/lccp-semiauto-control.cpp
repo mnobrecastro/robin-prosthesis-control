@@ -55,7 +55,7 @@ int main(int argc, char** argv)
 	//myhand.print_recv_packet(packpack, byte_len);
 
 
-	robin::hand::Michelangelo myhand(false);
+	robin::hand::Michelangelo myhand(true);
 	myhand.setDataManager(mydm);
 	myhand.plotEMG(false);
 	myhand.calibrateEMG();
