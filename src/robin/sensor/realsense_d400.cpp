@@ -152,36 +152,13 @@ namespace robin {
 		cloud_raw->height = sp.height();
 		cloud_raw->is_dense = false;
 		cloud_raw->points.resize(pts.size());
-		auto p_raw = cloud_raw->points.begin();
 
 		// pcl::PointXYZRGB
 		cloud_clr->width = sp.width();
 		cloud_clr->height = sp.height();
 		cloud_clr->is_dense = false;
 		cloud_clr->points.resize(pts.size());
-		auto p_clr = cloud_clr->points.begin();
 
-		/*while (ptr_v != NULL) {
-			// pcl::PointXYZ
-			p_raw->x = ptr_v->x;
-			p_raw->y = ptr_v->y;
-			p_raw->z = ptr_v->z;
-			p_raw++;
-
-			// pcl::PointXYZRGB
-			p_clr->x = ptr_v->x;
-			p_clr->y = ptr_v->y;
-			p_clr->z = ptr_v->z;
-			std::tuple<uint8_t, uint8_t, uint8_t> rgb (get_texcolor(color, *ptr_tc));
-			p_clr->r = std::get<0>(rgb);
-			p_clr->g = std::get<1>(rgb);
-			p_clr->b = std::get<2>(rgb);
-			p_clr++;
-			
-			// rs2::points
-			ptr_v++;
-			ptr_tc++;
-		}*/
 		for (size_t i(0); i < pts.size(); ++i) {
 			// pcl::PointXYZ
 			cloud_raw->points[i].x = ptr_v[i].x;
@@ -192,10 +169,12 @@ namespace robin {
 			cloud_clr->points[i].x = ptr_v[i].x;
 			cloud_clr->points[i].y = ptr_v[i].y;
 			cloud_clr->points[i].z = ptr_v[i].z;
+			// Intel Realsense RGB_Texture conversion available at
+			// https://github.com/IntelRealSense/librealsense/blob/master/wrappers/pcl/pcl-color/rs-pcl-color.cpp
 			std::tuple<uint8_t, uint8_t, uint8_t> rgb(get_texcolor(color, ptr_tc[i]));
-			cloud_clr->points[i].r = std::get<0>(rgb);
+			cloud_clr->points[i].r = std::get<2>(rgb);
 			cloud_clr->points[i].g = std::get<1>(rgb);
-			cloud_clr->points[i].b = std::get<2>(rgb);
+			cloud_clr->points[i].b = std::get<0>(rgb);
 		}
 
 		mu_cloud_.lock();		
