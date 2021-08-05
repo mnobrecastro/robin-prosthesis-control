@@ -28,8 +28,8 @@ namespace robin
 
 	void Primitive3Cuboid::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
-		//if (visualizeOnOff_)
-		//viewer->addCube(*coefficients_, "cube");
+		if (visualizeOnOff_)
+			viewer->addCube(*coefficients_, "cube");
 		for (auto plane : planes_) {
 			plane->setVisualizeOnOff(false);
 			plane->visualize(viewer);
@@ -427,9 +427,9 @@ namespace robin
 			coefficients_->values[4] = quat.y(); //Qy
 			coefficients_->values[5] = quat.z(); //Qz
 			coefficients_->values[6] = quat.w(); //Qw
-			coefficients_->values[7] = width;
-			coefficients_->values[8] = height;
-			coefficients_->values[9] = depth;
+			coefficients_->values[7] = depth; //width;
+			coefficients_->values[8] = width; //height;
+			coefficients_->values[9] = height; //depth;
 		}
 	}
 
@@ -621,9 +621,9 @@ namespace robin
 			coefficients_->values[4] = quat.y(); //Qy
 			coefficients_->values[5] = quat.z(); //Qz
 			coefficients_->values[6] = quat.w(); //Qw
-			coefficients_->values[7] = cube_width;
-			coefficients_->values[8] = cube_height;
-			coefficients_->values[9] = cube_depth;
+			coefficients_->values[7] = cube_depth; //cube_width;
+			coefficients_->values[8] = cube_width; //cube_height;
+			coefficients_->values[9] = cube_height; //cube_depth;
 
 			//
 			plot_[0] = cube_center.x();
@@ -839,9 +839,9 @@ namespace robin
 			coefficients_->values[4] = quat.y(); //Qy
 			coefficients_->values[5] = quat.z(); //Qz
 			coefficients_->values[6] = quat.w(); //Qw
-			coefficients_->values[7] = cube_width;
-			coefficients_->values[8] = cube_height;
-			coefficients_->values[9] = cube_depth;
+			coefficients_->values[7] = cube_depth; //cube_width;
+			coefficients_->values[8] = cube_width; //cube_height;
+			coefficients_->values[9] = cube_height; //cube_depth;
 
 			//
 			plot_[0] = cube_center.x();
