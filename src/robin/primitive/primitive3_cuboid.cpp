@@ -28,8 +28,11 @@ namespace robin
 
 	void Primitive3Cuboid::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
-		if (visualizeOnOff_)
+		if (visualizeOnOff_) {
 			viewer->addCube(*coefficients_, "cube");
+			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.5, "cube");
+			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 141.0/255.0, 12/255.0, 200/255.0, "cube"); //153,0,204
+		}
 		for (auto plane : planes_) {
 			plane->setVisualizeOnOff(false);
 			plane->visualize(viewer);
@@ -351,37 +354,6 @@ namespace robin
 				z_axis = intersection_axis;
 				z_axis.normalize();
 				z_axis *= height / 2;
-
-				////
-				//plot_[0] = cube_center.x();
-				//plot_[1] = cube_center.y();
-				//plot_[2] = cube_center.z();
-				//plot_[3] = planes_[0]->getProperty_axis_x();
-				//plot_[4] = planes_[0]->getProperty_axis_y();
-				//plot_[5] = planes_[0]->getProperty_axis_z();
-				//plot_[6] = face0_e1_axis.x();
-				//plot_[7] = face0_e1_axis.y();
-				//plot_[8] = face0_e1_axis.z();
-				//plot_[9] = intersection_axis.x();
-				//plot_[10] = intersection_axis.y();
-				//plot_[11] = intersection_axis.z();
-
-				//if (width >= height && width >= depth) {
-				//	properties_.axis_x = face0_e1_axis.x() * width;
-				//	properties_.axis_y = face0_e1_axis.y() * width;
-				//	properties_.axis_z = face0_e1_axis.z() * width;
-				//}
-				//else if (height >= width && height >= depth) {
-				//	properties_.axis_x = intersection_axis.x() * height;
-				//	properties_.axis_y = intersection_axis.y() * height;
-				//	properties_.axis_z = intersection_axis.z() * height;
-				//}
-				//else if (depth > 0.005 && depth >= width && depth >= height) {
-				//	properties_.axis_x = planes_[0]->getProperty_axis_x() * depth;
-				//	properties_.axis_y = planes_[0]->getProperty_axis_y() * depth;
-				//	properties_.axis_z = planes_[0]->getProperty_axis_z() * depth;
-				//}
-				////
 			}
 
 			face_center(0) = planes_[0]->getProperty_center_x();
