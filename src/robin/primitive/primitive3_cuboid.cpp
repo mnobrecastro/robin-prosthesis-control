@@ -22,16 +22,20 @@ namespace robin
 		coefficients_->values.push_back(0.0); //9
 
 		// Initialization of intersection point
-		inters_point_ = Eigen::Vector3f(0.0, 0.0, 0.0);
+		inters_point_ = Eigen::Vector3f(0.0, 0.0, -1000.0); // Out of view
 	}
 	Primitive3Cuboid::~Primitive3Cuboid() {}
 
-	void Primitive3Cuboid::visualize(pcl::visualization::PCLVisualizer::Ptr viewer, int plane_idx) const
+	void Primitive3Cuboid::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
 		if (visualizeOnOff_) {
 			viewer->addCube(*coefficients_, "cube");
-			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.5, "cube");
-			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 141.0/255.0, 12/255.0, 200/255.0, "cube"); //153,0,204
+			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 141.0 / 255.0, 12 / 255.0, 200 / 255.0, "cube"); //153,0,204
+			if (view_face_idx_ == -1) {
+				viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 1.0, "cube");
+			} else {
+				viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.5, "cube");
+			}			
 		}
 		
 		for (int idx(0); idx < 3; ++idx) {
@@ -41,7 +45,7 @@ namespace robin
 				planes_[idx]->visualize(viewer);
 			}
 
-			if (idx == plane_idx) {
+			if (idx == view_face_idx_) {
 				//Render the selected cuboid face as a cube object with small thickness
 
 				pcl::ModelCoefficients::Ptr coefs_cube(new pcl::ModelCoefficients);
@@ -83,7 +87,7 @@ namespace robin
 				z_axis = { properties_.axis_x, properties_.axis_y, properties_.axis_z };
 				e0_axis = { properties_.e0_x, properties_.e0_y, properties_.e0_z };
 
-				switch (plane_idx) {
+				switch (view_face_idx_) {
 
 				case 0:
 					face_center(0) = properties_.center_x + e0_axis(0);

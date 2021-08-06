@@ -547,6 +547,7 @@ namespace robin
 					}
 					found = true;
 					prim->setIntersectionPoint(p_inters_e0);
+					prim->setFaceHighlight(0);
 				}
 				else {
 					if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() <= 0) {
@@ -577,6 +578,7 @@ namespace robin
 					}
 					found = true;
 					prim->setIntersectionPoint(p_inters_e1);
+					prim->setFaceHighlight(1);
 				}
 				else {
 					if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() <= 0) {
@@ -607,6 +609,7 @@ namespace robin
 					}
 					found = true;
 					prim->setIntersectionPoint(p_inters_ez);
+					prim->setFaceHighlight(2);
 				}
 				else {
 					if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() <= 0) {
@@ -636,6 +639,7 @@ namespace robin
 							grasp_size = 2.0 * e1_axis.norm();
 						}
 						prim->setIntersectionPoint(p_inters_e0);
+						prim->setFaceHighlight(0);
 					}
 					// // face e1
 					if (p_inters_e1.z() > 0.1 && d_face_e1 <= d_face_e0 && d_face_e1 <= d_face_ez) {
@@ -646,6 +650,7 @@ namespace robin
 							grasp_size = 2.0 * e0_axis.norm();
 						}
 						prim->setIntersectionPoint(p_inters_e1);
+						prim->setFaceHighlight(1);
 					}
 					// // face ez
 					if (p_inters_ez.z() > 0.1 && d_face_ez <= d_face_e0 && d_face_ez <= d_face_e1) {
@@ -656,6 +661,7 @@ namespace robin
 							grasp_size = 2.0 * e0_axis.norm();
 						}
 						prim->setIntersectionPoint(p_inters_ez);
+						prim->setFaceHighlight(2);
 					}
 				}
 				break;

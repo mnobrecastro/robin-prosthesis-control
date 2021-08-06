@@ -61,6 +61,9 @@ namespace robin
 		/* Render the intersection point p obtained by the cam axis. */
 		virtual void setIntersectionPoint(Eigen::Vector3f p) {}
 
+		/* Set the index for a specific face to be highlighted in the viewer. */
+		virtual void setFaceHighlight(int i) {}
+
 		virtual void reset();
 
 		/* Receives a PointCloud object by reference and extracts/segments it by fitting to it. */

@@ -21,9 +21,13 @@ namespace robin
 
 		void reset();
 
-		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer, int plane_idx=-1) const;
+		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;
 
-		void setIntersectionPoint(Eigen::Vector3f p) { inters_point_ = p; };
+		/* Render the intersection point p obtained by the cam axis. */
+		void setIntersectionPoint(Eigen::Vector3f p) { inters_point_ = p; }
+
+		/* Set the index for a specific face to be highlighted in the viewer. */
+		void setFaceHighlight(int i) { view_face_idx_ = i; }
 
 		void setCoefficients(std::vector<float> v);
 
@@ -48,7 +52,8 @@ namespace robin
 
 		std::array<float,12> plot_;
 
-		Eigen::Vector3f inters_point_;
+		Eigen::Vector3f inters_point_;		
+		int view_face_idx_ = -1; // Face to be highlighted in the viewer (-1: None)
 
 		/* Checks if the fit is valid. */
 		bool is_fit_valid();

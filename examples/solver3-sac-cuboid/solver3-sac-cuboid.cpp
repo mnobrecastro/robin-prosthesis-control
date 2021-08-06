@@ -68,7 +68,7 @@ int main(int argc, char** argv)
 		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 		primitive_color_h.setInputCloud(prim->getPointCloud());
 		viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
-		prim->visualize(viewer, 1);
+		prim->visualize(viewer);
 
 		viewer->spinOnce(1, true);
 
