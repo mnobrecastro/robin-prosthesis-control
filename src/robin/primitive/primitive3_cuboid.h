@@ -21,7 +21,7 @@ namespace robin
 
 		void reset();
 
-		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;	
+		void visualize(pcl::visualization::PCLVisualizer::Ptr viewer, int plane_idx=-1) const;
 
 		void setIntersectionPoint(Eigen::Vector3f p) { inters_point_ = p; };
 

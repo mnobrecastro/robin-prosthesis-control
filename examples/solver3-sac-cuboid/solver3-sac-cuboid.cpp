@@ -59,7 +59,7 @@ int main(int argc, char** argv)
 		preproc_color_h.setInputCloud(mysolver.getPreprocessed());
 		viewer->addPointCloud(mysolver.getPreprocessed(), preproc_color_h, "preproc");
 
-			///
+		///
 
 		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);
 		solver_color_h.setInputCloud(mysolver.getPointCloud());
@@ -68,7 +68,7 @@ int main(int argc, char** argv)
 		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 		primitive_color_h.setInputCloud(prim->getPointCloud());
 		viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
-		prim->visualize(viewer);
+		prim->visualize(viewer, 1);
 
 		viewer->spinOnce(1, true);
 

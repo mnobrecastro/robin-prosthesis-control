@@ -53,7 +53,7 @@ namespace robin
 		pcl::ModelCoefficients::Ptr getCoefficients() const;
 
 		/* Rendering of a Primitive3 on a PCLVisualizer. */
-		virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const {}
+		virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer, int plane_idx = -1) const {}
 
 		/* Variable to enable the control over the visualization of primitives. */
 		void setVisualizeOnOff(bool);

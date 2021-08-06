@@ -26,16 +26,185 @@ namespace robin
 	}
 	Primitive3Cuboid::~Primitive3Cuboid() {}
 
-	void Primitive3Cuboid::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
+	void Primitive3Cuboid::visualize(pcl::visualization::PCLVisualizer::Ptr viewer, int plane_idx) const
 	{
 		if (visualizeOnOff_) {
 			viewer->addCube(*coefficients_, "cube");
 			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.5, "cube");
 			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 141.0/255.0, 12/255.0, 200/255.0, "cube"); //153,0,204
 		}
-		for (auto plane : planes_) {
-			plane->setVisualizeOnOff(false);
-			plane->visualize(viewer);
+		
+		for (int idx(0); idx < 3; ++idx) {
+
+			if (idx < planes_.size()) {
+				planes_[idx]->setVisualizeOnOff(false);
+				planes_[idx]->visualize(viewer);
+			}
+
+			if (idx == plane_idx) {
+				//Render the selected cuboid face as a cube object with small thickness
+
+				pcl::ModelCoefficients::Ptr coefs_cube(new pcl::ModelCoefficients);
+				// Initialization of the 10-element cube coefficients
+				// {Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth}
+				coefs_cube->values.push_back(0.0); //0
+				coefs_cube->values.push_back(0.0); //1
+				coefs_cube->values.push_back(0.0); //2
+				coefs_cube->values.push_back(0.0); //3
+				coefs_cube->values.push_back(0.0); //4
+				coefs_cube->values.push_back(0.0); //5
+				coefs_cube->values.push_back(0.0); //6
+				coefs_cube->values.push_back(0.0); //7
+				coefs_cube->values.push_back(0.0); //8
+				coefs_cube->values.push_back(0.0); //9
+
+				float width(0.0), height(0.0), depth(0.0);
+				Eigen::Vector3f e0_axis, e1_axis, z_axis;
+				Eigen::Matrix3f mori;
+				Eigen::Quaternionf quat;
+				Eigen::Vector3f face_center, cube_center;
+
+				/*
+				 *    ___________
+				 *   |   Z ^    ||
+				 *   |     |    ||
+				 *   |     |    ||
+				 *   |     ---> ||
+				 *   |    /     ||
+				 *   |  e0	    ||
+				 *   |__________/
+				 */
+
+				width = properties_.width; // In the e1-direction
+				height = properties_.height; // In the z-direction
+				depth = properties_.depth; // In the e0-direction
+
+				e1_axis = { properties_.e1_x, properties_.e1_y, properties_.e1_z };
+				z_axis = { properties_.axis_x, properties_.axis_y, properties_.axis_z };
+				e0_axis = { properties_.e0_x, properties_.e0_y, properties_.e0_z };
+
+				switch (plane_idx) {
+
+				case 0:
+					face_center(0) = properties_.center_x + e0_axis(0);
+					face_center(1) = properties_.center_y + e0_axis(1);
+					face_center(2) = properties_.center_z + e0_axis(2);
+
+					// Transformation matrix
+					e0_axis.normalize();
+					mori(0, 0) = e0_axis(0);
+					mori(1, 0) = e0_axis(1);
+					mori(2, 0) = e0_axis(2);
+					e1_axis.normalize();
+					mori(0, 1) = e1_axis(0);
+					mori(1, 1) = e1_axis(1);
+					mori(2, 1) = e1_axis(2);
+					z_axis.normalize();
+					mori(0, 2) = z_axis(0);
+					mori(1, 2) = z_axis(1);
+					mori(2, 2) = z_axis(2);
+
+					quat = Eigen::Quaternionf(mori);
+
+					//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+					coefs_cube->values[0] = face_center.x(); //Tx
+					coefs_cube->values[1] = face_center.y(); //Ty
+					coefs_cube->values[2] = face_center.z(); //Tz
+					coefs_cube->values[3] = quat.x(); //Qx
+					coefs_cube->values[4] = quat.y(); //Qy
+					coefs_cube->values[5] = quat.z(); //Qz
+					coefs_cube->values[6] = quat.w(); //Qw
+					coefs_cube->values[7] = 0.001; //width;
+					coefs_cube->values[8] = height;
+					coefs_cube->values[9] = depth;
+					
+					break;
+				case 1:
+					if (e1_axis(2) > 0) {
+						face_center(0) = properties_.center_x - e1_axis(0);
+						face_center(1) = properties_.center_y - e1_axis(1);
+						face_center(2) = properties_.center_z - e1_axis(2);
+					} else {
+						face_center(0) = properties_.center_x + e1_axis(0);
+						face_center(1) = properties_.center_y + e1_axis(1);
+						face_center(2) = properties_.center_z + e1_axis(2);
+					}
+
+					// Transformation matrix					
+					e1_axis.normalize();
+					mori(0, 0) = e1_axis(0);
+					mori(1, 0) = e1_axis(1);
+					mori(2, 0) = e1_axis(2);
+					z_axis.normalize();
+					mori(0, 1) = z_axis(0);
+					mori(1, 1) = z_axis(1);
+					mori(2, 1) = z_axis(2);
+					e0_axis.normalize();
+					mori(0, 2) = e0_axis(0);
+					mori(1, 2) = e0_axis(1);
+					mori(2, 2) = e0_axis(2);
+
+					quat = Eigen::Quaternionf(mori);
+
+					//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+					coefs_cube->values[0] = face_center.x(); //Tx
+					coefs_cube->values[1] = face_center.y(); //Ty
+					coefs_cube->values[2] = face_center.z(); //Tz
+					coefs_cube->values[3] = quat.x(); //Qx
+					coefs_cube->values[4] = quat.y(); //Qy
+					coefs_cube->values[5] = quat.z(); //Qz
+					coefs_cube->values[6] = quat.w(); //Qw
+					coefs_cube->values[7] = 0.001; //width;
+					coefs_cube->values[8] = depth; //height;
+					coefs_cube->values[9] = width; //depth;
+
+					break;
+				case 2:
+					if (z_axis(1) > 0) {
+						face_center(0) = properties_.center_x - z_axis(0);
+						face_center(1) = properties_.center_y - z_axis(1);
+						face_center(2) = properties_.center_z - z_axis(2);
+					} else {
+						face_center(0) = properties_.center_x + z_axis(0);
+						face_center(1) = properties_.center_y + z_axis(1);
+						face_center(2) = properties_.center_z + z_axis(2);
+					}
+
+					// Transformation matrix
+					z_axis.normalize();
+					mori(0, 0) = z_axis(0);
+					mori(1, 0) = z_axis(1);
+					mori(2, 0) = z_axis(2);
+					e0_axis.normalize();
+					mori(0, 1) = e0_axis(0);
+					mori(1, 1) = e0_axis(1);
+					mori(2, 1) = e0_axis(2);
+					e1_axis.normalize();
+					mori(0, 2) = e1_axis(0);
+					mori(1, 2) = e1_axis(1);
+					mori(2, 2) = e1_axis(2);
+
+					quat = Eigen::Quaternionf(mori);
+
+					//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+					coefs_cube->values[0] = face_center.x(); //Tx
+					coefs_cube->values[1] = face_center.y(); //Ty
+					coefs_cube->values[2] = face_center.z(); //Tz
+					coefs_cube->values[3] = quat.x(); //Qx
+					coefs_cube->values[4] = quat.y(); //Qy
+					coefs_cube->values[5] = quat.z(); //Qz
+					coefs_cube->values[6] = quat.w(); //Qw
+					coefs_cube->values[7] = 0.001; //width;
+					coefs_cube->values[8] = width; //height;
+					coefs_cube->values[9] = height; //depth;
+
+					break;
+				default:
+					// None
+					break;
+				}
+				viewer->addCube(*coefs_cube, "plane");
+			}
 		}
 
 		pcl::PointXYZ center(properties_.center_x, properties_.center_y, properties_.center_z);
@@ -111,7 +280,6 @@ namespace robin
 			coefficients_->values[9] = v[9];
 		}
 	}
-
 
 
 
