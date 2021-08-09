@@ -461,7 +461,7 @@ namespace robin
 	void Primitive3Cuboid::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals)
 	{
 		size_t n_planes(0); int n_pts(cloud->points.size());
-		while (cloud->points.size() > 0.3 * n_pts && n_planes < 3) {
+		while (cloud->points.size() > 0.3 * n_pts && n_planes < 2) {
 			// A minimum of 2 planes are enough to fully define the Primitive3Cuboid.
 			if (n_planes == 0) {
 				Primitive3Plane* plane(new Primitive3Plane());
@@ -510,7 +510,7 @@ namespace robin
 		}
 
 		size_t n_planes(0); int n_pts(cloud->points.size());
-		while (cloud->points.size() > 0.1 * n_pts && n_planes < 3) {
+		while (cloud->points.size() > 0.1 * n_pts && n_planes < 2) {
 			// A minimum of 2 planes are enough to fully define the Primitive3Cuboid.
 			if (n_planes == 0) {
 				Primitive3Plane* plane(new Primitive3Plane());
