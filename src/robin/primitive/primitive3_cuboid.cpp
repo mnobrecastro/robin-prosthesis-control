@@ -28,186 +28,357 @@ namespace robin
 
 	void Primitive3Cuboid::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
-		if (visualizeOnOff_) {
+		if (visualizeOnOff_) {			
+			
 			viewer->addCube(*coefficients_, "cube");
 			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 141.0 / 255.0, 12 / 255.0, 200 / 255.0, "cube"); //153,0,204
-			if (view_face_idx_ == -1) {
+			if (false) {
+			//if (view_face_idx_ == -1) {
 				viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 1.0, "cube");
-			} else {
-				viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.5, "cube");
-			}			
-		}
-		
-		for (int idx(0); idx < 3; ++idx) {
-
-			if (idx < planes_.size()) {
-				planes_[idx]->setVisualizeOnOff(false);
-				planes_[idx]->visualize(viewer);
 			}
+			else {
+				viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.5, "cube");
+				
+				// Automatic selection of the Cuboid face
+				size_t view_face_idx;
 
-			if (idx == view_face_idx_) {
-				//Render the selected cuboid face as a cube object with small thickness
-
-				pcl::ModelCoefficients::Ptr coefs_cube(new pcl::ModelCoefficients);
-				// Initialization of the 10-element cube coefficients
-				// {Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth}
-				coefs_cube->values.push_back(0.0); //0
-				coefs_cube->values.push_back(0.0); //1
-				coefs_cube->values.push_back(0.0); //2
-				coefs_cube->values.push_back(0.0); //3
-				coefs_cube->values.push_back(0.0); //4
-				coefs_cube->values.push_back(0.0); //5
-				coefs_cube->values.push_back(0.0); //6
-				coefs_cube->values.push_back(0.0); //7
-				coefs_cube->values.push_back(0.0); //8
-				coefs_cube->values.push_back(0.0); //9
-
-				float width(0.0), height(0.0), depth(0.0);
-				Eigen::Vector3f e0_axis, e1_axis, z_axis;
-				Eigen::Matrix3f mori;
-				Eigen::Quaternionf quat;
-				Eigen::Vector3f face_center, cube_center;
-
-				/*
-				 *    ___________
-				 *   |   Z ^    ||
-				 *   |     |    ||
-				 *   |     |    ||
-				 *   |     ---> ||
-				 *   |    /     ||
-				 *   |  e0	    ||
-				 *   |__________/
-				 */
-
-				width = properties_.width; // In the e1-direction
-				height = properties_.height; // In the z-direction
-				depth = properties_.depth; // In the e0-direction
-
+				// ----
+				float projection(0.0), proj_e0_e1(0.0), proj_e0_ez(0.0), proj_e1_e0(0.0), proj_e1_ez(0.0), proj_ez_e0(0.0), proj_ez_e1(0.0);
+				float d_origin_e0(0.0), d_origin_e1(0.0), d_origin_ez(0.0), d_face_e0(0.0), d_face_e1(0.0), d_face_ez(0.0);
+				Eigen::Vector3f axis, cam_axis(0.0, 0.0, 1.0), e0_axis, e1_axis, z_axis, p_center;
+				Eigen::Vector3f p_face_e0, p_face_e1, p_face_ez, p_inters_e0(0.0, 0.0, 0.0), p_inters_e1(0.0, 0.0, 0.0), p_inters_ez(0.0, 0.0, 0.0), vecon_e0(0.0, 0.0, 0.0), vecon_e1(0.0, 0.0, 0.0), vecon_ez(0.0, 0.0, 0.0);
+				bool found(false);
+				
+				//// Ray casting
+				p_center = { properties_.center_x,properties_.center_y, properties_.center_z };
+				e0_axis = { properties_.e0_x, properties_.e0_y, properties_.e0_z };
 				e1_axis = { properties_.e1_x, properties_.e1_y, properties_.e1_z };
 				z_axis = { properties_.axis_x, properties_.axis_y, properties_.axis_z };
-				e0_axis = { properties_.e0_x, properties_.e0_y, properties_.e0_z };
 
-				switch (view_face_idx_) {
-
-				case 0:
-					face_center(0) = properties_.center_x + e0_axis(0);
-					face_center(1) = properties_.center_y + e0_axis(1);
-					face_center(2) = properties_.center_z + e0_axis(2);
-
-					// Transformation matrix
-					e0_axis.normalize();
-					mori(0, 0) = e0_axis(0);
-					mori(1, 0) = e0_axis(1);
-					mori(2, 0) = e0_axis(2);
-					e1_axis.normalize();
-					mori(0, 1) = e1_axis(0);
-					mori(1, 1) = e1_axis(1);
-					mori(2, 1) = e1_axis(2);
-					z_axis.normalize();
-					mori(0, 2) = z_axis(0);
-					mori(1, 2) = z_axis(1);
-					mori(2, 2) = z_axis(2);
-
-					quat = Eigen::Quaternionf(mori);
-
-					//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
-					coefs_cube->values[0] = face_center.x(); //Tx
-					coefs_cube->values[1] = face_center.y(); //Ty
-					coefs_cube->values[2] = face_center.z(); //Tz
-					coefs_cube->values[3] = quat.x(); //Qx
-					coefs_cube->values[4] = quat.y(); //Qy
-					coefs_cube->values[5] = quat.z(); //Qz
-					coefs_cube->values[6] = quat.w(); //Qw
-					coefs_cube->values[7] = 0.001; //width;
-					coefs_cube->values[8] = height;
-					coefs_cube->values[9] = depth;
-					
-					break;
-				case 1:
-					if (e1_axis(2) > 0) {
-						face_center(0) = properties_.center_x - e1_axis(0);
-						face_center(1) = properties_.center_y - e1_axis(1);
-						face_center(2) = properties_.center_z - e1_axis(2);
-					} else {
-						face_center(0) = properties_.center_x + e1_axis(0);
-						face_center(1) = properties_.center_y + e1_axis(1);
-						face_center(2) = properties_.center_z + e1_axis(2);
-					}
-
-					// Transformation matrix					
-					e1_axis.normalize();
-					mori(0, 0) = e1_axis(0);
-					mori(1, 0) = e1_axis(1);
-					mori(2, 0) = e1_axis(2);
-					z_axis.normalize();
-					mori(0, 1) = z_axis(0);
-					mori(1, 1) = z_axis(1);
-					mori(2, 1) = z_axis(2);
-					e0_axis.normalize();
-					mori(0, 2) = e0_axis(0);
-					mori(1, 2) = e0_axis(1);
-					mori(2, 2) = e0_axis(2);
-
-					quat = Eigen::Quaternionf(mori);
-
-					//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
-					coefs_cube->values[0] = face_center.x(); //Tx
-					coefs_cube->values[1] = face_center.y(); //Ty
-					coefs_cube->values[2] = face_center.z(); //Tz
-					coefs_cube->values[3] = quat.x(); //Qx
-					coefs_cube->values[4] = quat.y(); //Qy
-					coefs_cube->values[5] = quat.z(); //Qz
-					coefs_cube->values[6] = quat.w(); //Qw
-					coefs_cube->values[7] = 0.001; //width;
-					coefs_cube->values[8] = depth; //height;
-					coefs_cube->values[9] = width; //depth;
-
-					break;
-				case 2:
-					if (z_axis(1) > 0) {
-						face_center(0) = properties_.center_x - z_axis(0);
-						face_center(1) = properties_.center_y - z_axis(1);
-						face_center(2) = properties_.center_z - z_axis(2);
-					} else {
-						face_center(0) = properties_.center_x + z_axis(0);
-						face_center(1) = properties_.center_y + z_axis(1);
-						face_center(2) = properties_.center_z + z_axis(2);
-					}
-
-					// Transformation matrix
-					z_axis.normalize();
-					mori(0, 0) = z_axis(0);
-					mori(1, 0) = z_axis(1);
-					mori(2, 0) = z_axis(2);
-					e0_axis.normalize();
-					mori(0, 1) = e0_axis(0);
-					mori(1, 1) = e0_axis(1);
-					mori(2, 1) = e0_axis(2);
-					e1_axis.normalize();
-					mori(0, 2) = e1_axis(0);
-					mori(1, 2) = e1_axis(1);
-					mori(2, 2) = e1_axis(2);
-
-					quat = Eigen::Quaternionf(mori);
-
-					//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
-					coefs_cube->values[0] = face_center.x(); //Tx
-					coefs_cube->values[1] = face_center.y(); //Ty
-					coefs_cube->values[2] = face_center.z(); //Tz
-					coefs_cube->values[3] = quat.x(); //Qx
-					coefs_cube->values[4] = quat.y(); //Qy
-					coefs_cube->values[5] = quat.z(); //Qz
-					coefs_cube->values[6] = quat.w(); //Qw
-					coefs_cube->values[7] = 0.001; //width;
-					coefs_cube->values[8] = width; //height;
-					coefs_cube->values[9] = height; //depth;
-
-					break;
-				default:
-					// None
-					break;
+				// Find the closest face among each two pairs of opposing faces and calculate its center
+				if (e0_axis.z() < 0) {
+					p_face_e0 = p_center + e0_axis;
 				}
-				viewer->addCube(*coefs_cube, "plane");
+				else {
+					p_face_e0 = p_center - e0_axis;
+					e0_axis *= -1;
+				}
+				if (e1_axis.z() < 0) {
+					p_face_e1 = p_center + e1_axis;
+				}
+				else {
+					p_face_e1 = p_center - e1_axis;
+					e1_axis *= -1;
+				}
+				if (z_axis.z() < 0) {
+					p_face_ez = p_center + z_axis;
+				}
+				else {
+					p_face_ez = p_center - z_axis;
+					z_axis *= -1;
+				}
+
+				// Find the intersection point of the cam_axis about each plane
+				if (cam_axis.dot(e0_axis / e0_axis.norm()) != 0.0) {
+					d_origin_e0 = p_face_e0.dot(e0_axis / e0_axis.norm()) / cam_axis.dot(e0_axis / e0_axis.norm());
+					p_inters_e0 = cam_axis * d_origin_e0;
+				}
+				if (cam_axis.dot(e1_axis / e1_axis.norm()) != 0.0) {
+					d_origin_e1 = p_face_e1.dot(e1_axis / e1_axis.norm()) / cam_axis.dot(e1_axis / e1_axis.norm());
+					p_inters_e1 = cam_axis * d_origin_e1;
+				}
+				if (cam_axis.dot(z_axis / z_axis.norm()) != 0.0) {
+					d_origin_ez = p_face_ez.dot(z_axis / z_axis.norm()) / cam_axis.dot(z_axis / z_axis.norm());
+					p_inters_ez = cam_axis * d_origin_ez;
+				}
+
+				// Calculate the distance to each face center
+				vecon_e0 = p_inters_e0 - p_face_e0;
+				vecon_e1 = p_inters_e1 - p_face_e1;
+				vecon_ez = p_inters_ez - p_face_ez;
+
+				// Assess the following three conditions
+				// 1. Calculate the projection vector to the 'inters' (intersection) point on each face
+				// // face e0
+				proj_e0_e1 = std::abs(vecon_e0.dot(e1_axis) / e1_axis.norm());
+				proj_e0_ez = std::abs(vecon_e0.dot(z_axis) / z_axis.norm());
+				std::cout << "proj_e0: " << proj_e0_e1 << "(" << e1_axis.norm() << ")" << " " << proj_e0_ez << "(" << z_axis.norm() << ")" << std::endl;
+				if (!found && proj_e0_e1 <= e1_axis.norm() && proj_e0_ez <= z_axis.norm()) {
+
+					found = true;
+					//this->setIntersectionPoint(p_inters_e0);
+					//this->setFaceHighlight(0);
+					view_face_idx = 0;
+				}
+				else {
+					if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() <= 0) {
+						d_face_e0 = proj_e0_e1 - e1_axis.norm();
+					}
+					else if (proj_e0_ez - z_axis.norm() > 0 && proj_e0_e1 - e1_axis.norm() <= 0) {
+						d_face_e0 = proj_e0_ez - z_axis.norm();
+					}
+					else if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() > 0) {
+						if (proj_e0_e1 - e1_axis.norm() <= proj_e0_ez - z_axis.norm()) {
+							d_face_e0 = proj_e0_e1 - e1_axis.norm();
+						}
+						else {
+							d_face_e0 = proj_e0_ez - z_axis.norm();
+						}
+					}
+				}
+				// // face e1
+				proj_e1_e0 = std::abs(vecon_e1.dot(e0_axis) / e0_axis.norm());
+				proj_e1_ez = std::abs(vecon_e1.dot(z_axis) / z_axis.norm());
+				std::cout << "proj_e1: " << proj_e1_e0 << "(" << e0_axis.norm() << ")" << " " << proj_e1_ez << "(" << z_axis.norm() << ")" << std::endl;
+				if (!found && proj_e1_e0 <= e0_axis.norm() && proj_e1_ez <= z_axis.norm()) {
+
+					found = true;
+					//this->setIntersectionPoint(p_inters_e1);
+					//this->setFaceHighlight(1);
+					view_face_idx = 1;
+				}
+				else {
+					if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() <= 0) {
+						d_face_e1 = proj_e1_e0 - e0_axis.norm();
+					}
+					else if (proj_e1_ez - z_axis.norm() > 0 && proj_e1_e0 - e0_axis.norm() <= 0) {
+						d_face_e1 = proj_e1_ez - z_axis.norm();
+					}
+					else if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() > 0) {
+						if (proj_e1_e0 - e0_axis.norm() <= proj_e1_ez - z_axis.norm()) {
+							d_face_e1 = proj_e1_e0 - e0_axis.norm();
+						}
+						else {
+							d_face_e1 = proj_e1_ez - z_axis.norm();
+						}
+					}
+				}
+				// // face ez
+				proj_ez_e0 = std::abs(vecon_ez.dot(e0_axis) / e0_axis.norm());
+				proj_ez_e1 = std::abs(vecon_ez.dot(e1_axis) / e1_axis.norm());
+				std::cout << "proj_ez: " << proj_ez_e0 << "(" << e0_axis.norm() << ")" << " " << proj_ez_e1 << "(" << e1_axis.norm() << ")" << std::endl;
+				if (!found && proj_ez_e0 <= e0_axis.norm() && proj_ez_e1 <= e1_axis.norm()) {
+
+					found = true;
+					//this->setIntersectionPoint(p_inters_ez);
+					//this->setFaceHighlight(2);
+					view_face_idx = 2;
+				}
+				else {
+					if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() <= 0) {
+						d_face_ez = proj_ez_e0 - e0_axis.norm();
+					}
+					else if (proj_ez_e1 - e1_axis.norm() > 0 && proj_ez_e0 - e0_axis.norm() <= 0) {
+						d_face_ez = proj_ez_e1 - e1_axis.norm();
+					}
+					else if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() > 0) {
+						if (proj_ez_e0 - e0_axis.norm() <= proj_ez_e1 - e1_axis.norm()) {
+							d_face_ez = proj_ez_e0 - e0_axis.norm();
+						}
+						else {
+							d_face_ez = proj_ez_e1 - e1_axis.norm();
+						}
+					}
+				}
+
+				// 2. Select the face based on the shortest distance 'd_face'
+				if (!found) {
+					// // face e0
+					if (p_inters_e0.z() > 0.1 && d_face_e0 <= d_face_e1 && d_face_e0 <= d_face_ez) {
+						//this->setIntersectionPoint(p_inters_e0);
+						//this->setFaceHighlight(0);
+						view_face_idx = 0;
+					}
+					// // face e1
+					if (p_inters_e1.z() > 0.1 && d_face_e1 <= d_face_e0 && d_face_e1 <= d_face_ez) {
+						//this->setIntersectionPoint(p_inters_e1);
+						//this->setFaceHighlight(1);
+						view_face_idx = 1;
+					}
+					// // face ez
+					if (p_inters_ez.z() > 0.1 && d_face_ez <= d_face_e0 && d_face_ez <= d_face_e1) {
+						//this->setIntersectionPoint(p_inters_ez);
+						//this->setFaceHighlight(2);
+						view_face_idx = 2;
+					}
+				}
+				// ----
+
+
+				for (int idx(0); idx < 3; ++idx) {
+
+					if (idx < planes_.size()) {
+						planes_[idx]->setVisualizeOnOff(false);
+						planes_[idx]->visualize(viewer);
+					}
+
+					if (idx == view_face_idx) {
+						//Render the selected cuboid face as a cube object with small thickness
+
+						pcl::ModelCoefficients::Ptr coefs_cube(new pcl::ModelCoefficients);
+						// Initialization of the 10-element cube coefficients
+						// {Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth}
+						coefs_cube->values.push_back(0.0); //0
+						coefs_cube->values.push_back(0.0); //1
+						coefs_cube->values.push_back(0.0); //2
+						coefs_cube->values.push_back(0.0); //3
+						coefs_cube->values.push_back(0.0); //4
+						coefs_cube->values.push_back(0.0); //5
+						coefs_cube->values.push_back(0.0); //6
+						coefs_cube->values.push_back(0.0); //7
+						coefs_cube->values.push_back(0.0); //8
+						coefs_cube->values.push_back(0.0); //9
+
+						float width(0.0), height(0.0), depth(0.0);
+						Eigen::Vector3f e0_axis, e1_axis, z_axis;
+						Eigen::Matrix3f mori;
+						Eigen::Quaternionf quat;
+						Eigen::Vector3f face_center, cube_center;
+
+						/*
+						 *    ___________
+						 *   |   Z ^    ||
+						 *   |     |    ||
+						 *   |     |    ||
+						 *   |     ---> ||
+						 *   |    /     ||
+						 *   |  e0	    ||
+						 *   |__________/
+						 */
+
+						width = properties_.width; // In the e1-direction
+						height = properties_.height; // In the z-direction
+						depth = properties_.depth; // In the e0-direction
+
+						e1_axis = { properties_.e1_x, properties_.e1_y, properties_.e1_z };
+						z_axis = { properties_.axis_x, properties_.axis_y, properties_.axis_z };
+						e0_axis = { properties_.e0_x, properties_.e0_y, properties_.e0_z };
+
+						switch (view_face_idx) {
+
+						case 0:
+							face_center(0) = properties_.center_x + e0_axis(0);
+							face_center(1) = properties_.center_y + e0_axis(1);
+							face_center(2) = properties_.center_z + e0_axis(2);
+
+							// Transformation matrix
+							e0_axis.normalize();
+							mori(0, 0) = e0_axis(0);
+							mori(1, 0) = e0_axis(1);
+							mori(2, 0) = e0_axis(2);
+							e1_axis.normalize();
+							mori(0, 1) = e1_axis(0);
+							mori(1, 1) = e1_axis(1);
+							mori(2, 1) = e1_axis(2);
+							z_axis.normalize();
+							mori(0, 2) = z_axis(0);
+							mori(1, 2) = z_axis(1);
+							mori(2, 2) = z_axis(2);
+
+							quat = Eigen::Quaternionf(mori);
+
+							//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+							coefs_cube->values[0] = face_center.x(); //Tx
+							coefs_cube->values[1] = face_center.y(); //Ty
+							coefs_cube->values[2] = face_center.z(); //Tz
+							coefs_cube->values[3] = quat.x(); //Qx
+							coefs_cube->values[4] = quat.y(); //Qy
+							coefs_cube->values[5] = quat.z(); //Qz
+							coefs_cube->values[6] = quat.w(); //Qw
+							coefs_cube->values[7] = 0.001; //width;
+							coefs_cube->values[8] = height;
+							coefs_cube->values[9] = depth;
+
+							break;
+						case 1:
+							if (e1_axis(2) > 0) {
+								face_center(0) = properties_.center_x - e1_axis(0);
+								face_center(1) = properties_.center_y - e1_axis(1);
+								face_center(2) = properties_.center_z - e1_axis(2);
+							}
+							else {
+								face_center(0) = properties_.center_x + e1_axis(0);
+								face_center(1) = properties_.center_y + e1_axis(1);
+								face_center(2) = properties_.center_z + e1_axis(2);
+							}
+
+							// Transformation matrix					
+							e1_axis.normalize();
+							mori(0, 0) = e1_axis(0);
+							mori(1, 0) = e1_axis(1);
+							mori(2, 0) = e1_axis(2);
+							z_axis.normalize();
+							mori(0, 1) = z_axis(0);
+							mori(1, 1) = z_axis(1);
+							mori(2, 1) = z_axis(2);
+							e0_axis.normalize();
+							mori(0, 2) = e0_axis(0);
+							mori(1, 2) = e0_axis(1);
+							mori(2, 2) = e0_axis(2);
+
+							quat = Eigen::Quaternionf(mori);
+
+							//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+							coefs_cube->values[0] = face_center.x(); //Tx
+							coefs_cube->values[1] = face_center.y(); //Ty
+							coefs_cube->values[2] = face_center.z(); //Tz
+							coefs_cube->values[3] = quat.x(); //Qx
+							coefs_cube->values[4] = quat.y(); //Qy
+							coefs_cube->values[5] = quat.z(); //Qz
+							coefs_cube->values[6] = quat.w(); //Qw
+							coefs_cube->values[7] = 0.001; //width;
+							coefs_cube->values[8] = depth; //height;
+							coefs_cube->values[9] = width; //depth;
+
+							break;
+						case 2:
+							if (z_axis(1) > 0) {
+								face_center(0) = properties_.center_x - z_axis(0);
+								face_center(1) = properties_.center_y - z_axis(1);
+								face_center(2) = properties_.center_z - z_axis(2);
+							}
+							else {
+								face_center(0) = properties_.center_x + z_axis(0);
+								face_center(1) = properties_.center_y + z_axis(1);
+								face_center(2) = properties_.center_z + z_axis(2);
+							}
+
+							// Transformation matrix
+							z_axis.normalize();
+							mori(0, 0) = z_axis(0);
+							mori(1, 0) = z_axis(1);
+							mori(2, 0) = z_axis(2);
+							e0_axis.normalize();
+							mori(0, 1) = e0_axis(0);
+							mori(1, 1) = e0_axis(1);
+							mori(2, 1) = e0_axis(2);
+							e1_axis.normalize();
+							mori(0, 2) = e1_axis(0);
+							mori(1, 2) = e1_axis(1);
+							mori(2, 2) = e1_axis(2);
+
+							quat = Eigen::Quaternionf(mori);
+
+							//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+							coefs_cube->values[0] = face_center.x(); //Tx
+							coefs_cube->values[1] = face_center.y(); //Ty
+							coefs_cube->values[2] = face_center.z(); //Tz
+							coefs_cube->values[3] = quat.x(); //Qx
+							coefs_cube->values[4] = quat.y(); //Qy
+							coefs_cube->values[5] = quat.z(); //Qz
+							coefs_cube->values[6] = quat.w(); //Qw
+							coefs_cube->values[7] = 0.001; //width;
+							coefs_cube->values[8] = width; //height;
+							coefs_cube->values[9] = height; //depth;
+
+							break;
+						default:
+							// None
+							break;
+						}
+						viewer->addCube(*coefs_cube, "plane");
+					}
+				}
 			}
 		}
 
@@ -339,7 +510,7 @@ namespace robin
 		}
 
 		size_t n_planes(0); int n_pts(cloud->points.size());
-		while (cloud->points.size() > 0.1 * n_pts && n_planes < 3) { //0.3 //3 
+		while (cloud->points.size() > 0.1 * n_pts && n_planes < 3) {
 			// A minimum of 2 planes are enough to fully define the Primitive3Cuboid.
 			if (n_planes == 0) {
 				Primitive3Plane* plane(new Primitive3Plane());
@@ -1018,5 +1189,197 @@ namespace robin
 			}
 			//
 		}
+	}
+
+	size_t Primitive3Cuboid::face_highlight()
+	{
+		float projection(0.0), proj_e0_e1(0.0), proj_e0_ez(0.0), proj_e1_e0(0.0), proj_e1_ez(0.0), proj_ez_e0(0.0), proj_ez_e1(0.0);
+		float d_origin_e0(0.0), d_origin_e1(0.0), d_origin_ez(0.0), d_face_e0(0.0), d_face_e1(0.0), d_face_ez(0.0);
+		Eigen::Vector3f axis, cam_axis(0.0, 0.0, 1.0), e0_axis, e1_axis, z_axis, p_center;
+		Eigen::Vector3f p_face_e0, p_face_e1, p_face_ez, p_inters_e0(0.0, 0.0, 0.0), p_inters_e1(0.0, 0.0, 0.0), p_inters_ez(0.0, 0.0, 0.0), vecon_e0(0.0, 0.0, 0.0), vecon_e1(0.0, 0.0, 0.0), vecon_ez(0.0, 0.0, 0.0);
+		bool found(false);
+		//
+
+		//// Ray casting
+		p_center = { properties_.center_x,properties_.center_y, properties_.center_z };
+		e0_axis = { properties_.e0_x, properties_.e0_y, properties_.e0_z };
+		e1_axis = { properties_.e1_x, properties_.e1_y, properties_.e1_z };
+		z_axis = { properties_.axis_x, properties_.axis_y, properties_.axis_z };
+
+		// Find the closest face among each two pairs of opposing faces and calculate its center
+		if (e0_axis.z() < 0) {
+			p_face_e0 = p_center + e0_axis;
+		}
+		else {
+			p_face_e0 = p_center - e0_axis;
+			e0_axis *= -1;
+		}
+		if (e1_axis.z() < 0) {
+			p_face_e1 = p_center + e1_axis;
+		}
+		else {
+			p_face_e1 = p_center - e1_axis;
+			e1_axis *= -1;
+		}
+		if (z_axis.z() < 0) {
+			p_face_ez = p_center + z_axis;
+		}
+		else {
+			p_face_ez = p_center - z_axis;
+			z_axis *= -1;
+		}
+
+		// Find the intersection point of the cam_axis about each plane
+		if (cam_axis.dot(e0_axis / e0_axis.norm()) != 0.0) {
+			d_origin_e0 = p_face_e0.dot(e0_axis / e0_axis.norm()) / cam_axis.dot(e0_axis / e0_axis.norm());
+			p_inters_e0 = cam_axis * d_origin_e0;
+		}
+		if (cam_axis.dot(e1_axis / e1_axis.norm()) != 0.0) {
+			d_origin_e1 = p_face_e1.dot(e1_axis / e1_axis.norm()) / cam_axis.dot(e1_axis / e1_axis.norm());
+			p_inters_e1 = cam_axis * d_origin_e1;
+		}
+		if (cam_axis.dot(z_axis / z_axis.norm()) != 0.0) {
+			d_origin_ez = p_face_ez.dot(z_axis / z_axis.norm()) / cam_axis.dot(z_axis / z_axis.norm());
+			p_inters_ez = cam_axis * d_origin_ez;
+		}
+
+		// Calculate the distance to each face center
+		vecon_e0 = p_inters_e0 - p_face_e0;
+		vecon_e1 = p_inters_e1 - p_face_e1;
+		vecon_ez = p_inters_ez - p_face_ez;
+
+		// Assess the following three conditions
+		// 1. Calculate the projection vector to the 'inters' (intersection) point on each face
+		// // face e0
+		proj_e0_e1 = std::abs(vecon_e0.dot(e1_axis) / e1_axis.norm());
+		proj_e0_ez = std::abs(vecon_e0.dot(z_axis) / z_axis.norm());
+		std::cout << "proj_e0: " << proj_e0_e1 << "(" << e1_axis.norm() << ")" << " " << proj_e0_ez << "(" << z_axis.norm() << ")" << std::endl;
+		if (!found && proj_e0_e1 <= e1_axis.norm() && proj_e0_ez <= z_axis.norm()) {
+			//if (e1_axis.norm() >= z_axis.norm()) {
+			//	grasp_size = 2.0 * z_axis.norm();
+			//}
+			//else {
+			//	grasp_size = 2.0 * e1_axis.norm();
+			//}
+			found = true;
+			this->setIntersectionPoint(p_inters_e0);
+			return 0;
+		}
+		else {
+			if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() <= 0) {
+				d_face_e0 = proj_e0_e1 - e1_axis.norm();
+			}
+			else if (proj_e0_ez - z_axis.norm() > 0 && proj_e0_e1 - e1_axis.norm() <= 0) {
+				d_face_e0 = proj_e0_ez - z_axis.norm();
+			}
+			else if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() > 0) {
+				if (proj_e0_e1 - e1_axis.norm() <= proj_e0_ez - z_axis.norm()) {
+					d_face_e0 = proj_e0_e1 - e1_axis.norm();
+				}
+				else {
+					d_face_e0 = proj_e0_ez - z_axis.norm();
+				}
+			}
+		}
+		// // face e1
+		proj_e1_e0 = std::abs(vecon_e1.dot(e0_axis) / e0_axis.norm());
+		proj_e1_ez = std::abs(vecon_e1.dot(z_axis) / z_axis.norm());
+		std::cout << "proj_e1: " << proj_e1_e0 << "(" << e0_axis.norm() << ")" << " " << proj_e1_ez << "(" << z_axis.norm() << ")" << std::endl;
+		if (!found && proj_e1_e0 <= e0_axis.norm() && proj_e1_ez <= z_axis.norm()) {
+			//if (e0_axis.norm() >= z_axis.norm()) {
+			//	grasp_size = 2.0 * z_axis.norm();
+			//}
+			//else {
+			//	grasp_size = 2.0 * e0_axis.norm();
+			//}
+			found = true;
+			this->setIntersectionPoint(p_inters_e1);
+			return 1;
+		}
+		else {
+			if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() <= 0) {
+				d_face_e1 = proj_e1_e0 - e0_axis.norm();
+			}
+			else if (proj_e1_ez - z_axis.norm() > 0 && proj_e1_e0 - e0_axis.norm() <= 0) {
+				d_face_e1 = proj_e1_ez - z_axis.norm();
+			}
+			else if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() > 0) {
+				if (proj_e1_e0 - e0_axis.norm() <= proj_e1_ez - z_axis.norm()) {
+					d_face_e1 = proj_e1_e0 - e0_axis.norm();
+				}
+				else {
+					d_face_e1 = proj_e1_ez - z_axis.norm();
+				}
+			}
+		}
+		// // face ez
+		proj_ez_e0 = std::abs(vecon_ez.dot(e0_axis) / e0_axis.norm());
+		proj_ez_e1 = std::abs(vecon_ez.dot(e1_axis) / e1_axis.norm());
+		std::cout << "proj_ez: " << proj_ez_e0 << "(" << e0_axis.norm() << ")" << " " << proj_ez_e1 << "(" << e1_axis.norm() << ")" << std::endl;
+		if (!found && proj_ez_e0 <= e0_axis.norm() && proj_ez_e1 <= e1_axis.norm()) {
+			//if (e0_axis.norm() >= e1_axis.norm()) {
+			//	grasp_size = 2.0 * e1_axis.norm();
+			//}
+			//else {
+			//	grasp_size = 2.0 * e0_axis.norm();
+			//}
+			found = true;
+			this->setIntersectionPoint(p_inters_ez);
+			return 2;
+		}
+		else {
+			if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() <= 0) {
+				d_face_ez = proj_ez_e0 - e0_axis.norm();
+			}
+			else if (proj_ez_e1 - e1_axis.norm() > 0 && proj_ez_e0 - e0_axis.norm() <= 0) {
+				d_face_ez = proj_ez_e1 - e1_axis.norm();
+			}
+			else if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() > 0) {
+				if (proj_ez_e0 - e0_axis.norm() <= proj_ez_e1 - e1_axis.norm()) {
+					d_face_ez = proj_ez_e0 - e0_axis.norm();
+				}
+				else {
+					d_face_ez = proj_ez_e1 - e1_axis.norm();
+				}
+			}
+		}
+
+		// 2. Select the face based on the shortest distance 'd_face'
+		if (!found) {
+			// // face e0
+			if (p_inters_e0.z() > 0.1 && d_face_e0 <= d_face_e1 && d_face_e0 <= d_face_ez) {
+				//if (e1_axis.norm() >= z_axis.norm()) {
+				//	grasp_size = 2.0 * z_axis.norm();
+				//}
+				//else {
+				//	grasp_size = 2.0 * e1_axis.norm();
+				//}
+				this->setIntersectionPoint(p_inters_e0);
+				return 0;
+			}
+			// // face e1
+			if (p_inters_e1.z() > 0.1 && d_face_e1 <= d_face_e0 && d_face_e1 <= d_face_ez) {
+				//if (e0_axis.norm() >= z_axis.norm()) {
+				//	grasp_size = 2.0 * z_axis.norm();
+				//}
+				//else {
+				//	grasp_size = 2.0 * e0_axis.norm();
+				//}
+				this->setIntersectionPoint(p_inters_e1);
+				return 1;
+			}
+			// // face ez
+			if (p_inters_ez.z() > 0.1 && d_face_ez <= d_face_e0 && d_face_ez <= d_face_e1) {
+				//if (e0_axis.norm() >= e1_axis.norm()) {
+				//	grasp_size = 2.0 * e1_axis.norm();
+				//}
+				//else {
+				//	grasp_size = 2.0 * e0_axis.norm();
+				//}
+				this->setIntersectionPoint(p_inters_ez);
+				return 2;
+			}
+		}
+
 	}
 }

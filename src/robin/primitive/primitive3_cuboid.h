@@ -55,6 +55,9 @@ namespace robin
 		Eigen::Vector3f inters_point_;		
 		int view_face_idx_ = -1; // Face to be highlighted in the viewer (-1: None)
 
+		/* Automatic Cuboid face highlighting based on ray casting. */
+		size_t face_highlight();
+
 		/* Checks if the fit is valid. */
 		bool is_fit_valid();
 
