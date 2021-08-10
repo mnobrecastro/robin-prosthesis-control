@@ -35,7 +35,7 @@ int main(int argc, char** argv)
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_PROSAC);
 	seg->setMaxIterations(1000); //100
-	seg->setDistanceThreshold(0.001); //0.001 //0.0005
+	seg->setDistanceThreshold(0.001);
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 	
@@ -58,7 +58,7 @@ int main(int argc, char** argv)
 	viewer->createViewPort(0.0, 0.0, 1.0, 1.0, vp);
 	viewer->setCameraPosition(0.0, 0.0, -0.5, 0.0, -1.0, 0.0, vp);
 	viewer->setSize(800, 600); //800, 600 //1280, 1024
-	viewer->setBackgroundColor(0.91, 0.96, 0.97, vp);
+	viewer->setBackgroundColor(0.91, 0.96, 0.97, vp); //0.91, 0.96, 0.97
 	viewer->addCoordinateSystem(0.1);
 
 	std::vector<double> freq;

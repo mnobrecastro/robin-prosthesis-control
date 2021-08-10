@@ -31,13 +31,13 @@ namespace robin
 		if (visualizeOnOff_) {			
 			
 			viewer->addCube(*coefficients_, "cube");
-			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 141.0 / 255.0, 12 / 255.0, 200 / 255.0, "cube"); //153,0,204
+			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 76.0 / 255.0, 0 / 255.0, 102 / 255.0, "cube"); //153,0,204
 			if (false) {
 			//if (view_face_idx_ == -1) {
 				viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 1.0, "cube");
 			}
 			else {
-				viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.5, "cube");
+				viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.1, "cube");
 				
 				// Automatic selection of the Cuboid face
 				size_t view_face_idx;
@@ -377,6 +377,7 @@ namespace robin
 							break;
 						}
 						viewer->addCube(*coefs_cube, "plane");
+						viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 76.0 / 255.0, 0 / 255.0, 102 / 255.0, "plane"); //153,0,204
 					}
 				}
 			}

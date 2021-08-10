@@ -23,6 +23,8 @@ namespace robin
 	void Primitive3Cylinder::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
 		viewer->addCylinder(*coefficients_, "cylinder");
+		viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 76.0 / 255.0, 0 / 255.0, 102 / 255.0, "cylinder"); //153,0,204
+		viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 1.0, "cylinder");
 	}
 
 	void Primitive3Cylinder::reset()
