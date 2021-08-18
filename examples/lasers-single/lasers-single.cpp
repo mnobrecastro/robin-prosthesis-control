@@ -23,8 +23,7 @@ int main(int argc, char** argv)
 	mycam->setDisparity(false);
 
 	// Create a virtual array of sensors from another sensor
-	robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002)); //0.001
-	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002)); //0.001
+	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002)); //0.001
 	mysolver.addSensor(myarr);
 
 	// Segmentation object
