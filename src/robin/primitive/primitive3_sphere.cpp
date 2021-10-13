@@ -167,41 +167,32 @@ namespace robin
 
 	void Primitive3Sphere::heuristic_laser_array_single()
 	{
-		/* Not implemented yet. */
-	}
-
-	void Primitive3Sphere::heuristic_laser_array_cross()
-	{
+		/* WARNING!
+		* This implementation does not guarantee a full estimation of the geometric primitive.
+		*/
 		float sphere_radius(0.001);
-		std::list<float> save_sphere_radius;
 
-		size_t MOVING_AVG_SIZE(50);
-
-		// Computing the boundaries of the line primitives
-		//   [-]
-		//   [-]
-		// [-----]
-		//   [-]
-		//   [-]
-		//   [-]
-
-		std::array<float, 6> bounds_temp_h(getPointCloudRanges(*subprims_[0][0]->getPointCloud())); // 0 deg
-		std::array<float, 2> bounds_horizontal({ bounds_temp_h[0] ,bounds_temp_h[1] });
-
-		std::array<float, 6> bounds_temp_v(getPointCloudRanges(*subprims_[1][0]->getPointCloud())); // 90 deg
-		std::array<float, 2> bounds_vertical({ bounds_temp_v[2] ,bounds_temp_v[3] });		
-
-
-		// Finding the intersection '+' on the sphere
-		int vertical_idx(-1), horizontal_idx(-1);
-		if (bounds_vertical[0] <= 0.0 && 0.0 < bounds_vertical[1] && bounds_horizontal[0] <= 0.0 && 0.0 < bounds_horizontal[1]) {
-			vertical_idx = 0;
-			horizontal_idx = 0;
+		// Computing the boundaries of the cut primitives
+		// [   ][-----][   ][   ]
+		std::vector<std::array<float, 2>> bounds_horizontal;
+		for (int i(0); i < subprims_[0].size(); ++i) {
+			std::array<float, 6> bounds_temp(getPointCloudRanges(*subprims_[0][i]->getPointCloud()));
+			bounds_horizontal.push_back({ bounds_temp[0] ,bounds_temp[1] });
 		}
 
-		if (vertical_idx != -1 && horizontal_idx != -1) {
-			std::cout << "vert_idx: " << vertical_idx << " hori_idx: " << horizontal_idx << std::endl;
+		// Finding the "front face" spanning the center '-'
+		int horizontal_idx(-1);
+		for (int k1(0); k1 < bounds_horizontal.size(); ++k1) {
+			if (bounds_horizontal[k1][0] <= 0.0 && 0.0 < bounds_horizontal[k1][1]) {
+				horizontal_idx = k1;
+				break;
+			}
+		}
 
+		if (horizontal_idx != -1) {
+			std::cout << " hori_idx: " << horizontal_idx << std::endl;
+
+			// Find each circle (cyl coef) center among the points in the horizontal subprimitive
 			Eigen::Vector3f h_center(
 				subprims_[0][0]->getCoefficients()->values[0],
 				subprims_[0][0]->getCoefficients()->values[1], //0.0, //arr_coeffs_subprim_horizontal[horizontal_idx]->values[1],
@@ -209,14 +200,70 @@ namespace robin
 			);
 			float h_radius(subprims_[0][0]->getCoefficients()->values[6]);
 
-			// Find each circle (cyl coef) center among the points in the subprimitive
+			// Find the sphere center
+			Eigen::Vector3f sphere_center(h_center.x(), h_center.y(), h_center.z());
+
+			// Sphere primitive parameters
+			sphere_radius = h_radius;
+
+			// Sphere coefficients(center_x, center_y, center_z, r)
+			coefficients_->values[0] = sphere_center.x(); //x
+			coefficients_->values[1] = sphere_center.y(); //y
+			coefficients_->values[2] = sphere_center.z(); //z
+			coefficients_->values[3] = sphere_radius; //r
+		}
+	}
+
+	void Primitive3Sphere::heuristic_laser_array_cross()
+	{
+		float sphere_radius(0.001);
+
+		// Computing the boundaries of the cut primitives
+		//        [-]
+		//        [-]
+		// [   ][-----][   ][   ]
+		//        [-]
+		//        [-]
+		//        [-]
+		std::vector<std::array<float, 2>> bounds_horizontal;
+		for (int i(0); i < subprims_[0].size(); ++i) {
+			std::array<float, 6> bounds_temp(getPointCloudRanges(*subprims_[0][i]->getPointCloud()));
+			bounds_horizontal.push_back({ bounds_temp[0] ,bounds_temp[1] });
+		}
+		std::vector<std::array<float, 2>> bounds_vertical;
+		for (int i(0); i < subprims_[1].size(); ++i) {
+			std::array<float, 6> bounds_temp(getPointCloudRanges(*subprims_[1][i]->getPointCloud()));
+			bounds_vertical.push_back({ bounds_temp[2] ,bounds_temp[3] });
+		}
+
+		// Finding the "front face" spaned by the intersection '+'
+		int vertical_idx(-1), horizontal_idx(-1);
+		for (int k1(0); k1 < bounds_vertical.size(); ++k1) {
+			for (int k2(0); k2 < bounds_horizontal.size(); ++k2) {
+				if (bounds_vertical[k1][0] <= 0.0 && 0.0 < bounds_vertical[k1][1] && bounds_horizontal[k2][0] <= 0.0 && 0.0 < bounds_horizontal[k2][1]) {
+					vertical_idx = k1;
+					horizontal_idx = k2;
+					break;
+				}
+			}
+		}
+
+		if (vertical_idx != -1 && horizontal_idx != -1) {
+			std::cout << "vert_idx: " << vertical_idx << " hori_idx: " << horizontal_idx << std::endl;
+			// Find each circle (cyl coef) center among the points in the horizontal subprimitive
+			Eigen::Vector3f h_center(
+				subprims_[0][0]->getCoefficients()->values[0],
+				subprims_[0][0]->getCoefficients()->values[1], // = 0.0
+				subprims_[0][0]->getCoefficients()->values[2]
+			);
+			float h_radius(subprims_[0][0]->getCoefficients()->values[6]);
+			// Find each circle (cyl coef) center among the points in the vectical subprimitive
 			Eigen::Vector3f v_center(
-				subprims_[1][0]->getCoefficients()->values[0], //0.0, //arr_coeffs_subprim_vertical[vertical_idx]->values[0],
+				subprims_[1][0]->getCoefficients()->values[0], // = 0.0
 				subprims_[1][0]->getCoefficients()->values[1],
 				subprims_[1][0]->getCoefficients()->values[2]
 			);
 			float v_radius(subprims_[1][0]->getCoefficients()->values[6]);
-
 
 			// Find the sphere center
 			Eigen::Vector3f sphere_center(h_center.x(), v_center.y(), (h_center.z() + v_center.z()) / 2);
