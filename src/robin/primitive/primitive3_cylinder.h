@@ -7,6 +7,7 @@
 #include <typeinfo>
 
 #define MAX_SUBPRIMS 1
+#define USE_ELLIPSE
 
 namespace robin
 {
