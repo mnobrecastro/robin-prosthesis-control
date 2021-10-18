@@ -23,17 +23,18 @@ int main(int argc, char** argv)
 	mycam->setDisparity(false);
 
 	// Create a virtual array of sensors from another sensor
-	robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002)); //0.001
-	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002)); //0.001
+	//robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002));
+	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
+	robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001));
 	mysolver.addSensor(myarr);
 
 	// Segmentation object
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
-	seg->setMethodType(pcl::SAC_RANSAC);
+	seg->setMethodType(pcl::SAC_PROSAC);
 	seg->setMaxIterations(1000);
-	seg->setDistanceThreshold(0.003); // little slack 0.005
-	seg->setRadiusLimits(0.025, 0.500); //0.050
+	seg->setDistanceThreshold(0.01); // little slack 0.005
+	seg->setRadiusLimits(0.025, 0.5); //min_0.025 max_0.5
 	mysolver.setSegmentation(seg);
 
 	// Create a Primitive

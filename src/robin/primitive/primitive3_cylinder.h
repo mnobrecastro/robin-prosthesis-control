@@ -29,6 +29,9 @@ namespace robin
 		void fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg);
 
 	protected:
+		bool has_line_ = false;
+		int ellipse_count_ = -1;
+		
 		/* Checks if the fit is valid. */
 		bool is_fit_valid();
 
