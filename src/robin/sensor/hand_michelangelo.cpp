@@ -450,7 +450,10 @@ namespace robin
 
 					/* byte7: "Pronation/Supination" (int8), range [-100,100]% -> [-160,160]deg */
 					int sup_pro_angle = +int8_t(*(packet + 7));
-					configstate_.sup_pro_angle = float(sup_pro_angle / 100.0 * 160 * M_PI / 180);
+					if (this->isRightHand())
+						configstate_.sup_pro_angle = -float(sup_pro_angle / 100.0 * 160 * M_PI / 180);
+					else
+						configstate_.sup_pro_angle = float(sup_pro_angle / 100.0 * 160 * M_PI / 180);
 
 					/* byte8: "Flexion/Extension" (int8), range [-100,100]% -> [-45,75]deg */
 					int fle_ext_angle = +int8_t(*(packet + 8));

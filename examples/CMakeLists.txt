@@ -5,6 +5,7 @@ add_subdirectory(solver3-sac-cuboid)
 
 add_subdirectory(lasers-single)
 add_subdirectory(lasers-cylinder)
+add_subdirectory(prosthesis-manual)
 
 add_subdirectory(lccp-semiauto-control)
 add_subdirectory(lasers-semiauto-control)
