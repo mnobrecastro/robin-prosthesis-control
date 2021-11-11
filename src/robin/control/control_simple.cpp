@@ -432,244 +432,200 @@ namespace robin
 			//
 
 			float grasp_size(10.0);
-			switch (find_primitive3_type(prim)){
-			case Primitive3Type::PRIMITIVE3_SPHERE:
-				grasp_size = 2.0 * prim->getProperty_radius();
-				break;
 
-			case Primitive3Type::PRIMITIVE3_CUBOID:				
-				//// Original variant (pick the smallest dimension)
-				/*if (prim->getProperty_width() > 0.005) {
-					grasp_size = prim->getProperty_width();
-				}
-				if (prim->getProperty_height() > 0.005 && grasp_size > prim->getProperty_height()) {
-					grasp_size = prim->getProperty_height();
-				}
-				if (prim->getProperty_depth() > 0.005 && grasp_size > prim->getProperty_depth()) {
-					grasp_size = prim->getProperty_depth();
-				}*/
+			if (!prim->isEmpty())
+			{
+				switch (find_primitive3_type(prim)) {
+				case Primitive3Type::PRIMITIVE3_SPHERE:
+					grasp_size = 2.0 * prim->getProperty_radius();
+					break;
 
+				case Primitive3Type::PRIMITIVE3_CUBOID:
+					//// Ray casting variant
+					p_center = { prim->getProperty_center_x(), prim->getProperty_center_y(), prim->getProperty_center_z() };
+					e0_axis = { prim->getProperty_e0_x(), prim->getProperty_e0_y(), prim->getProperty_e0_z() };
+					e1_axis = { prim->getProperty_e1_x(), prim->getProperty_e1_y(), prim->getProperty_e1_z() };
+					z_axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
 
-				//// Projection variant (closest normal to cam-axis)
-				/*e0_axis = { prim->getProperty_e0_x(), prim->getProperty_e0_y(), prim->getProperty_e0_z() };
-				e1_axis = { prim->getProperty_e1_x(), prim->getProperty_e1_y(), prim->getProperty_e1_z() };
-				z_axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
-
-				if (projection < std::abs(e0_axis.dot(cam_axis) / (e0_axis.norm() * cam_axis.norm())))
-				{
-					projection = std::abs(e0_axis.dot(cam_axis) / (e0_axis.norm() * cam_axis.norm()));
-					if (e1_axis.norm() >= z_axis.norm()) {
-						grasp_size = 2.0 * z_axis.norm();
+					// Find the closest face among each two pairs of opposing faces and calculate its center
+					if (e0_axis.z() < 0) {
+						p_face_e0 = p_center + e0_axis;
 					}
 					else {
-						grasp_size = 2.0 * e1_axis.norm();
+						p_face_e0 = p_center - e0_axis;
+						e0_axis *= -1;
 					}
-				}
-				if (projection < std::abs(e1_axis.dot(cam_axis) / (e1_axis.norm() * cam_axis.norm())))
-				{
-					projection = std::abs(e1_axis.dot(cam_axis) / (e1_axis.norm() * cam_axis.norm()));
-					if (e0_axis.norm() >= z_axis.norm()) {
-						grasp_size = 2.0 * z_axis.norm();
+					if (e1_axis.z() < 0) {
+						p_face_e1 = p_center + e1_axis;
 					}
 					else {
-						grasp_size = 2.0 * e0_axis.norm();
+						p_face_e1 = p_center - e1_axis;
+						e1_axis *= -1;
 					}
-				}
-				if (projection < std::abs(z_axis.dot(cam_axis) / (z_axis.norm() * cam_axis.norm())))
-				{
-					projection = std::abs(z_axis.dot(cam_axis) / (z_axis.norm() * cam_axis.norm()));
-					if (e0_axis.norm() >= e1_axis.norm()) {
-						grasp_size = 2.0 * e1_axis.norm();
+					if (z_axis.z() < 0) {
+						p_face_ez = p_center + z_axis;
 					}
 					else {
-						grasp_size = 2.0 * e0_axis.norm();
+						p_face_ez = p_center - z_axis;
+						z_axis *= -1;
 					}
-				}*/
 
+					// Find the intersection point of the cam_axis about each plane
+					if (cam_axis.dot(e0_axis / e0_axis.norm()) != 0.0) {
+						d_origin_e0 = p_face_e0.dot(e0_axis / e0_axis.norm()) / cam_axis.dot(e0_axis / e0_axis.norm());
+						p_inters_e0 = cam_axis * d_origin_e0;
+					}
+					if (cam_axis.dot(e1_axis / e1_axis.norm()) != 0.0) {
+						d_origin_e1 = p_face_e1.dot(e1_axis / e1_axis.norm()) / cam_axis.dot(e1_axis / e1_axis.norm());
+						p_inters_e1 = cam_axis * d_origin_e1;
+					}
+					if (cam_axis.dot(z_axis / z_axis.norm()) != 0.0) {
+						d_origin_ez = p_face_ez.dot(z_axis / z_axis.norm()) / cam_axis.dot(z_axis / z_axis.norm());
+						p_inters_ez = cam_axis * d_origin_ez;
+					}
 
-				//// Ray casting variant
-				p_center = { prim->getProperty_center_x(), prim->getProperty_center_y(), prim->getProperty_center_z() };
-				e0_axis = { prim->getProperty_e0_x(), prim->getProperty_e0_y(), prim->getProperty_e0_z() };
-				e1_axis = { prim->getProperty_e1_x(), prim->getProperty_e1_y(), prim->getProperty_e1_z() };
-				z_axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
+					// Calculate the distance to each face center
+					vecon_e0 = p_inters_e0 - p_face_e0;
+					vecon_e1 = p_inters_e1 - p_face_e1;
+					vecon_ez = p_inters_ez - p_face_ez;
 
-				// Find the closest face among each two pairs of opposing faces and calculate its center
-				if (e0_axis.z() < 0) {
-					p_face_e0 = p_center + e0_axis;
-				} else {
-					p_face_e0 = p_center - e0_axis;
-					e0_axis *= -1;
-				}
-				if (e1_axis.z() < 0) {
-					p_face_e1 = p_center + e1_axis;
-				} else {
-					p_face_e1 = p_center - e1_axis;
-					e1_axis *= -1;
-				}
-				if (z_axis.z() < 0) {
-					p_face_ez = p_center + z_axis;
-				} else {
-					p_face_ez = p_center - z_axis;
-					z_axis *= -1;
-				}
-
-				// Find the intersection point of the cam_axis about each plane
-				if (cam_axis.dot(e0_axis/e0_axis.norm()) != 0.0) {
-					d_origin_e0 = p_face_e0.dot(e0_axis/e0_axis.norm()) / cam_axis.dot(e0_axis/e0_axis.norm());
-					p_inters_e0 = cam_axis * d_origin_e0;
-				}
-				if (cam_axis.dot(e1_axis/e1_axis.norm()) != 0.0) {
-					d_origin_e1 = p_face_e1.dot(e1_axis/e1_axis.norm()) / cam_axis.dot(e1_axis/e1_axis.norm());
-					p_inters_e1 = cam_axis * d_origin_e1;
-				}
-				if (cam_axis.dot(z_axis/z_axis.norm()) != 0.0) {
-					d_origin_ez = p_face_ez.dot(z_axis/z_axis.norm()) / cam_axis.dot(z_axis/z_axis.norm());
-					p_inters_ez = cam_axis * d_origin_ez;
-				}
-
-				// Calculate the distance to each face center
-				vecon_e0 = p_inters_e0 - p_face_e0;
-				vecon_e1 = p_inters_e1 - p_face_e1;
-				vecon_ez = p_inters_ez - p_face_ez;
-
-				// Assess the following three conditions
-				// 1. Calculate the projection vector to the 'inters' (intersection) point on each face
-				// // face e0
-				proj_e0_e1 = std::abs(vecon_e0.dot(e1_axis) / e1_axis.norm());
-				proj_e0_ez = std::abs(vecon_e0.dot(z_axis) / z_axis.norm());
-				std::cout << "proj_e0: " << proj_e0_e1 << "(" << e1_axis.norm() << ")" << " " << proj_e0_ez << "(" << z_axis.norm() << ")"<<  std::endl;
-				if (!found && proj_e0_e1 <= e1_axis.norm() && proj_e0_ez <= z_axis.norm()) {
-					if (e1_axis.norm() >= z_axis.norm()) {
-						grasp_size = 2.0 * z_axis.norm();
-					}
-					else {
-						grasp_size = 2.0 * e1_axis.norm();
-					}
-					found = true;
-					prim->setIntersectionPoint(p_inters_e0);
-					prim->setFaceHighlight(0);
-				}
-				else {
-					if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() <= 0) {
-						d_face_e0 = proj_e0_e1 - e1_axis.norm();
-					}
-					else if (proj_e0_ez - z_axis.norm() > 0 && proj_e0_e1 - e1_axis.norm() <= 0) {
-						d_face_e0 = proj_e0_ez - z_axis.norm();
-					}
-					else if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() > 0) {
-						if (proj_e0_e1 - e1_axis.norm() <= proj_e0_ez - z_axis.norm()) {
-							d_face_e0 = proj_e0_e1 - e1_axis.norm();
-						}
-						else {
-							d_face_e0 = proj_e0_ez - z_axis.norm();
-						}
-					}
-				}
-				// // face e1
-				proj_e1_e0 = std::abs(vecon_e1.dot(e0_axis) / e0_axis.norm());
-				proj_e1_ez = std::abs(vecon_e1.dot(z_axis) / z_axis.norm());
-				std::cout << "proj_e1: " << proj_e1_e0 << "(" << e0_axis.norm() << ")" << " " << proj_e1_ez << "(" << z_axis.norm() << ")" << std::endl;
-				if (!found && proj_e1_e0 <= e0_axis.norm() && proj_e1_ez <= z_axis.norm()) {
-					if (e0_axis.norm() >= z_axis.norm()) {
-						grasp_size = 2.0 * z_axis.norm();
-					}
-					else {
-						grasp_size = 2.0 * e0_axis.norm();
-					}
-					found = true;
-					prim->setIntersectionPoint(p_inters_e1);
-					prim->setFaceHighlight(1);
-				}
-				else {
-					if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() <= 0) {
-						d_face_e1 = proj_e1_e0 - e0_axis.norm();
-					}
-					else if (proj_e1_ez - z_axis.norm() > 0 && proj_e1_e0 - e0_axis.norm() <= 0) {
-						d_face_e1 = proj_e1_ez - z_axis.norm();
-					}
-					else if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() > 0) {
-						if (proj_e1_e0 - e0_axis.norm() <= proj_e1_ez - z_axis.norm()) {
-							d_face_e1 = proj_e1_e0 - e0_axis.norm();
-						}
-						else {
-							d_face_e1 = proj_e1_ez - z_axis.norm();
-						}
-					}
-				}
-				// // face ez
-				proj_ez_e0 = std::abs(vecon_ez.dot(e0_axis) / e0_axis.norm());
-				proj_ez_e1 = std::abs(vecon_ez.dot(e1_axis) / e1_axis.norm());
-				std::cout << "proj_ez: " << proj_ez_e0 << "(" << e0_axis.norm() << ")" << " " << proj_ez_e1 << "(" << e1_axis.norm() << ")" << std::endl;
-				if (!found && proj_ez_e0 <= e0_axis.norm() && proj_ez_e1 <= e1_axis.norm()) {
-					if (e0_axis.norm() >= e1_axis.norm()) {
-						grasp_size = 2.0 * e1_axis.norm();
-					}
-					else {
-						grasp_size = 2.0 * e0_axis.norm();
-					}
-					found = true;
-					prim->setIntersectionPoint(p_inters_ez);
-					prim->setFaceHighlight(2);
-				}
-				else {
-					if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() <= 0) {
-						d_face_ez = proj_ez_e0 - e0_axis.norm();
-					}
-					else if (proj_ez_e1 - e1_axis.norm() > 0 && proj_ez_e0 - e0_axis.norm() <= 0) {
-						d_face_ez = proj_ez_e1 - e1_axis.norm();
-					}
-					else if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() > 0) {
-						if (proj_ez_e0 - e0_axis.norm() <= proj_ez_e1 - e1_axis.norm()) {
-							d_face_ez = proj_ez_e0 - e0_axis.norm();
-						}
-						else {
-							d_face_ez = proj_ez_e1 - e1_axis.norm();
-						}
-					}
-				}
-
-				// 2. Select the face based on the shortest distance 'd_face'
-				if (!found)	{
+					// Assess the following three conditions
+					// 1. Calculate the projection vector to the 'inters' (intersection) point on each face
 					// // face e0
-					if (p_inters_e0.z() > 0.1 && d_face_e0 <= d_face_e1 && d_face_e0 <= d_face_ez) {
+					proj_e0_e1 = std::abs(vecon_e0.dot(e1_axis) / e1_axis.norm());
+					proj_e0_ez = std::abs(vecon_e0.dot(z_axis) / z_axis.norm());
+					std::cout << "proj_e0: " << proj_e0_e1 << "(" << e1_axis.norm() << ")" << " " << proj_e0_ez << "(" << z_axis.norm() << ")" << std::endl;
+					if (!found && proj_e0_e1 <= e1_axis.norm() && proj_e0_ez <= z_axis.norm()) {
 						if (e1_axis.norm() >= z_axis.norm()) {
 							grasp_size = 2.0 * z_axis.norm();
 						}
 						else {
 							grasp_size = 2.0 * e1_axis.norm();
 						}
+						found = true;
 						prim->setIntersectionPoint(p_inters_e0);
 						prim->setFaceHighlight(0);
 					}
+					else {
+						if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() <= 0) {
+							d_face_e0 = proj_e0_e1 - e1_axis.norm();
+						}
+						else if (proj_e0_ez - z_axis.norm() > 0 && proj_e0_e1 - e1_axis.norm() <= 0) {
+							d_face_e0 = proj_e0_ez - z_axis.norm();
+						}
+						else if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() > 0) {
+							if (proj_e0_e1 - e1_axis.norm() <= proj_e0_ez - z_axis.norm()) {
+								d_face_e0 = proj_e0_e1 - e1_axis.norm();
+							}
+							else {
+								d_face_e0 = proj_e0_ez - z_axis.norm();
+							}
+						}
+					}
 					// // face e1
-					if (p_inters_e1.z() > 0.1 && d_face_e1 <= d_face_e0 && d_face_e1 <= d_face_ez) {
+					proj_e1_e0 = std::abs(vecon_e1.dot(e0_axis) / e0_axis.norm());
+					proj_e1_ez = std::abs(vecon_e1.dot(z_axis) / z_axis.norm());
+					std::cout << "proj_e1: " << proj_e1_e0 << "(" << e0_axis.norm() << ")" << " " << proj_e1_ez << "(" << z_axis.norm() << ")" << std::endl;
+					if (!found && proj_e1_e0 <= e0_axis.norm() && proj_e1_ez <= z_axis.norm()) {
 						if (e0_axis.norm() >= z_axis.norm()) {
 							grasp_size = 2.0 * z_axis.norm();
 						}
 						else {
 							grasp_size = 2.0 * e0_axis.norm();
 						}
+						found = true;
 						prim->setIntersectionPoint(p_inters_e1);
 						prim->setFaceHighlight(1);
 					}
+					else {
+						if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() <= 0) {
+							d_face_e1 = proj_e1_e0 - e0_axis.norm();
+						}
+						else if (proj_e1_ez - z_axis.norm() > 0 && proj_e1_e0 - e0_axis.norm() <= 0) {
+							d_face_e1 = proj_e1_ez - z_axis.norm();
+						}
+						else if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() > 0) {
+							if (proj_e1_e0 - e0_axis.norm() <= proj_e1_ez - z_axis.norm()) {
+								d_face_e1 = proj_e1_e0 - e0_axis.norm();
+							}
+							else {
+								d_face_e1 = proj_e1_ez - z_axis.norm();
+							}
+						}
+					}
 					// // face ez
-					if (p_inters_ez.z() > 0.1 && d_face_ez <= d_face_e0 && d_face_ez <= d_face_e1) {
+					proj_ez_e0 = std::abs(vecon_ez.dot(e0_axis) / e0_axis.norm());
+					proj_ez_e1 = std::abs(vecon_ez.dot(e1_axis) / e1_axis.norm());
+					std::cout << "proj_ez: " << proj_ez_e0 << "(" << e0_axis.norm() << ")" << " " << proj_ez_e1 << "(" << e1_axis.norm() << ")" << std::endl;
+					if (!found && proj_ez_e0 <= e0_axis.norm() && proj_ez_e1 <= e1_axis.norm()) {
 						if (e0_axis.norm() >= e1_axis.norm()) {
 							grasp_size = 2.0 * e1_axis.norm();
 						}
 						else {
 							grasp_size = 2.0 * e0_axis.norm();
 						}
+						found = true;
 						prim->setIntersectionPoint(p_inters_ez);
 						prim->setFaceHighlight(2);
 					}
-				}
-				break;
+					else {
+						if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() <= 0) {
+							d_face_ez = proj_ez_e0 - e0_axis.norm();
+						}
+						else if (proj_ez_e1 - e1_axis.norm() > 0 && proj_ez_e0 - e0_axis.norm() <= 0) {
+							d_face_ez = proj_ez_e1 - e1_axis.norm();
+						}
+						else if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() > 0) {
+							if (proj_ez_e0 - e0_axis.norm() <= proj_ez_e1 - e1_axis.norm()) {
+								d_face_ez = proj_ez_e0 - e0_axis.norm();
+							}
+							else {
+								d_face_ez = proj_ez_e1 - e1_axis.norm();
+							}
+						}
+					}
 
-			case Primitive3Type::PRIMITIVE3_CYLINDER:
-				grasp_size = 2.0 * prim->getProperty_radius();
-				break;
+					// 2. Select the face based on the shortest distance 'd_face'
+					if (!found) {
+						// // face e0
+						if (p_inters_e0.z() > 0.1 && d_face_e0 <= d_face_e1 && d_face_e0 <= d_face_ez) {
+							if (e1_axis.norm() >= z_axis.norm()) {
+								grasp_size = 2.0 * z_axis.norm();
+							}
+							else {
+								grasp_size = 2.0 * e1_axis.norm();
+							}
+							prim->setIntersectionPoint(p_inters_e0);
+						}
+						// // face e1
+						if (p_inters_e1.z() > 0.1 && d_face_e1 <= d_face_e0 && d_face_e1 <= d_face_ez) {
+							if (e0_axis.norm() >= z_axis.norm()) {
+								grasp_size = 2.0 * z_axis.norm();
+							}
+							else {
+								grasp_size = 2.0 * e0_axis.norm();
+							}
+							prim->setIntersectionPoint(p_inters_e1);
+						}
+						// // face ez
+						if (p_inters_ez.z() > 0.1 && d_face_ez <= d_face_e0 && d_face_ez <= d_face_e1) {
+							if (e0_axis.norm() >= e1_axis.norm()) {
+								grasp_size = 2.0 * e1_axis.norm();
+							}
+							else {
+								grasp_size = 2.0 * e0_axis.norm();
+							}
+							prim->setIntersectionPoint(p_inters_ez);
+						}
+					}
+					break;
+
+				case Primitive3Type::PRIMITIVE3_CYLINDER:
+					grasp_size = 2.0 * prim->getProperty_radius();
+					break;
+				}
 			}
+
 			target_grasp_size_.buffer.push_back(grasp_size);
 			std::cout << "Estimated grasp_size: " << grasp_size;
 
@@ -692,249 +648,227 @@ namespace robin
 			//
 
 			robin::hand::GRASP grasp_type(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)));
-			switch (find_primitive3_type(prim)) {
-			case Primitive3Type::PRIMITIVE3_SPHERE:
-				if (target_grasp_size_.value < grasp_size_threshold) {
-					grasp_type = robin::hand::GRASP::LATERAL;
-				}
-				else {
-					grasp_type = robin::hand::GRASP::PALMAR;
-				}
-				break;
 
-			case Primitive3Type::PRIMITIVE3_CUBOID:
-				//// Projection variant (closest normal to cam-axis)				
-				/*e0_axis = { prim->getProperty_e0_x(), prim->getProperty_e0_y(), prim->getProperty_e0_z() };
-				e1_axis = { prim->getProperty_e1_x(), prim->getProperty_e1_y(), prim->getProperty_e1_z() };
-				z_axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
-
-				if (projection < std::abs(e0_axis.dot(cam_axis) / (e0_axis.norm() * cam_axis.norm())))
-				{
-					projection = std::abs(e0_axis.dot(cam_axis) / (e0_axis.norm() * cam_axis.norm()));
-					if (e1_axis.norm() >= z_axis.norm()) {
-						axis = e1_axis;
-					} else {
-						axis = z_axis;
-					}					
-				}
-				if (projection < std::abs(e1_axis.dot(cam_axis) / (e1_axis.norm() * cam_axis.norm())))
-				{
-					projection = std::abs(e1_axis.dot(cam_axis) / (e1_axis.norm() * cam_axis.norm()));
-					if (e0_axis.norm() >= z_axis.norm()) {
-						axis = e0_axis;
+			if (!prim->isEmpty())
+			{
+				switch (find_primitive3_type(prim)) {
+				case Primitive3Type::PRIMITIVE3_SPHERE:
+					if (target_grasp_size_.value < grasp_size_threshold) {
+						grasp_type = robin::hand::GRASP::LATERAL;
 					}
 					else {
-						axis = z_axis;
+						grasp_type = robin::hand::GRASP::PALMAR;
 					}
-				}
-				if (projection < std::abs(z_axis.dot(cam_axis) / (z_axis.norm() * cam_axis.norm())))
-				{
-					projection = std::abs(z_axis.dot(cam_axis) / (z_axis.norm() * cam_axis.norm()));
-					if (e0_axis.norm() >= e1_axis.norm()) {
-						axis = e0_axis;
+					break;
+
+				case Primitive3Type::PRIMITIVE3_CUBOID:
+					//// Ray casting variant
+					p_center = { prim->getProperty_center_x(), prim->getProperty_center_y(), prim->getProperty_center_z() };
+					e0_axis = { prim->getProperty_e0_x(), prim->getProperty_e0_y(), prim->getProperty_e0_z() };
+					e1_axis = { prim->getProperty_e1_x(), prim->getProperty_e1_y(), prim->getProperty_e1_z() };
+					z_axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
+
+					// Find the closest face among each two pairs of opposing faces and calculate its center
+					if (e0_axis.z() < 0) {
+						p_face_e0 = p_center + e0_axis;
 					}
 					else {
-						axis = e1_axis;
+						p_face_e0 = p_center - e0_axis;
+						e0_axis *= -1;
 					}
-				}*/
+					if (e1_axis.z() < 0) {
+						p_face_e1 = p_center + e1_axis;
+					}
+					else {
+						p_face_e1 = p_center - e1_axis;
+						e1_axis *= -1;
+					}
+					if (z_axis.z() < 0) {
+						p_face_ez = p_center + z_axis;
+					}
+					else {
+						p_face_ez = p_center - z_axis;
+						z_axis *= -1;
+					}
 
+					// Find the intersection point of the cam_axis about each plane
+					if (cam_axis.dot(e0_axis / e0_axis.norm()) != 0.0) {
+						d_origin_e0 = p_face_e0.dot(e0_axis / e0_axis.norm()) / cam_axis.dot(e0_axis / e0_axis.norm());
+						p_inters_e0 = cam_axis * d_origin_e0;
+					}
+					if (cam_axis.dot(e1_axis / e1_axis.norm()) != 0.0) {
+						d_origin_e1 = p_face_e1.dot(e1_axis / e1_axis.norm()) / cam_axis.dot(e1_axis / e1_axis.norm());
+						p_inters_e1 = cam_axis * d_origin_e1;
+					}
+					if (cam_axis.dot(z_axis / z_axis.norm()) != 0.0) {
+						d_origin_ez = p_face_ez.dot(z_axis / z_axis.norm()) / cam_axis.dot(z_axis / z_axis.norm());
+						p_inters_ez = cam_axis * d_origin_ez;
+					}
 
-				//// Ray casting variant
-				p_center = { prim->getProperty_center_x(), prim->getProperty_center_y(), prim->getProperty_center_z() };
-				e0_axis = { prim->getProperty_e0_x(), prim->getProperty_e0_y(), prim->getProperty_e0_z() };
-				e1_axis = { prim->getProperty_e1_x(), prim->getProperty_e1_y(), prim->getProperty_e1_z() };
-				z_axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
+					// Calculate the distance to each face center
+					vecon_e0 = p_inters_e0 - p_face_e0;
+					vecon_e1 = p_inters_e1 - p_face_e1;
+					vecon_ez = p_inters_ez - p_face_ez;
 
-				// Find the closest face among each two pairs of opposing faces and calculate its center
-				if (e0_axis.z() < 0) {
-					p_face_e0 = p_center + e0_axis;
-				}
-				else {
-					p_face_e0 = p_center - e0_axis;
-					e0_axis *= -1;
-				}
-				if (e1_axis.z() < 0) {
-					p_face_e1 = p_center + e1_axis;
-				}
-				else {
-					p_face_e1 = p_center - e1_axis;
-					e1_axis *= -1;
-				}
-				if (z_axis.z() < 0) {
-					p_face_ez = p_center + z_axis;
-				}
-				else {
-					p_face_ez = p_center - z_axis;
-					z_axis *= -1;
-				}
-
-				// Find the intersection point of the cam_axis about each plane
-				if (cam_axis.dot(e0_axis / e0_axis.norm()) != 0.0) {
-					d_origin_e0 = p_face_e0.dot(e0_axis / e0_axis.norm()) / cam_axis.dot(e0_axis / e0_axis.norm());
-					p_inters_e0 = cam_axis * d_origin_e0;
-				}
-				if (cam_axis.dot(e1_axis / e1_axis.norm()) != 0.0) {
-					d_origin_e1 = p_face_e1.dot(e1_axis / e1_axis.norm()) / cam_axis.dot(e1_axis / e1_axis.norm());
-					p_inters_e1 = cam_axis * d_origin_e1;
-				}
-				if (cam_axis.dot(z_axis / z_axis.norm()) != 0.0) {
-					d_origin_ez = p_face_ez.dot(z_axis / z_axis.norm()) / cam_axis.dot(z_axis / z_axis.norm());
-					p_inters_ez = cam_axis * d_origin_ez;
-				}
-
-				// Calculate the distance to each face center
-				vecon_e0 = p_inters_e0 - p_face_e0;
-				vecon_e1 = p_inters_e1 - p_face_e1;
-				vecon_ez = p_inters_ez - p_face_ez;
-
-				// Assess the following three conditions
-				// 1. Calculate the projection vector to the 'inters' (intersection) point on each face
-				// // face e0
-				proj_e0_e1 = std::abs(vecon_e0.dot(e1_axis) / e1_axis.norm());
-				proj_e0_ez = std::abs(vecon_e0.dot(z_axis) / z_axis.norm());
-				std::cout << "proj_e0: " << proj_e0_e1 << "(" << e1_axis.norm() << ")" << " " << proj_e0_ez << "(" << z_axis.norm() << ")" << std::endl;
-				if (!found && proj_e0_e1 <= e1_axis.norm() && proj_e0_ez <= z_axis.norm()) {
-					if (e1_axis.norm() >= z_axis.norm()) {
-						axis = e1_axis;
-					} else {
-						axis = z_axis;
-					}
-					found = true;
-				}
-				else {
-					if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() <= 0) {
-						d_face_e0 = proj_e0_e1 - e1_axis.norm();
-					}
-					else if (proj_e0_ez - z_axis.norm() > 0 && proj_e0_e1 - e1_axis.norm() <= 0) {
-						d_face_e0 = proj_e0_ez - z_axis.norm();
-					}
-					else if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() > 0) {
-						if (proj_e0_e1 - e1_axis.norm() <= proj_e0_ez - z_axis.norm()) {
-							d_face_e0 = proj_e0_e1 - e1_axis.norm();
-						}
-						else {
-							d_face_e0 = proj_e0_ez - z_axis.norm();
-						}
-					}
-				}
-				// // face e1
-				proj_e1_e0 = std::abs(vecon_e1.dot(e0_axis) / e0_axis.norm());
-				proj_e1_ez = std::abs(vecon_e1.dot(z_axis) / z_axis.norm());
-				std::cout << "proj_e1: " << proj_e1_e0 << "(" << e0_axis.norm() << ")" << " " << proj_e1_ez << "(" << z_axis.norm() << ")" << std::endl;
-				if (!found && proj_e1_e0 <= e0_axis.norm() && proj_e1_ez <= z_axis.norm()) {
-					if (e0_axis.norm() >= z_axis.norm()) {
-						axis = e0_axis;
-					} else {
-						axis = z_axis;
-					}
-					found = true;
-				}
-				else {
-					if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() <= 0) {
-						d_face_e1 = proj_e1_e0 - e0_axis.norm();
-					}
-					else if (proj_e1_ez - z_axis.norm() > 0 && proj_e1_e0 - e0_axis.norm() <= 0) {
-						d_face_e1 = proj_e1_ez - z_axis.norm();
-					}
-					else if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() > 0) {
-						if (proj_e1_e0 - e0_axis.norm() <= proj_e1_ez - z_axis.norm()) {
-							d_face_e1 = proj_e1_e0 - e0_axis.norm();
-						}
-						else {
-							d_face_e1 = proj_e1_ez - z_axis.norm();
-						}
-					}
-				}
-				// // face ez
-				proj_ez_e0 = std::abs(vecon_ez.dot(e0_axis) / e0_axis.norm());
-				proj_ez_e1 = std::abs(vecon_ez.dot(e1_axis) / e1_axis.norm());
-				std::cout << "proj_ez: " << proj_ez_e0 << "(" << e0_axis.norm() << ")" << " " << proj_ez_e1 << "(" << e1_axis.norm() << ")" << std::endl;
-				if (!found && proj_ez_e0 <= e0_axis.norm() && proj_ez_e1 <= e1_axis.norm()) {
-					if (e0_axis.norm() >= e1_axis.norm()) {
-						axis = e0_axis;
-					} else {
-						axis = e1_axis;
-					}
-					found = true;
-				}
-				else {
-					if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() <= 0) {
-						d_face_ez = proj_ez_e0 - e0_axis.norm();
-					}
-					else if (proj_ez_e1 - e1_axis.norm() > 0 && proj_ez_e0 - e0_axis.norm() <= 0) {
-						d_face_ez = proj_ez_e1 - e1_axis.norm();
-					}
-					else if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() > 0) {
-						if (proj_ez_e0 - e0_axis.norm() <= proj_ez_e1 - e1_axis.norm()) {
-							d_face_ez = proj_ez_e0 - e0_axis.norm();
-						}
-						else {
-							d_face_ez = proj_ez_e1 - e1_axis.norm();
-						}
-					}
-				}
-
-				// 2. Select the face based on the shortest distance 'd_face'
-				if (!found) {
+					// Assess the following three conditions
+					// 1. Calculate the projection vector to the 'inters' (intersection) point on each face
 					// // face e0
-					if (p_inters_e0.z() > 0.1 && d_face_e0 <= d_face_e1 && d_face_e0 <= d_face_ez) {
+					proj_e0_e1 = std::abs(vecon_e0.dot(e1_axis) / e1_axis.norm());
+					proj_e0_ez = std::abs(vecon_e0.dot(z_axis) / z_axis.norm());
+					std::cout << "proj_e0: " << proj_e0_e1 << "(" << e1_axis.norm() << ")" << " " << proj_e0_ez << "(" << z_axis.norm() << ")" << std::endl;
+					if (!found && proj_e0_e1 <= e1_axis.norm() && proj_e0_ez <= z_axis.norm()) {
 						if (e1_axis.norm() >= z_axis.norm()) {
 							axis = e1_axis;
-						} else {
+						}
+						else {
 							axis = z_axis;
+						}
+						found = true;
+					}
+					else {
+						if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() <= 0) {
+							d_face_e0 = proj_e0_e1 - e1_axis.norm();
+						}
+						else if (proj_e0_ez - z_axis.norm() > 0 && proj_e0_e1 - e1_axis.norm() <= 0) {
+							d_face_e0 = proj_e0_ez - z_axis.norm();
+						}
+						else if (proj_e0_e1 - e1_axis.norm() > 0 && proj_e0_ez - z_axis.norm() > 0) {
+							if (proj_e0_e1 - e1_axis.norm() <= proj_e0_ez - z_axis.norm()) {
+								d_face_e0 = proj_e0_e1 - e1_axis.norm();
+							}
+							else {
+								d_face_e0 = proj_e0_ez - z_axis.norm();
+							}
 						}
 					}
 					// // face e1
-					if (p_inters_e1.z() > 0.1 && d_face_e1 <= d_face_e0 && d_face_e1 <= d_face_ez) {
+					proj_e1_e0 = std::abs(vecon_e1.dot(e0_axis) / e0_axis.norm());
+					proj_e1_ez = std::abs(vecon_e1.dot(z_axis) / z_axis.norm());
+					std::cout << "proj_e1: " << proj_e1_e0 << "(" << e0_axis.norm() << ")" << " " << proj_e1_ez << "(" << z_axis.norm() << ")" << std::endl;
+					if (!found && proj_e1_e0 <= e0_axis.norm() && proj_e1_ez <= z_axis.norm()) {
 						if (e0_axis.norm() >= z_axis.norm()) {
 							axis = e0_axis;
-						} else {
+						}
+						else {
 							axis = z_axis;
+						}
+						found = true;
+					}
+					else {
+						if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() <= 0) {
+							d_face_e1 = proj_e1_e0 - e0_axis.norm();
+						}
+						else if (proj_e1_ez - z_axis.norm() > 0 && proj_e1_e0 - e0_axis.norm() <= 0) {
+							d_face_e1 = proj_e1_ez - z_axis.norm();
+						}
+						else if (proj_e1_e0 - e0_axis.norm() > 0 && proj_e1_ez - z_axis.norm() > 0) {
+							if (proj_e1_e0 - e0_axis.norm() <= proj_e1_ez - z_axis.norm()) {
+								d_face_e1 = proj_e1_e0 - e0_axis.norm();
+							}
+							else {
+								d_face_e1 = proj_e1_ez - z_axis.norm();
+							}
 						}
 					}
 					// // face ez
-					if (p_inters_ez.z() > 0.1 && d_face_ez <= d_face_e0 && d_face_ez <= d_face_e1) {
+					proj_ez_e0 = std::abs(vecon_ez.dot(e0_axis) / e0_axis.norm());
+					proj_ez_e1 = std::abs(vecon_ez.dot(e1_axis) / e1_axis.norm());
+					std::cout << "proj_ez: " << proj_ez_e0 << "(" << e0_axis.norm() << ")" << " " << proj_ez_e1 << "(" << e1_axis.norm() << ")" << std::endl;
+					if (!found && proj_ez_e0 <= e0_axis.norm() && proj_ez_e1 <= e1_axis.norm()) {
 						if (e0_axis.norm() >= e1_axis.norm()) {
 							axis = e0_axis;
-						} else {
+						}
+						else {
 							axis = e1_axis;
 						}
+						found = true;
 					}
-				}
+					else {
+						if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() <= 0) {
+							d_face_ez = proj_ez_e0 - e0_axis.norm();
+						}
+						else if (proj_ez_e1 - e1_axis.norm() > 0 && proj_ez_e0 - e0_axis.norm() <= 0) {
+							d_face_ez = proj_ez_e1 - e1_axis.norm();
+						}
+						else if (proj_ez_e0 - e0_axis.norm() > 0 && proj_ez_e1 - e1_axis.norm() > 0) {
+							if (proj_ez_e0 - e0_axis.norm() <= proj_ez_e1 - e1_axis.norm()) {
+								d_face_ez = proj_ez_e0 - e0_axis.norm();
+							}
+							else {
+								d_face_ez = proj_ez_e1 - e1_axis.norm();
+							}
+						}
+					}
 
-				//// Choose the appropriate grasp_type
-				if (2.0 * axis.norm() < length_threshold) {
-					if (target_grasp_size_.value < grasp_size_threshold) {
-						grasp_type = robin::hand::GRASP::LATERAL;
+					// 2. Select the face based on the shortest distance 'd_face'
+					if (!found) {
+						// // face e0
+						if (p_inters_e0.z() > 0.1 && d_face_e0 <= d_face_e1 && d_face_e0 <= d_face_ez) {
+							if (e1_axis.norm() >= z_axis.norm()) {
+								axis = e1_axis;
+							}
+							else {
+								axis = z_axis;
+							}
+						}
+						// // face e1
+						if (p_inters_e1.z() > 0.1 && d_face_e1 <= d_face_e0 && d_face_e1 <= d_face_ez) {
+							if (e0_axis.norm() >= z_axis.norm()) {
+								axis = e0_axis;
+							}
+							else {
+								axis = z_axis;
+							}
+						}
+						// // face ez
+						if (p_inters_ez.z() > 0.1 && d_face_ez <= d_face_e0 && d_face_ez <= d_face_e1) {
+							if (e0_axis.norm() >= e1_axis.norm()) {
+								axis = e0_axis;
+							}
+							else {
+								axis = e1_axis;
+							}
+						}
+					}
+
+					//// Choose the appropriate grasp_type
+					if (2.0 * axis.norm() < length_threshold) {
+						if (target_grasp_size_.value < grasp_size_threshold) {
+							grasp_type = robin::hand::GRASP::LATERAL;
+						}
+						else {
+							grasp_type = robin::hand::GRASP::PALMAR;
+						}
 					}
 					else {
 						grasp_type = robin::hand::GRASP::PALMAR;
 					}
-				}
-				else {
-					grasp_type = robin::hand::GRASP::PALMAR;
-				}
-				break;
+					break;
 
-			case Primitive3Type::PRIMITIVE3_CYLINDER:
-				axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
-				if (2.0 * axis.norm() < length_threshold) {
-					if (target_grasp_size_.value < grasp_size_threshold) {
-						grasp_type = robin::hand::GRASP::LATERAL;
-					}else {
-						/* float projection = std::abs( axis.dot(cam_axis)/(axis.norm()*cam_axis.norm()) );
-						if (projection < projection_threshold) {
+				case Primitive3Type::PRIMITIVE3_CYLINDER:
+					axis = { prim->getProperty_axis_x(), prim->getProperty_axis_y(), prim->getProperty_axis_z() };
+					if (2.0 * axis.norm() < length_threshold) {
+						if (target_grasp_size_.value < grasp_size_threshold) {
 							grasp_type = robin::hand::GRASP::LATERAL;
-						} else {
+						}
+						else {
+							/* float projection = std::abs( axis.dot(cam_axis)/(axis.norm()*cam_axis.norm()) );
+							if (projection < projection_threshold) {
+								grasp_type = robin::hand::GRASP::LATERAL;
+							} else {
+								grasp_type = robin::hand::GRASP::PALMAR;
+							} */
 							grasp_type = robin::hand::GRASP::PALMAR;
-						} */
+						}
+					}
+					else {
 						grasp_type = robin::hand::GRASP::PALMAR;
 					}
-				} else {
-					grasp_type = robin::hand::GRASP::PALMAR;
+					break;
 				}
-				break;
 			}
+
+
 			target_grasp_type_.buffer.push_back(int(grasp_type));						
 			std::cout << "Estimated grasp_type: ";
 			switch (int(grasp_type)) {
@@ -963,54 +897,57 @@ namespace robin
 		{						
 			// Tilt angle calculated as an absolute supination angle, i.e. measured from the full pronated wrist position.
 			float tilt_angle(hand_supination_angle_.value); // Hand stays as it is.
-			std::cout << ">>>>>>>> HAND_SUP_ANGLE: " << hand_supination_angle_.value << std::endl;
 
-			Primitive3Type prim3_type = find_primitive3_type(prim);
-			if (prim3_type == Primitive3Type::PRIMITIVE3_SPHERE)
+			if (!prim->isEmpty())
 			{
-				tilt_angle = 0.0; // Palm facing down.
-			}
-			else if (prim3_type == Primitive3Type::PRIMITIVE3_CUBOID || prim3_type == Primitive3Type::PRIMITIVE3_CYLINDER)
-			{
-				// Angle of the projection of the Primitive3 axis into the xOy plane of the camera [-Pi,+Pi].
-				float projected_angle(std::atan2(prim->getProperty_axis_y(), prim->getProperty_axis_x()));
-
-				// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
-				if (hand_->isRightHand()) {
-					// Right-hand prosthesis (positive angle)
-					if (hand_supination_angle_.value + projected_angle < 0) { projected_angle += M_PI; }
-					else if (hand_supination_angle_.value + projected_angle > M_PI) { projected_angle -= M_PI; }
-				}
-				else {
-					// Left-hand prosthesis (negative angle)
-					if (hand_supination_angle_.value + projected_angle > 0) { projected_angle -= M_PI; }
-					else if (hand_supination_angle_.value + projected_angle < -M_PI) { projected_angle += M_PI; }
-				}
-
-				// Current absolute tilt angle of the Primitive3
-				tilt_angle = hand_supination_angle_.value + projected_angle;
-
-				// Shifting the tilt angle of the Primitive3
-				switch (int(target_grasp_type_.value))
+				Primitive3Type prim3_type = find_primitive3_type(prim);
+				if (prim3_type == Primitive3Type::PRIMITIVE3_SPHERE)
 				{
-				case int(robin::hand::GRASP::PALMAR):
-					// Do nothing else.
-					break;
-				case int(robin::hand::GRASP::LATERAL):
-					// The tilt angle shall be shifted by Pi/2 or -Pi/2.
+					tilt_angle = 0.0; // Palm facing down.
+				}
+				else if (prim3_type == Primitive3Type::PRIMITIVE3_CUBOID || prim3_type == Primitive3Type::PRIMITIVE3_CYLINDER)
+				{
+					// Angle of the projection of the Primitive3 axis into the xOy plane of the camera [-Pi,+Pi].
+					float projected_angle(std::atan2(prim->getProperty_axis_y(), prim->getProperty_axis_x()));
+
+					// Correction of the projection angle w.r.t. the hand-side (axis may have been fliped or not)
 					if (hand_->isRightHand()) {
 						// Right-hand prosthesis (positive angle)
-						if (tilt_angle <= M_PI/4) { tilt_angle -= M_PI/2; }
-						else { tilt_angle += M_PI / 2; }
+						if (hand_supination_angle_.value + projected_angle < 0) { projected_angle += M_PI; }
+						else if (hand_supination_angle_.value + projected_angle > M_PI) { projected_angle -= M_PI; }
 					}
 					else {
 						// Left-hand prosthesis (negative angle)
-						if (tilt_angle <= -M_PI/4) { tilt_angle += M_PI/2; }
-						else { tilt_angle -= M_PI/2; }
+						if (hand_supination_angle_.value + projected_angle > 0) { projected_angle -= M_PI; }
+						else if (hand_supination_angle_.value + projected_angle < -M_PI) { projected_angle += M_PI; }
 					}
-					break;
+
+					// Current absolute tilt angle of the Primitive3
+					tilt_angle = hand_supination_angle_.value + projected_angle;
+
+					// Shifting the tilt angle of the Primitive3
+					switch (int(target_grasp_type_.value))
+					{
+						case int(robin::hand::GRASP::PALMAR) :
+							// Do nothing else.
+							break;
+							case int(robin::hand::GRASP::LATERAL) :
+								// The tilt angle shall be shifted by Pi/2 or -Pi/2.
+								if (hand_->isRightHand()) {
+									// Right-hand prosthesis (positive angle)
+									if (tilt_angle <= M_PI / 4) { tilt_angle -= M_PI / 2; }
+									else { tilt_angle += M_PI / 2; }
+								}
+								else {
+									// Left-hand prosthesis (negative angle)
+									if (tilt_angle <= -M_PI / 4) { tilt_angle += M_PI / 2; }
+									else { tilt_angle -= M_PI / 2; }
+								}
+							break;
+					}
 				}
 			}
+
 			target_tilt_angle_.buffer.push_back(tilt_angle);
 			std::cout << "Estimated tilt_angle: " << tilt_angle;
 

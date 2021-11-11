@@ -23,6 +23,9 @@ namespace robin
 
 		// Initialization of intersection point
 		inters_point_ = Eigen::Vector3f(0.0, 0.0, -1000.0); // Out of view
+		//inters_point_ = Eigen::Vector3f(0.0, 0.0, 0.0);
+
+		isempty_ = true;
 	}
 	Primitive3Cuboid::~Primitive3Cuboid() {}
 
@@ -439,6 +442,8 @@ namespace robin
 		coefficients_->values[7] = 0.000;
 		coefficients_->values[8] = 0.000;
 		coefficients_->values[9] = 0.000;
+
+		isempty_ = true;
 	}
 
 	void Primitive3Cuboid::setCoefficients(std::vector<float> v)
@@ -454,6 +459,8 @@ namespace robin
 			coefficients_->values[7] = v[7];
 			coefficients_->values[8] = v[8];
 			coefficients_->values[9] = v[9];
+
+			isempty_ = false;
 		}
 	}
 
@@ -552,8 +559,9 @@ namespace robin
 	bool Primitive3Cuboid::is_fit_valid()
 	{
 		/* Checks if all planes are valid. */
-		if (planes_.size() > 0) {
-			return true;
+		if (!(planes_.size() > 0)) {
+			this->reset();
+			return false;
 		}
 
 		/* Checks if the cut sub-primitives are valid. */
@@ -562,17 +570,15 @@ namespace robin
 			for (auto arr : subprims_) {
 				for (auto sp : arr) {
 					if (sp->getPointCloud()->empty()) {
-						valid_subprims = false;
-						break;
+						this->reset();
+						return false;
 					}
 				}
-				if (!valid_subprims) { break; }
 			}
-			if (valid_subprims) { return true; }
 		}
 
-		this->reset();
-		return false;
+		isempty_ = false;
+		return true;
 	}
 
 
