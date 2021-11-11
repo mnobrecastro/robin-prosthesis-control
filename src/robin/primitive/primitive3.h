@@ -29,6 +29,8 @@ namespace robin
 
 		Primitive3(const Primitive3& prim);
 
+		bool isEmpty() { return isempty_; }
+
 		float getProperty_center_x() { return properties_.center_x; }
 		float getProperty_center_y() { return properties_.center_y; }
 		float getProperty_center_z() { return properties_.center_z; }
@@ -95,6 +97,7 @@ namespace robin
 
 		pcl::ModelCoefficients::Ptr coefficients_;
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
+		bool isempty_ = true;
 
 		//pcl::ModelCoefficients::Ptr getCoefficients() const;
 				

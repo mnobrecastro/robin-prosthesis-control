@@ -16,7 +16,6 @@ namespace robin
 		coefficients_->values.push_back(0.0); //4
 		coefficients_->values.push_back(0.0); //5
 		coefficients_->values.push_back(0.0); //6
-
 	}
 	Primitive3Cylinder::~Primitive3Cylinder() {}
 	
@@ -35,19 +34,33 @@ namespace robin
 		coefficients_->values[4] = 0.000;
 		coefficients_->values[5] = 0.000;
 		coefficients_->values[6] = 0.001;
+
+		isempty_ = true;
 	}
 
 	void Primitive3Cylinder::setCoefficients(std::vector<float> v)
 	{
 		if (v.size() == 7) {
-			coefficients_->values[0] = v[0];
-			coefficients_->values[1] = v[1];
-			coefficients_->values[2] = v[2];
-			coefficients_->values[3] = v[3];
-			coefficients_->values[4] = v[4];
-			coefficients_->values[5] = v[5];
-			coefficients_->values[6] = v[6];
+			if (std::sqrt(
+				coefficients_->values[3] * coefficients_->values[3] +
+				coefficients_->values[4] * coefficients_->values[4] +
+				coefficients_->values[5] * coefficients_->values[5]) > 0 &&
+				coefficients_->values[6] > 0) {
+				coefficients_->values[0] = v[0];
+				coefficients_->values[1] = v[1];
+				coefficients_->values[2] = v[2];
+				coefficients_->values[3] = v[3];
+				coefficients_->values[4] = v[4];
+				coefficients_->values[5] = v[5];
+				coefficients_->values[6] = v[6];
+
+				isempty_ = false;
+			}
+			else
+				std::cerr << "ERROR: The set of coefficients is not valid." << std::endl;
 		}
+		else
+			std::cerr << "ERROR: The set of coefficients is not valid." << std::endl;
 	}
 
 
@@ -64,7 +77,7 @@ namespace robin
 		/* 1. Validate the fit. */
 		if (this->is_fit_valid()) {
 			/* 2. Correct model coeffficients. */
-			this->correct_coefficients();			
+			this->correct_coefficients();		
 		}
 		/* 3. Update object properties. */
 		this->update_properties();
@@ -112,10 +125,15 @@ namespace robin
 			/* x_min, x_max, y_min, y_max, z_min, z_max. */
 			std::array<float, 6> ranges(getPointCloudRanges(*cloud_));
 			/* Checks the z-coordinate of the Primitive3Cylinder center. */
-			if (coefficients_->values[2] > ranges[4]) {
-				return true;
+			if (!(coefficients_->values[2] > ranges[4])) {
+				this->reset();
+				return false;
 			}
+		} else {
+			this->reset();
+			return false;
 		}
+
 
 		/* Checks if the cut sub-primitives are valid. */
 		bool valid_subprims(true);
@@ -123,17 +141,26 @@ namespace robin
 			for (auto arr : subprims_) {
 				for (auto sp : arr) {
 					if (sp->getPointCloud()->empty()) {
-						valid_subprims = false;
-						break;
+						this->reset();
+						return false;
 					}
-				}
-				if (!valid_subprims) { break; }
+				}				
 			}
-			if (valid_subprims) { return true; }
 		}
 
-		this->reset();
-		return false;
+		/* Checks if the components of the direction vector and the radius are valid. */
+		if (!(std::sqrt(
+			coefficients_->values[3] * coefficients_->values[3] +
+			coefficients_->values[4] * coefficients_->values[4] +
+			coefficients_->values[5] * coefficients_->values[5]) > 0 &&
+			coefficients_->values[6] > 0))
+		{
+			this->reset();
+			return false;
+		}
+
+		isempty_ = false;
+		return true;
 	}
 
 	/* Correct the obtained coefficients if necessary. */
@@ -795,7 +822,6 @@ namespace robin
 			coefficients_->values[4] = dir.y(); //axis_y
 			coefficients_->values[5] = dir.z(); //axis_z
 			coefficients_->values[6] = radius; //radius
-
 			std::cout << *coefficients_ << std::endl;
 		}
 

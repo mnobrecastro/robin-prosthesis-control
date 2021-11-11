@@ -13,6 +13,8 @@ namespace robin
 		coefficients_->values.push_back(0.0); //1
 		coefficients_->values.push_back(0.0); //2
 		coefficients_->values.push_back(0.0); //3
+
+		isempty_ = true;
 	}
 	Primitive3Sphere::~Primitive3Sphere() {}
 
@@ -28,6 +30,8 @@ namespace robin
 		coefficients_->values[1] = -0.001;
 		coefficients_->values[2] = -0.001;
 		coefficients_->values[3] = 0.001;
+
+		isempty_ = true;
 	}
 
 	void Primitive3Sphere::setCoefficients(std::vector<float> v)
@@ -37,6 +41,8 @@ namespace robin
 			coefficients_->values[1] = v[1];
 			coefficients_->values[2] = v[2];
 			coefficients_->values[3] = v[3];
+
+			isempty_ = false;
 		}
 	}
 
@@ -85,11 +91,17 @@ namespace robin
 		if (!cloud_->points.empty()) {
 			/* x_min, x_max, y_min, y_max, z_min, z_max. */
 			std::array<float, 6> ranges(getPointCloudRanges(*cloud_));
-			/* Checks the z-coordinate of the Primitive3Sphere center. */
-			if (coefficients_->values[2] > ranges[4]) {
-				return true;
+			/* Checks the z-coordinate of the Primitive3Cylinder center. */
+			if (!(coefficients_->values[2] > ranges[4])) {
+				this->reset();
+				return false;
 			}
 		}
+		else {
+			this->reset();
+			return false;
+		}
+
 
 		/* Checks if the cut sub-primitives are valid. */
 		bool valid_subprims(true);
@@ -97,17 +109,15 @@ namespace robin
 			for (auto arr : subprims_) {
 				for (auto sp : arr) {
 					if (sp->getPointCloud()->empty()) {
-						valid_subprims = false;
-						break;
+						this->reset();
+						return false;
 					}
 				}
-				if (!valid_subprims) { break; }
 			}
-			if (valid_subprims) { return true; }
 		}
 
-		this->reset();
-		return false;
+		isempty_ = false;
+		return true;
 	}
 
 	/* Correct the obtained coefficients if necessary. */
