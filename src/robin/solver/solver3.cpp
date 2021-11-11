@@ -89,7 +89,7 @@ namespace robin
 
 	void Solver3::crop()
 	{
-		if (filterOnOff_) {
+		if (filterOnOff_ && cloud_->points.size() > 0) {
 			std::time_t t0, tf;
 			t0 = std::time(0);
 
@@ -122,7 +122,7 @@ namespace robin
 
 	void Solver3::downsample()
 	{
-		if (downsampleOnOff_) {
+		if (downsampleOnOff_ && cloud_->points.size() > 0) {
 			std::time_t t0, tf;
 			t0 = std::time(0);
 
@@ -148,7 +148,7 @@ namespace robin
 
 	void Solver3::resample()
 	{
-		if (resampleOnOff_) {
+		if (resampleOnOff_ && cloud_->points.size() > 0) {
 			std::time_t t0, tf;
 			t0 = std::time(0);
 
