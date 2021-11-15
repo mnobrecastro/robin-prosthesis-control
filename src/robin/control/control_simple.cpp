@@ -431,7 +431,8 @@ namespace robin
 			bool found(false);
 			//
 
-			float grasp_size(10.0);
+			//float grasp_size(10.0);
+			float grasp_size(target_grasp_size_.value);
 
 			if (!prim->isEmpty())
 			{
@@ -851,13 +852,7 @@ namespace robin
 						if (target_grasp_size_.value < grasp_size_threshold) {
 							grasp_type = robin::hand::GRASP::LATERAL;
 						}
-						else {
-							/* float projection = std::abs( axis.dot(cam_axis)/(axis.norm()*cam_axis.norm()) );
-							if (projection < projection_threshold) {
-								grasp_type = robin::hand::GRASP::LATERAL;
-							} else {
-								grasp_type = robin::hand::GRASP::PALMAR;
-							} */
+						else {							
 							grasp_type = robin::hand::GRASP::PALMAR;
 						}
 					}
@@ -881,7 +876,6 @@ namespace robin
 			}
 
 			target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
-			//target_grasp_size_.update(robin::control::ControlVar::fname::MODE, window_size_);
 			std::cout << " with majvote: ";
 			switch (int(target_grasp_type_.value)) {
 			case int(robin::hand::GRASP::PALMAR) :
@@ -896,7 +890,7 @@ namespace robin
 		void ControlSimple::estimate_tilt_angle(robin::Primitive3* prim)
 		{						
 			// Tilt angle calculated as an absolute supination angle, i.e. measured from the full pronated wrist position.
-			float tilt_angle(hand_supination_angle_.value); // Hand stays as it is.
+			float tilt_angle(target_tilt_angle_.value);
 
 			if (!prim->isEmpty())
 			{
@@ -931,19 +925,19 @@ namespace robin
 						case int(robin::hand::GRASP::PALMAR) :
 							// Do nothing else.
 							break;
-							case int(robin::hand::GRASP::LATERAL) :
-								// The tilt angle shall be shifted by Pi/2 or -Pi/2.
-								if (hand_->isRightHand()) {
-									// Right-hand prosthesis (positive angle)
-									if (tilt_angle <= M_PI / 4) { tilt_angle -= M_PI / 2; }
-									else { tilt_angle += M_PI / 2; }
-								}
-								else {
-									// Left-hand prosthesis (negative angle)
-									if (tilt_angle <= -M_PI / 4) { tilt_angle += M_PI / 2; }
-									else { tilt_angle -= M_PI / 2; }
-								}
-							break;
+						case int(robin::hand::GRASP::LATERAL) :
+							// The tilt angle shall be shifted by Pi/2 or -Pi/2.
+							if (hand_->isRightHand()) {
+								// Right-hand prosthesis (positive angle)
+								if (tilt_angle <= M_PI / 4) { tilt_angle += M_PI / 2; }
+								else { tilt_angle -= M_PI / 2; }
+							}
+							else {
+								// Left-hand prosthesis (negative angle)
+								if (tilt_angle <= -M_PI / 4) { tilt_angle += M_PI / 2; }
+								else { tilt_angle -= M_PI / 2; }
+							}
+						break;
 					}
 				}
 			}
