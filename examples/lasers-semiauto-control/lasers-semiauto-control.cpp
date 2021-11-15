@@ -1,21 +1,21 @@
 //#define MULTITHREADING
 //#define GNUPLOT
 
-#include "robin/utils/data_manager.h"
-#include "robin/sensor/hand_michelangelo.h"
-#include "robin/control/control_simple.h"
-#include "robin/solver/solver3.h"
-#include "robin/solver/solver3_lccp.h"
-#include "robin/solver/solver3_lasers.h"
-#include "robin/sensor/realsense_d400.h"
-#include "robin/sensor/royale_picoflexx.h"
-#include "robin/sensor/laser_scanner.h"
-#include "robin/sensor/laser_array.h"
-#include "robin/primitive/primitive3_sphere.h"
-#include "robin/primitive/primitive3_cylinder.h"
-#include "robin/primitive/primitive3_cuboid.h"
-#include "robin/primitive/primitive3_line.h"
-#include "robin/primitive/primitive3_circle.h"
+#include <robin/utils/data_manager.h>
+#include <robin/sensor/hand_michelangelo.h>
+#include <robin/control/control_simple.h>
+#include <robin/solver/solver3.h>
+#include <robin/solver/solver3_lccp.h>
+#include <robin/solver/solver3_lasers.h>
+#include <robin/sensor/realsense_d400.h>
+//#include <robin/sensor/royale_picoflexx.h>
+#include <robin/sensor/laser_scanner.h>
+#include <robin/sensor/laser_array.h>
+#include <robin/primitive/primitive3_sphere.h>
+#include <robin/primitive/primitive3_cylinder.h>
+#include <robin/primitive/primitive3_cuboid.h>
+#include <robin/primitive/primitive3_line.h>
+#include <robin/primitive/primitive3_circle.h>
 
 #include <chrono>
 #include <thread>
@@ -30,35 +30,12 @@ int main(int argc, char** argv)
 	robin::data::DataManager mydm;
 	// ---
 	
-	Beep(523, 100); // 523 hertz (C5) for 500 milliseconds
-	//ascending pitch beep
-	/*for (int i = 0; i < 3000; i += 10) {
-		Beep(i, 100);
-	}*/
-	//descending pitch beep
-	/*for (int i = 3000; i > 0; i -= 10) {
-		Beep(i, 100);
-	}*/
-	
-	// Create a hand
-	//robin::hand::HandUDP myhand(false, "127.0.0.1", 8052, 8051);
-	//system("C:\\Users\\MMC\\Documents\\AAU\\Projects\\Robin\\Software\\Mikey\\DLLs\\MichelangeloGUI.exe");
+	Beep(523, 100); 
 
-	//uint8_t packet[9] = { 1, 20,0,0,0, 20,0,0,0 };
-	//uint8_t packet[1] = { 0 };
-	//myhand.send_packet(packet, sizeof(packet)/sizeof(uint8_t));		
-	
-	//uint8_t packpack[1024];
-	//int byte_len = myhand.receive_packet(packpack);
-	//myhand.print_recv_packet(packpack, byte_len);
-
-
-	robin::hand::Michelangelo myhand(false);
+	robin::hand::Michelangelo myhand(true);
 	myhand.setDataManager(mydm);
 	myhand.plotEMG(false);
 	myhand.calibrateEMG();
-
-	//robin::hand::Hand myhand(TRUE);
 
 	robin::control::ControlSimple controller(myhand);
 	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 20); //20=~200ms     //MEDIAN, 40
@@ -66,10 +43,9 @@ int main(int argc, char** argv)
 	controller.setDataManager(mydm);
 
 	// Declare a solver3
-	robin::Solver3LCCP mysolver;
-	//robin::Solver3Lasers mysolver;
-	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315); //0.105 or 0.160 //(0.115, 0.215)
-	mysolver.setDownsample(0.002f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f
+	robin::Solver3Lasers mysolver;
+	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315);
+	mysolver.setDownsample(0.002f);
 	//mysolver.setResample(2, 0.005);
 	mysolver.setPlaneRemoval(false);
 	mysolver.setFairSelection(false);
@@ -80,10 +56,10 @@ int main(int argc, char** argv)
 	//seg->setNormalDistanceWeight(0.001);
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
-	seg->setMethodType(pcl::SAC_PROSAC); //PROSAC?
-	seg->setMaxIterations(1000); //100
-	seg->setDistanceThreshold(0.001); //0.001 //0.0005
-	seg->setRadiusLimits(0.005, 0.050);
+	seg->setMethodType(pcl::SAC_PROSAC);
+	seg->setMaxIterations(1000);
+	seg->setDistanceThreshold(0.01); // little slack 0.005
+	seg->setRadiusLimits(0.025, 0.5); //min_0.025 max_0.5
 	mysolver.setSegmentation(seg);
 	
 	// Create a sensor from a camera
@@ -91,31 +67,14 @@ int main(int argc, char** argv)
 	//robin::RoyalePicoflexx* mycam(new robin::RoyalePicoflexx());
 	mycam->printInfo();
 	mycam->setDisparity(false);
-	mysolver.addSensor(mycam);
 
-	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.001));
-	//mysolver.addSensor(myarr);
-
-	//-----
-	// Create a sensor from another sensor
-	/*robin::LaserScanner* mylaser_h(new robin::LaserScanner(mycam, 0.0, 1.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(mylaser_h);
-	robin::LaserScanner* mylaser_v(new robin::LaserScanner(mycam, 1.0, 0.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(mylaser_v);*/
-
-	/*robin::LaserScanner* laser_0(new robin::LaserScanner(mycam, 0.0, 1.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(laser_0);
-	robin::LaserScanner* laser_1(new robin::LaserScanner(mycam, -1.0, 1.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(laser_1);
-	robin::LaserScanner* laser_2(new robin::LaserScanner(mycam, 1.0, 0.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(laser_2);
-	robin::LaserScanner* laser_3(new robin::LaserScanner(mycam, 1.0, 1.0, 0.0, 0.0, 0.001));
-	mysolver.addSensor(laser_3);*/
-	//-----
+	// Create a virtual array of sensors from another sensor
+	robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001));
+	mysolver.addSensor(myarr);
 
 	// Create a Primitive
-	robin::Primitive3d3* prim;
-	//robin::Primitive3d3* prim(new robin::Primitive3Cylinder);	
+	//robin::Primitive3d3* prim;
+	robin::Primitive3d3* prim(new robin::Primitive3Cylinder);	
 	//prim->setVisualizeOnOff(false);
 
 	// Create a PCL visualizer
@@ -144,15 +103,15 @@ int main(int argc, char** argv)
 		auto tic = std::chrono::high_resolution_clock::now();
 
 		// Reset the dummy Primitive3d3 for multiple primitive inference
-		prim = new robin::Primitive3d3;
+		//prim = new robin::Primitive3d3;
 		
 		mysolver.solve(prim);
 
 		///
 		if (HAND_CONTROL) {
 			controller.evaluate(prim);
-			std::cout << "Grasp_size: " << controller.getGraspSize() << std::endl;
-			std::cout << "Tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
+			std::cout << "Target grasp_size: " << controller.getGraspSize() << std::endl;
+			std::cout << "Target tilt_angle: " << controller.getTiltAngle() << " (" << controller.getTiltAngle() * 180.0 / 3.14159 << ")" << std::endl;
 #ifdef GNUPLOT
 			if (PLOT) {
 				gnup_grasp_size.emplace_back(kdata, controller.getGraspSize());
@@ -217,7 +176,6 @@ int main(int argc, char** argv)
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);
 			solver_color_h.setInputCloud(mysolver.getPointCloud());
 			viewer->addPointCloud(mysolver.getPointCloud(), solver_color_h, "solver");
-			//mysolver.visualize(viewer); //lccp:"marker"
 
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 			primitive_color_h.setInputCloud(prim->getPointCloud());

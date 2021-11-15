@@ -46,7 +46,6 @@ int main(int argc, char** argv)
 
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
-	//robin::Solver3Lasers mysolver;
 	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315); //0.105 or 0.160 //(0.115, 0.215)
 	mysolver.setDownsample(0.002f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f
 	//mysolver.setResample(2, 0.005);
