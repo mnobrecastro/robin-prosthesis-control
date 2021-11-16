@@ -244,7 +244,7 @@ namespace robin
 		}		
 		
 		if (!this->heuristic_check(heu)) {
-			std::cout << "The number of sub-primitives does not match the Heuristic." << std::endl;
+			std::cout << "The number of sub-primitives (" << subprims_.size() << " found) does not match the Heuristic." << std::endl;
 			return;
 		} //(redundant?)
 
