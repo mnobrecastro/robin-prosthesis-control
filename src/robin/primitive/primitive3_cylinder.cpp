@@ -275,9 +275,6 @@ namespace robin
 	/* Receives a PointCloud cut and a segmentation object by reference and extracts/segments it by fitting to it. */
 	void Primitive3Cylinder::cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg)
 	{
-		float init_tol = seg->getDistanceThreshold();
-		seg->setDistanceThreshold(0.001);
-
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_circle(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
 		std::vector<Primitive3d1*> subprim_arr_circle;
 		size_t n_subprims_circle(0), n_pts_circle(cloud_circle->points.size());
@@ -307,7 +304,8 @@ namespace robin
 		}
 
 #ifdef USE_ELLIPSE
-		seg->setDistanceThreshold(init_tol);
+		seg->setDistanceThreshold(0.010); // ellipse only := 0.005
+		seg->setRadiusLimits(0.025, 0.5); // ellipse only := [0.025, 0.5]
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ellipse(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
 		std::vector<Primitive3d1*> subprim_arr_ellipse;
@@ -642,9 +640,6 @@ namespace robin
 	{
 		float radius(0.001);
 		Eigen::Vector3f center(0.0, 0.0, 0.0), dir(0.0, 0.0, 0.0);
-		std::list<float> save_cylinder_radius, save_cylinder_height;
-
-		size_t MOVING_AVG_SIZE(50);
 
 		// Computing the boundaries of the circle primitives
 		//   \ [-] /
