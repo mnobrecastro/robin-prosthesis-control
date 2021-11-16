@@ -260,13 +260,13 @@ namespace robin
 #else
 		// A successful fitting presents a very reduced amount of outliers:
 		// i.e. lower the number of outlier points, higher the fitting rate.
-		if (cloud_line->points.size() * 2 < cloud_ellipse->points.size() && !has_line_) {
-			// (sets a threshold of double the number of its outliers against a bad ellipse fitting)
+		if (cloud_ellipse->points.size() == n_pts_ellipse) {
+			// (when the ellipse fitting fails, take the line model)
 			subprims_.push_back(subprim_arr_line);
-			has_line_ = true;
+			//has_line_ = true;
 		}
 		else if (cloud_ellipse->points.size() < n_pts_ellipse) {
-			// (prevents the addition of a failed ellipse fitting)
+			// (else pick the ellipse model)
 			subprims_.push_back(subprim_arr_ellipse);
 			if (ellipse_count_ == -1) { ellipse_count_ = 0; }
 			++ellipse_count_;
@@ -336,20 +336,16 @@ namespace robin
 #else
 		// A successful fitting presents a very reduced amount of outliers:
 		// i.e. lower the number of outlier points, higher the fitting rate.
-		if (cloud_line->points.size() * 2 < cloud_ellipse->points.size() && !has_line_) {
-			// (sets a threshold of double the number of its outliers against a bad ellipse fitting)
+		if (cloud_ellipse->points.size() == n_pts_ellipse) {
+			// (when the ellipse fitting fails, take the line model)
 			subprims_.push_back(subprim_arr_line);
-			has_line_ = true;
-
-			//printf("Subprim size: %d\n", subprims_.size());
+			//has_line_ = true;
 		}
 		else if (cloud_ellipse->points.size() < n_pts_ellipse) {
-			// (prevents the addition of a failed ellipse fitting)
+			// (else pick the ellipse model)
 			subprims_.push_back(subprim_arr_ellipse);
 			if (ellipse_count_ == -1) { ellipse_count_ = 0; }
 			++ellipse_count_;
-
-			//printf("Subprim size: %d\n", subprims_.size());
 		}
 #endif
 	}
@@ -741,12 +737,10 @@ namespace robin
 			center /= static_cast<float>(ellipse_counter);
 		}
 
-		//if (ellipse_count_ == 3 && has_line_ || ellipse_count_ == 4) {
 		if (subprims_.size() == 4 && idx[0] != -1 && idx[1] != -1 && idx[2] != -1 && idx[3] != -1) {
 			std::cout << "idx_0: " << idx[0] << " idx_1: " << idx[1] << " idx_2: " << idx[2] << " idx_3: " << idx[3] << std::endl;
 
-			//if (!has_line) {
-			if (!has_line_) {
+			if (!has_line) {
 				// Find the plane that contains the extreme keypoints of the ellipses
 				std::array<Eigen::Vector3f, 4> plane_pts; // (four keypoints at most)
 				int p_counter(0);
@@ -826,11 +820,6 @@ namespace robin
 			coefficients_->values[6] = radius; //radius
 			std::cout << *coefficients_ << std::endl;
 		}
-
-		//// //// //// ////
-		has_line_ = false;
-		ellipse_count_ = -1;
-		//// //// //// ////
 
 		return;
 	}
