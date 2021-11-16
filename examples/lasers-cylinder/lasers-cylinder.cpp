@@ -33,8 +33,8 @@ int main(int argc, char** argv)
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_PROSAC);
 	seg->setMaxIterations(1000);
-	seg->setDistanceThreshold(0.01); // little slack 0.005
-	seg->setRadiusLimits(0.025, 0.5); //min_0.025 max_0.5
+	seg->setDistanceThreshold(0.001);
+	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 
 	// Create a Primitive
