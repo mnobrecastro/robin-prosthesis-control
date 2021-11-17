@@ -37,6 +37,12 @@ namespace robin
 		properties_.e1_z = prim.properties_.e1_z;
 	}
 
+	void Primitive3::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>& cloud)
+	{
+		pcl::PointCloud<pcl::PointXYZ>::Ptr p(new pcl::PointCloud<pcl::PointXYZ>(cloud));
+		cloud_ = p;
+	}
+
 	pcl::PointCloud<pcl::PointXYZ>::Ptr Primitive3::getPointCloud() const
 	{
 		return cloud_;
