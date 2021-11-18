@@ -73,8 +73,8 @@ int main(int argc, char** argv)
 	mysolver.addSensor(myarr);
 
 	// Create a Primitive
-	//robin::Primitive3d3* prim;
-	robin::Primitive3d3* prim(new robin::Primitive3Cylinder);	
+	robin::Primitive3d3* prim;
+	//robin::Primitive3d3* prim(new robin::Primitive3Cylinder);	
 	//prim->setVisualizeOnOff(false);
 
 	// Create a PCL visualizer
@@ -103,7 +103,7 @@ int main(int argc, char** argv)
 		auto tic = std::chrono::high_resolution_clock::now();
 
 		// Reset the dummy Primitive3d3 for multiple primitive inference
-		//prim = new robin::Primitive3d3;
+		prim = new robin::Primitive3d3;
 		
 		mysolver.solve(prim);
 
