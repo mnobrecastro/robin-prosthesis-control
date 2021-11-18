@@ -32,5 +32,13 @@ namespace robin
 		/* Remove the method from the interface. */
 		using Solver3::addSensor;
 
+		std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloud_arr_;
+
+		/* Performs heuristic fitting of the primitive. */
+		void heuristic();
+
+		/* Auxiliary Primitive heuristic function for multithreading. */
+		void heuPrimitive(robin::Primitive3d3*& prim, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloud_arr, pcl::SACSegmentation<pcl::PointXYZ>*& seg_obj, HEURISTIC heu);
+
 	};
 }
