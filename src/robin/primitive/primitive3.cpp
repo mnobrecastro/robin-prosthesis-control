@@ -256,8 +256,8 @@ namespace robin
 
 		this->heuristic_prim(heu);
 
-		/* 1. Validate the fit. */
-		if (this->is_fit_valid()) {
+		/* 1. Validate the heuristic. */
+		if (this->is_heuristic_valid()) {
 			/* 2. Correct model coeffficients. */
 			this->correct_coefficients();
 		}

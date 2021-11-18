@@ -51,5 +51,8 @@ namespace robin
 		void heuristic_laser_array_single();
 		void heuristic_laser_array_cross();
 		void heuristic_laser_array_star();
+
+		/* Checks if the heuristic is valid. */
+		bool is_heuristic_valid();
 	};
 }

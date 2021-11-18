@@ -134,20 +134,6 @@ namespace robin
 			return false;
 		}
 
-
-		/* Checks if the cut sub-primitives are valid. */
-		bool valid_subprims(true);
-		if (!subprims_.empty()) {
-			for (auto arr : subprims_) {
-				for (auto sp : arr) {
-					if (sp->getPointCloud()->empty()) {
-						this->reset();
-						return false;
-					}
-				}				
-			}
-		}
-
 		/* Checks if the components of the direction vector and the radius are valid. */
 		if (!(std::sqrt(
 			coefficients_->values[3] * coefficients_->values[3] +
@@ -345,31 +331,6 @@ namespace robin
 		}
 #endif
 	}
-
-	/* Checks if the cut sub-primitives are valid. */
-	bool Primitive3Cylinder::is_cut_valid()
-	{	
-		bool valid_subprims(true);
-		if (!subprims_.empty()) {
-			for (auto arr : subprims_) {
-				for (auto sp : arr) {
-					if (sp->getPointCloud()->empty()) {
-						valid_subprims = false;
-						break;
-					}
-				}
-				if (!valid_subprims) { break; }
-			}
-			if (valid_subprims) { return true; }
-		}
-
-		this->reset();
-		return false;
-	}
-
-
-
-
 
 	void Primitive3Cylinder::heuristic_laser_array_single()
 	{
@@ -816,4 +777,52 @@ namespace robin
 
 		return;
 	}
+
+	/* Checks if the heuristic is valid. */
+	bool Primitive3Cylinder::is_heuristic_valid()
+	{
+		if (!cloud_->points.empty()) {
+			/* x_min, x_max, y_min, y_max, z_min, z_max. */
+			std::array<float, 6> ranges(getPointCloudRanges(*cloud_));
+			/* Checks the z-coordinate of the Primitive3Cylinder center. */
+			if (!(coefficients_->values[2] > ranges[4])) {
+				this->reset();
+				return false;
+			}
+		} else {
+			this->reset();
+			return false;
+		}
+
+		/* Checks if the cut sub-primitives are valid. */
+		bool valid_subprims(true);
+		if (!subprims_.empty()) {
+			for (auto arr : subprims_) {
+				for (auto sp : arr) {
+					if (sp->getPointCloud()->empty()) {
+						this->reset();
+						return false;
+					}
+				}
+			}
+		} else {
+			this->reset();
+			return false;
+		}
+
+		/* Checks if the components of the direction vector and the radius are valid. */
+		if (!(std::sqrt(
+			coefficients_->values[3] * coefficients_->values[3] +
+			coefficients_->values[4] * coefficients_->values[4] +
+			coefficients_->values[5] * coefficients_->values[5]) > 0 &&
+			coefficients_->values[6] > 0))
+		{
+			this->reset();
+			return false;
+		}
+
+		isempty_ = false;
+		return true;
+	}
+
 }

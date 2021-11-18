@@ -185,5 +185,8 @@ namespace robin
 		virtual void heuristic_laser_array_single() {}
 		virtual void heuristic_laser_array_cross() {}
 		virtual void heuristic_laser_array_star() {}
+
+		/* Checks if the heuristic is valid. */
+		virtual bool is_heuristic_valid() { return false; }
 	};
 }
