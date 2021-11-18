@@ -104,20 +104,6 @@ namespace robin
 			return false;
 		}
 
-
-		/* Checks if the cut sub-primitives are valid. */
-		bool valid_subprims(true);
-		if (!subprims_.empty()) {
-			for (auto arr : subprims_) {
-				for (auto sp : arr) {
-					if (sp->getPointCloud()->empty()) {
-						this->reset();
-						return false;
-					}
-				}
-			}
-		}
-
 		isempty_ = false;
 		return true;
 	}
@@ -386,5 +372,40 @@ namespace robin
 		}
 
 		return;
+	}
+
+	/* Checks if the heuristic is valid. */
+	bool Primitive3Sphere::is_heuristic_valid()
+	{
+		if (!cloud_->points.empty()) {
+			/* x_min, x_max, y_min, y_max, z_min, z_max. */
+			std::array<float, 6> ranges(getPointCloudRanges(*cloud_));
+			/* Checks the z-coordinate of the Primitive3Cylinder center. */
+			if (!(coefficients_->values[2] > ranges[4])) {
+				this->reset();
+				return false;
+			}
+		} else {
+			this->reset();
+			return false;
+		}
+
+		/* Checks if the cut sub-primitives are valid. */
+		if (!subprims_.empty()) {
+			for (auto arr : subprims_) {
+				for (auto sp : arr) {
+					if (sp->getPointCloud()->empty()) {
+						this->reset();
+						return false;
+					}
+				}
+			}
+		} else {
+			this->reset();
+			return false;
+		}
+
+		isempty_ = false;
+		return true;
 	}
 }

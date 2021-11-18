@@ -34,6 +34,18 @@ namespace robin
 		coefficients_->values[2] = 0.000;
 		coefficients_->values[3] = 0.000;
 	}
+
+	void Primitive3Plane::setCoefficients(std::vector<float> v)
+	{
+		if (v.size() == 4) {
+			coefficients_->values[0] = v[0];
+			coefficients_->values[1] = v[1];
+			coefficients_->values[2] = v[2];
+			coefficients_->values[3] = v[3];
+
+			isempty_ = false;
+		}
+	}
 	
 	void Primitive3Plane::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
@@ -139,6 +151,7 @@ namespace robin
 								properties_.center_z + properties_.e1_z);
 		viewer->addLine(center, center_e1, "plane_e1" + std::to_string(std::rand()));
 	}
+
 
 
 	void Primitive3Plane::fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool normals)
@@ -250,7 +263,7 @@ namespace robin
 	/* Correct the obtained coefficients if necessary. */
 	void Primitive3Plane::correct_coefficients()
 	{
-		// Nomal always points towards the camera (convex objects only)
+		// Normal always points towards the camera -Z (assumes objects are convex)
 		if (coefficients_->values[2] > 0) {
 			coefficients_->values[0] = -coefficients_->values[0];
 			coefficients_->values[1] = -coefficients_->values[1];
