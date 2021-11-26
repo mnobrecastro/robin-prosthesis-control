@@ -191,6 +191,7 @@ namespace robin
 	/* Receives a PointCloud cut by reference and fits a sub-primitive to it. */
 	void Primitive3Cylinder::cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 	{
+#ifndef USE_ELLIPSE
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_circle(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
 		std::vector<Primitive3d1*> subprim_arr_circle;
 		size_t n_subprims_circle(0), n_pts_circle(cloud_circle->points.size());
@@ -199,27 +200,12 @@ namespace robin
 
 			Primitive3Circle* cut_prim(new Primitive3Circle);
 			cut_prim->fit(cloud_circle, false);
-			*cloud_ += *cut_prim->getPointCloud();
+			//*cloud_ += *cut_prim->getPointCloud();
 			subprim_arr_circle.push_back(cut_prim);
 			++n_subprims_circle;
 			std::cout << "\t" << "CIRCLE: " << cut_prim->getPointCloud()->size() << "/" << cloud_circle->size() << std::endl;
 		}
-
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_line(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
-		std::vector<Primitive3d1*> subprim_arr_line;
-		size_t n_subprims_line(0), n_pts_line(cloud_line->points.size());
-		while (cloud_line->points.size() > 0.3 * n_pts_line && n_subprims_line < MAX_SUBPRIMS) {
-			size_t cur_size(cloud_line->points.size());
-
-			Primitive3Circle* cut_prim(new Primitive3Circle);
-			cut_prim->fit(cloud_line, false);
-			*cloud_ += *cut_prim->getPointCloud();
-			subprim_arr_line.push_back(cut_prim);
-			++n_subprims_line;
-			std::cout << "\t" << "LINE: " << cut_prim->getPointCloud()->size() << "/" << cloud_line->size() << std::endl;
-		}
-
-#ifdef USE_ELLIPSE
+#else
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ellipse(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
 		std::vector<Primitive3d1*> subprim_arr_ellipse;
 		size_t n_subprims_ellipse(0), n_pts_ellipse(cloud_ellipse->points.size());
@@ -228,12 +214,26 @@ namespace robin
 
 			Primitive3Ellipse* cut_prim(new Primitive3Ellipse);
 			cut_prim->fit(cloud_ellipse, false);
-			*cloud_ += *cut_prim->getPointCloud();
+			//*cloud_ += *cut_prim->getPointCloud();
 			subprim_arr_ellipse.push_back(cut_prim);
 			++n_subprims_ellipse;
 			std::cout << "\t" << "ELLIPSE: " << cut_prim->getPointCloud()->size() << "/" << cloud_ellipse->size() << std::endl;
 		}
 #endif
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_line(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
+		std::vector<Primitive3d1*> subprim_arr_line;
+		size_t n_subprims_line(0), n_pts_line(cloud_line->points.size());
+		while (cloud_line->points.size() > 0.3 * n_pts_line && n_subprims_line < MAX_SUBPRIMS) {
+			size_t cur_size(cloud_line->points.size());
+
+			Primitive3Circle* cut_prim(new Primitive3Circle);
+			cut_prim->fit(cloud_line, false);
+			//*cloud_ += *cut_prim->getPointCloud();
+			subprim_arr_line.push_back(cut_prim);
+			++n_subprims_line;
+			std::cout << "\t" << "LINE: " << cut_prim->getPointCloud()->size() << "/" << cloud_line->size() << std::endl;
+		}
+
 
 #ifndef USE_ELLIPSE
 		if (cloud_circle->points.size() < cloud_line->points.size()) {
@@ -330,6 +330,7 @@ namespace robin
 			++ellipse_count_;
 		}
 #endif
+		return;
 	}
 
 	void Primitive3Cylinder::heuristic_laser_array_single()
@@ -339,8 +340,13 @@ namespace robin
 		 */
 		float radius(0.001);
 
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_suprims(new pcl::PointCloud<pcl::PointXYZ>);
+
 		// Computing the boundaries of the cut primitives
+		//
 		// [   ][-----][   ][   ]
+		//
+
 		std::vector<std::array<float, 2>> bounds_horizontal;
 		for (int i(0); i < subprims_[0].size(); ++i) {
 			std::array<float, 6> bounds_temp(getPointCloudRanges(*subprims_[0][i]->getPointCloud()));
@@ -373,6 +379,9 @@ namespace robin
 				);
 				dir = dir; // Not using the subprim's normal coefs
 				radius = subprims_[0][horizontal_idx]->getCoefficients()->values[6];
+
+				*cloud_suprims += *subprims_[0][horizontal_idx]->getPointCloud();
+				std::cout << "CIRCLE\n" << std::endl;
 			}
 #else
 			if (subprims_[0][horizontal_idx]->getCoefficients()->values.size() == 11) {
@@ -388,63 +397,62 @@ namespace robin
 				if (subprims_[0][horizontal_idx]->getCoefficients()->values[3] >= subprims_[0][horizontal_idx]->getCoefficients()->values[4]) {
 					sma_lenght = subprims_[0][horizontal_idx]->getCoefficients()->values[3];
 					radius = subprims_[0][horizontal_idx]->getCoefficients()->values[4];
-
-					////radius = subprims_[0][horizontal_idx]->getCoefficients()->values[3];
-				}
-				else {
+				} else {
 					sma_lenght = subprims_[0][horizontal_idx]->getCoefficients()->values[4];
 					radius = subprims_[0][horizontal_idx]->getCoefficients()->values[3];
-
-					////radius = subprims_[0][horizontal_idx]->getCoefficients()->values[3];
 				}
 				dir = dir; // Not using the subprim's normal coefs
 
-				/**/
-				// Calculate the Ellipse tilt angle 'th', where 
-				float th = std::acos(1 / (sma_lenght / radius));
+				if (false) {
+					/* DEPRECATED */
 
-				// Normal axis of the Ellipse
-				Eigen::Vector3f n_axis;
-				//n_axis = Eigen::Vector3f(
-				//	subprims_[0][horizontal_idx]->getCoefficients()->values[5],
-				//	subprims_[0][horizontal_idx]->getCoefficients()->values[6],
-				//	subprims_[0][horizontal_idx]->getCoefficients()->values[7]
-				//);
-				n_axis = dir;
-				// X-axis of the Ellipse
-				Eigen::Vector3f x_axis(
-					subprims_[0][horizontal_idx]->getCoefficients()->values[8],
-					subprims_[0][horizontal_idx]->getCoefficients()->values[9],
-					subprims_[0][horizontal_idx]->getCoefficients()->values[10]
-				);
-				// Y-axis of the Ellipse
-				Eigen::Vector3f y_axis = n_axis.cross(x_axis).normalized();
-				
-				// Create the rotation matrix for the Ellipse's local reference frame
-				Eigen::Matrix3f Frame;
-				Frame << x_axis(0), y_axis(0), n_axis(0),
-					x_axis(1), y_axis(1), n_axis(1),
-					x_axis(2), y_axis(2), n_axis(2);
+					// Calculate the Ellipse tilt angle 'th', where 
+					float th = std::acos(1 / (sma_lenght / radius));
 
-				// Calcular the Euler parameters to rotate the local frame about it's X-axis by the amount of tilt angle 'th' 
-				float e0(std::cos(th/2.0));
-				Eigen::Vector3f e = x_axis * std::sin(th / 2.0);
-				Eigen::Matrix3f e_skewsim;
-				e_skewsim << 0.0, -e(2), e(1),
-							e(2), 0.0, -e(0),
-							-e(1), e(0), 0.0;
-				Eigen::Matrix3f A = (2 * e0 * e0 - 1) * Eigen::Matrix3f::Identity() + 2 * (e * e.transpose() + e0 * e_skewsim);
+					// Normal axis of the Ellipse
+					Eigen::Vector3f n_axis;
+					n_axis = Eigen::Vector3f(
+						subprims_[0][horizontal_idx]->getCoefficients()->values[5],
+						subprims_[0][horizontal_idx]->getCoefficients()->values[6],
+						subprims_[0][horizontal_idx]->getCoefficients()->values[7]
+					);
+					dir = n_axis;
+					//n_axis = dir;
+					// X-axis of the Ellipse
+					Eigen::Vector3f x_axis(
+						subprims_[0][horizontal_idx]->getCoefficients()->values[8],
+						subprims_[0][horizontal_idx]->getCoefficients()->values[9],
+						subprims_[0][horizontal_idx]->getCoefficients()->values[10]
+					);
+					// Y-axis of the Ellipse
+					Eigen::Vector3f y_axis = n_axis.cross(x_axis).normalized();
 
-				// Rotate the local frame
-				Eigen::Matrix3f Rot = A * Frame;
-				// Select the updated Z-axis
-				dir = Eigen::Vector3f(Rot(0, 2), Rot(1, 2), Rot(2, 2));
+					// Create the rotation matrix for the Ellipse's local reference frame
+					Eigen::Matrix3f Frame;
+					Frame << x_axis(0), y_axis(0), n_axis(0),
+						x_axis(1), y_axis(1), n_axis(1),
+						x_axis(2), y_axis(2), n_axis(2);
+
+					// Calcular the Euler parameters to rotate the local frame about it's X-axis by the amount of tilt angle 'th' 
+					float e0(std::cos(th / 2.0));
+					Eigen::Vector3f e = x_axis * std::sin(th / 2.0);
+					Eigen::Matrix3f e_skewsim;
+					e_skewsim << 0.0, -e(2), e(1),
+						e(2), 0.0, -e(0),
+						-e(1), e(0), 0.0;
+					Eigen::Matrix3f A = (2 * e0 * e0 - 1) * Eigen::Matrix3f::Identity() + 2 * (e * e.transpose() + e0 * e_skewsim);
+
+					// Rotate the local frame
+					Eigen::Matrix3f Rot = A * Frame;
+					/*// Select the updated Z-axis
+					dir = Eigen::Vector3f(Rot(0, 2), Rot(1, 2), Rot(2, 2));*/
+				}				
+
+				*cloud_suprims += *subprims_[0][horizontal_idx]->getPointCloud();
+				std::cout << "ELLIPSE\n" << std::endl;
 			}
 #endif
-
-			std::cout << "center:\n" << center << std::endl;
-			std::cout << "dir:\n" << dir << std::endl;
-			std::cout << "rad: " << radius << std::endl;
+			*cloud_ = *cloud_suprims;
 
 			// Cylinder coefficients(point_x, point_y, point_z, axis_x, axis_y, axis_z, radius)
 			coefficients_->values[0] = center.x(); //point_x
@@ -464,6 +472,8 @@ namespace robin
 	{
 		float cylinder_radius(0.001), cylinder_height(0.001);
 
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_suprims(new pcl::PointCloud<pcl::PointXYZ>);
+
 		// Computing the boundaries of the line primitives
 		//   [-]
 		//   [-]
@@ -471,6 +481,7 @@ namespace robin
 		//   [-]
 		//   [-]
 		//   [-]
+
 		std::vector<std::array<float, 2>> bounds_horizontal;
 		for (int i(0); i < subprims_[0].size(); ++i) {
 			std::array<float, 6> bounds_temp(getPointCloudRanges(*subprims_[0][i]->getPointCloud()));
@@ -516,7 +527,11 @@ namespace robin
 					subprims_[0][horizontal_idx]->getCoefficients()->values[5]
 				);
 				has_line = true;
+
+				*cloud_suprims += *subprims_[0][horizontal_idx]->getPointCloud();
+				std::cout << "LINE\n" << std::endl;
 			}
+#ifndef USE_ELLIPSE
 			else if (subprims_[0][horizontal_idx]->getCoefficients()->values.size() == 7) {
 				// Subprimitive is a Circle (cyl coef)
 				h_center = Eigen::Vector3f(
@@ -525,7 +540,30 @@ namespace robin
 					subprims_[0][horizontal_idx]->getCoefficients()->values[2]
 				);
 				h_radius = subprims_[0][horizontal_idx]->getCoefficients()->values[6];
+
+				*cloud_suprims += *subprims_[0][horizontal_idx]->getPointCloud();
+				std::cout << "CIRCLE\n" << std::endl;
 			}
+#else
+			else if (subprims_[0][horizontal_idx]->getCoefficients()->values.size() == 11) {
+				// Subprimitive is an Ellipse
+				h_center = Eigen::Vector3f(
+					subprims_[0][horizontal_idx]->getCoefficients()->values[0],
+					subprims_[0][horizontal_idx]->getCoefficients()->values[1], //0.0
+					subprims_[0][horizontal_idx]->getCoefficients()->values[2]
+				);
+
+				// Pick the smallest semi-minor axes (sma) lenght as Radius
+				if (subprims_[0][horizontal_idx]->getCoefficients()->values[3] >= subprims_[0][horizontal_idx]->getCoefficients()->values[4]) {
+					h_radius = subprims_[0][horizontal_idx]->getCoefficients()->values[4];
+				} else {
+					h_radius = subprims_[0][horizontal_idx]->getCoefficients()->values[3];
+				}
+
+				*cloud_suprims += *subprims_[0][horizontal_idx]->getPointCloud();
+				std::cout << "ELLIPSE\n" << std::endl;
+			}
+#endif
 
 			// Vertical primitive
 			if (subprims_[1][vertical_idx]->getCoefficients()->values.size() == 6 && !has_line) {
@@ -541,7 +579,11 @@ namespace robin
 					subprims_[1][vertical_idx]->getCoefficients()->values[5]
 				);
 				has_line = true;
+
+				*cloud_suprims += *subprims_[1][vertical_idx]->getPointCloud();
+				std::cout << "LINE\n" << std::endl;
 			}
+#ifndef USE_ELLIPSE
 			else if (subprims_[1][vertical_idx]->getCoefficients()->values.size() == 7) {
 				// Subprimitive is a Circle (cyl coef)
 				v_center = Eigen::Vector3f(
@@ -550,25 +592,42 @@ namespace robin
 					subprims_[1][vertical_idx]->getCoefficients()->values[2]
 				);
 				v_radius = subprims_[1][vertical_idx]->getCoefficients()->values[6];
-			}
 
-			std::cout << "false_btm:\n" << false_bottom << std::endl;
-			std::cout << "dir:\n" << dir << std::endl;
-			std::cout << "Hcenter:\n" << h_center << std::endl;
-			std::cout << "Hrad: " << h_radius << std::endl;
-			std::cout << "Vcenter:\n" << v_center << std::endl;
-			std::cout << "Vrad: " << v_radius << std::endl;
+				*cloud_suprims += *subprims_[1][vertical_idx]->getPointCloud();
+				std::cout << "CIRCLE\n" << std::endl;
+			}
+#else
+			else if (subprims_[1][vertical_idx]->getCoefficients()->values.size() == 11) {
+				// Subprimitive is an Ellipse
+				h_center = Eigen::Vector3f(
+					subprims_[1][vertical_idx]->getCoefficients()->values[0],
+					subprims_[1][vertical_idx]->getCoefficients()->values[1], //0.0
+					subprims_[1][vertical_idx]->getCoefficients()->values[2]
+				);
+
+				// Pick the smallest semi-minor axes (sma) lenght as Radius
+				if (subprims_[1][vertical_idx]->getCoefficients()->values[3] >= subprims_[1][vertical_idx]->getCoefficients()->values[4]) {
+					h_radius = subprims_[1][vertical_idx]->getCoefficients()->values[4];
+				}else {
+					h_radius = subprims_[1][vertical_idx]->getCoefficients()->values[3];
+				}
+
+				*cloud_suprims += *subprims_[1][vertical_idx]->getPointCloud();
+				std::cout << "ELLIPSE\n" << std::endl;
+			}
+#endif
+			*cloud_ = *cloud_suprims;
 
 			// Find the cylinder bottom center
 			Eigen::Vector3f center(0.0, 0.0, 0.0), cyl_bottom_center(0.0, 0.0, 0.0);
-			if (v_center.isZero() ^ h_center.isZero()) { //XOR
-				if (v_center.isZero()) {
+			if (!v_center.isZero() != !h_center.isZero()) { //XOR
+				if (!v_center.isZero()) {
+					center = v_center;
+					cylinder_radius = v_radius;					
+				}
+				else if (!h_center.isZero()) {
 					center = h_center;
 					cylinder_radius = h_radius;
-				}
-				else if (h_center.isZero()) {
-					center = v_center;
-					cylinder_radius = v_radius;
 				}
 
 				Eigen::Vector3f vec(false_bottom.x() - center.x(), false_bottom.y() - center.y(), false_bottom.z() - center.z());
@@ -774,7 +833,6 @@ namespace robin
 			coefficients_->values[6] = radius; //radius
 			std::cout << *coefficients_ << std::endl;
 		}
-
 		return;
 	}
 
