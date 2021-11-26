@@ -814,12 +814,137 @@ namespace robin
 
 	void Primitive3Cuboid::heuristic_laser_array_single()
 	{
-		/* Not implemented yet. */
+		/* WARNING!
+		 * This implementation does not guarantee a full estimation of the geometric primitive.
+		 */
+		float cube_width(0.000), cube_height(0.001), cube_depth(0.001);
+		Eigen::Vector3f e0_axis({ 0.0, 0.0, 0.0 }), e1_axis({ 0.0, 0.0, 0.0 }), z_axis({ 0.0, 0.0, 0.0 });
+		Eigen::Matrix3f mori;
+		Eigen::Vector3f face_center({ 0.0, 0.0, 0.0 }), cube_center({ 0.0, 0.0, 0.0 });
+
+		// Computing the boundaries of the cut primitives
+		//
+		// [   ][-----][   ][   ]
+		//
+
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_suprims(new pcl::PointCloud<pcl::PointXYZ>);
+
+		std::vector<std::array<float, 2>> bounds_horizontal;
+		for (int i(0); i < subprims_[0].size(); ++i) {
+			std::array<float, 6> bounds_temp(getPointCloudRanges(*subprims_[0][i]->getPointCloud()));
+			bounds_horizontal.push_back({ bounds_temp[0] ,bounds_temp[1] });
+		}
+
+		// Finding the "front face" spanning the center '-'
+		int horizontal_idx(-1);
+		for (int k1(0); k1 < bounds_horizontal.size(); ++k1) {
+			if (bounds_horizontal[k1][0] <= 0.0 && 0.0 < bounds_horizontal[k1][1]) {
+				horizontal_idx = k1;
+				break;
+			}
+		}
+
+		if (horizontal_idx != -1) {
+			std::cout << " hori_idx: " << horizontal_idx << std::endl;
+
+			// Find the centroid of the points in the line primitive
+			Eigen::Vector3f point(
+				subprims_[0][horizontal_idx]->getCoefficients()->values[0],
+				subprims_[0][horizontal_idx]->getCoefficients()->values[1],
+				subprims_[0][horizontal_idx]->getCoefficients()->values[2]
+			);
+			Eigen::Vector3f h_dir(
+				subprims_[0][horizontal_idx]->getCoefficients()->values[3],
+				subprims_[0][horizontal_idx]->getCoefficients()->values[4],
+				subprims_[0][horizontal_idx]->getCoefficients()->values[5]
+			);
+
+			*cloud_suprims += *subprims_[0][horizontal_idx]->getPointCloud();
+			std::cout << "LINE\n" << std::endl;
+			*cloud_ = *cloud_suprims;
+
+			Eigen::Vector3f v_dir(0.0, cube_height, 0.0);
+
+			// Find the cube_face center
+			Eigen::Vector3f face_center(point.x() + h_dir.x() * 0.5, point.y() + h_dir.y() * 0.5, point.z() + h_dir.z() * 0.5);
+
+			// Find the cube_face normal
+			Eigen::Vector3f face_normal(h_dir.cross(v_dir));
+			face_normal.normalize();
+			if (face_normal.z() > 0.0) {
+				face_normal[0] = -face_normal.x();
+				face_normal[1] = -face_normal.y();
+				face_normal[2] = -face_normal.z();
+			}
+
+
+			// Find the cuboid primitive parameters
+			// Cuboid z
+			cube_height = v_dir.norm();
+			z_axis = v_dir;
+			z_axis.normalize();
+			z_axis *= cube_height / 2;
+			// Cuboid e1
+			cube_width = h_dir.norm();
+			e1_axis = h_dir;
+			e1_axis.normalize();
+			e1_axis *= cube_width / 2;
+			// Cuboid e0
+			e0_axis = face_normal;
+			e0_axis.normalize();
+			e0_axis *= cube_depth / 2;
+
+			cube_center = face_center + face_normal * cube_depth / 2;
+
+			// Since width (plane e0) <= height (plane e1)
+			// (assumption made for the cuboid)
+			properties_.e0_x = e0_axis(0);
+			properties_.e0_y = e0_axis(1);
+			properties_.e0_z = e0_axis(2);
+			properties_.e1_x = e1_axis(0);
+			properties_.e1_y = e1_axis(1);
+			properties_.e1_z = e1_axis(2);
+			properties_.axis_x = z_axis(0);
+			properties_.axis_y = z_axis(1);
+			properties_.axis_z = z_axis(2);
+
+			// Transformation matrix
+			e0_axis.normalize();
+			mori(0, 0) = e0_axis(0);
+			mori(1, 0) = e0_axis(1);
+			mori(2, 0) = e0_axis(2);
+			e1_axis.normalize();
+			mori(0, 1) = e1_axis(0);
+			mori(1, 1) = e1_axis(1);
+			mori(2, 1) = e1_axis(2);
+			z_axis.normalize();
+			mori(0, 2) = z_axis(0);
+			mori(1, 2) = z_axis(1);
+			mori(2, 2) = z_axis(2);
+
+			Eigen::Quaternionf quat(mori);
+
+			//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+			coefficients_->values[0] = cube_center.x(); //Tx
+			coefficients_->values[1] = cube_center.y(); //Ty
+			coefficients_->values[2] = cube_center.z(); //Tz
+			coefficients_->values[3] = quat.x(); //Qx
+			coefficients_->values[4] = quat.y(); //Qy
+			coefficients_->values[5] = quat.z(); //Qz
+			coefficients_->values[6] = quat.w(); //Qw
+			coefficients_->values[7] = cube_width;
+			coefficients_->values[8] = cube_height;
+			coefficients_->values[9] = cube_depth;
+		}
+		return;
 	}
 
 	void Primitive3Cuboid::heuristic_laser_array_cross()
 	{
-		float cube_width(0.001), cube_height(0.001), cube_depth(0.001);
+		float cube_width(0.000), cube_height(0.000), cube_depth(0.001);
+		Eigen::Vector3f e0_axis({ 0.0, 0.0, 0.0 }), e1_axis({ 0.0, 0.0, 0.0 }), z_axis({ 0.0, 0.0, 0.0 });
+		Eigen::Matrix3f mori;
+		Eigen::Vector3f face_center({ 0.0, 0.0, 0.0 }), cube_center({ 0.0, 0.0, 0.0 });
 
 		// Computing the boundaries of the line primitives
 		//   [-]
@@ -828,6 +953,8 @@ namespace robin
 		//   [-]
 		//   [-]
 		//   [-]
+
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_suprims(new pcl::PointCloud<pcl::PointXYZ>);
 
 		std::vector<std::array<float, 2>> bounds_horizontal; // 0 deg
 		for (int i(0); i < subprims_[0].size(); ++i) {
@@ -839,7 +966,6 @@ namespace robin
 			std::array<float, 6> bounds_temp(getPointCloudRanges(*subprims_[1][i]->getPointCloud()));
 			bounds_vertical.push_back({ bounds_temp[2] ,bounds_temp[3] });
 		}
-
 
 		// Finding the front cube_face spaned by the intersection '+'
 		int vertical_idx(-1), horizontal_idx(-1);
@@ -869,6 +995,9 @@ namespace robin
 			);
 			Eigen::Vector3f h_center(h_point.x() + h_dir.x() * 0.5, h_point.y() + h_dir.y() * 0.5, h_point.z() + h_dir.z() * 0.5);
 
+			*cloud_suprims += *subprims_[0][horizontal_idx]->getPointCloud();
+			std::cout << "LINE\n" << std::endl;			
+
 			Eigen::Vector3f v_point(
 				subprims_[1][vertical_idx]->getCoefficients()->values[0],
 				subprims_[1][vertical_idx]->getCoefficients()->values[1],
@@ -881,6 +1010,10 @@ namespace robin
 			);
 			Eigen::Vector3f v_center(v_point.x() + v_dir.x() * 0.5, v_point.y() + v_dir.y() * 0.5, v_point.z() + v_dir.z() * 0.5);
 
+			*cloud_suprims += *subprims_[1][vertical_idx]->getPointCloud();
+			std::cout << "LINE\n" << std::endl;
+
+			*cloud_ = *cloud_suprims;
 
 			// Find the cube_face center
 			Eigen::Vector3f vec(v_center.x() - h_center.x(), v_center.y() - h_center.y(), v_center.z() - h_center.z());
@@ -889,51 +1022,75 @@ namespace robin
 				h_center.y() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.y(),
 				h_center.z() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.z()
 			);
-			Eigen::Vector3f cube_center;
-
-			// Cube primitive parameters
-			cube_width = h_dir.norm();
-			//cube_width = moving_average(cube_width, save_cube_width, MOVING_AVG_SIZE, EXPONENTIAL);
-			cube_height = v_dir.norm();
-			//cube_height = moving_average(cube_height, save_cube_height, MOVING_AVG_SIZE, EXPONENTIAL);
-
+			
+			// Find the cube_face normal
 			Eigen::Vector3f face_normal(h_dir.cross(v_dir));
 			face_normal.normalize();
-			if (face_normal.z() < 0.0) {
+			if (face_normal.z() > 0.0) {
 				face_normal[0] = -face_normal.x();
 				face_normal[1] = -face_normal.y();
 				face_normal[2] = -face_normal.z();
 			}
+			// Find the cuboid primitive parameters
+			//// Select the larger dimension/direction as the Z-axis
+			if (h_dir.norm() >= v_dir.norm()) {
+				// Cuboid z
+				cube_height = h_dir.norm();
+				z_axis = h_dir;
+				z_axis.normalize();
+				z_axis *= cube_height / 2;
+				// Cuboid e1
+				cube_width = v_dir.norm();
+				e1_axis = v_dir;
+				e1_axis.normalize();
+				e1_axis *= cube_width / 2;
+			}
+			else {
+				// Cuboid z
+				cube_height = v_dir.norm();
+				z_axis = v_dir;
+				z_axis.normalize();
+				z_axis *= cube_height / 2;
+				// Cuboid e1
+				cube_width = h_dir.norm();
+				e1_axis = h_dir;
+				e1_axis.normalize();
+				e1_axis *= cube_width / 2;
+			}
+			// Cuboid e0
+			e0_axis = face_normal;
+			e0_axis.normalize();
+			e0_axis *= cube_depth / 2;
 
-			if (subprims_[0].size() == 2 && subprims_[1].size() == 1) {
-				Eigen::Vector3f d_dir(
-					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[3],
-					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[4],
-					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[5]
-				);
-				cube_depth = d_dir.norm();
-			}
-			else if (subprims_[0].size() == 1 && subprims_[1].size() == 2) {
-				Eigen::Vector3f d_dir(
-					subprims_[1][int(1) - vertical_idx]->getCoefficients()->values[3],
-					subprims_[1][int(1) - vertical_idx]->getCoefficients()->values[4],
-					subprims_[1][int(1) - vertical_idx]->getCoefficients()->values[5]
-				);
-				cube_depth = d_dir.norm();
-			}
-			else if (subprims_[0].size() == 2 && subprims_[1].size() == 2) {
-				Eigen::Vector3f d_dir( // Has to be reviewed base on weight of the number of points
-					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[3],
-					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[4],
-					subprims_[0][int(1) - horizontal_idx]->getCoefficients()->values[5]
-				);
-				cube_depth = d_dir.norm();
-			}
-			//cube_depth = moving_average(cube_depth, save_cube_depth, MOVING_AVG_SIZE, EXPONENTIAL);
 			cube_center = face_center + face_normal * cube_depth / 2;
 
-			Eigen::Quaternionf quat;
-			quat.setFromTwoVectors(Eigen::Vector3f(0.0, 0.0, 1.0), face_normal);
+			// Since width (plane e0) <= height (plane e1)
+			// (assumption made for the cuboid)
+			properties_.e0_x = e0_axis(0);
+			properties_.e0_y = e0_axis(1);
+			properties_.e0_z = e0_axis(2);
+			properties_.e1_x = e1_axis(0);
+			properties_.e1_y = e1_axis(1);
+			properties_.e1_z = e1_axis(2);
+			properties_.axis_x = z_axis(0);
+			properties_.axis_y = z_axis(1);
+			properties_.axis_z = z_axis(2);
+
+			// Transformation matrix
+			e0_axis.normalize();
+			mori(0, 0) = e0_axis(0);
+			mori(1, 0) = e0_axis(1);
+			mori(2, 0) = e0_axis(2);
+			e1_axis.normalize();
+			mori(0, 1) = e1_axis(0);
+			mori(1, 1) = e1_axis(1);
+			mori(2, 1) = e1_axis(2);
+			z_axis.normalize();
+			mori(0, 2) = z_axis(0);
+			mori(1, 2) = z_axis(1);
+			mori(2, 2) = z_axis(2);
+
+			Eigen::Quaternionf quat(mori);
 
 			//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
 			coefficients_->values[0] = cube_center.x(); //Tx
@@ -946,43 +1103,13 @@ namespace robin
 			coefficients_->values[7] = cube_depth; //cube_width;
 			coefficients_->values[8] = cube_width; //cube_height;
 			coefficients_->values[9] = cube_height; //cube_depth;
-
-			//
-			plot_[0] = cube_center.x();
-			plot_[1] = cube_center.y();
-			plot_[2] = cube_center.z();
-			plot_[3] = face_normal.x();
-			plot_[4] = face_normal.y();
-			plot_[5] = face_normal.z();
-			plot_[6] = h_dir.x();
-			plot_[7] = h_dir.y();
-			plot_[8] = h_dir.z();
-			plot_[9] = v_dir.x();
-			plot_[10] = v_dir.y();
-			plot_[11] = v_dir.z();
-
-			if (cube_width >= cube_height && cube_width >= cube_depth) {
-				properties_.axis_x = h_dir.x();
-				properties_.axis_y = h_dir.y();
-				properties_.axis_z = h_dir.z();
-			}
-			else if (cube_height >= cube_width && cube_height >= cube_depth) {
-				properties_.axis_x = v_dir.x();
-				properties_.axis_y = v_dir.y();
-				properties_.axis_z = v_dir.z();
-			}
-			else if (cube_depth > 0.005 && cube_depth >= cube_width && cube_depth >= cube_height) {
-				properties_.axis_x = face_normal.x();
-				properties_.axis_y = face_normal.y();
-				properties_.axis_z = face_normal.z();
-			}
-			//
 		}
+		return;
 	}
 
 	void Primitive3Cuboid::heuristic_laser_array_star()
 	{
-		float cube_width(0.000), cube_height(0.000), cube_depth(0.000);
+		float cube_width(0.000), cube_height(0.000), cube_depth(0.001);
 		Eigen::Vector3f e0_axis({ 0.0, 0.0, 0.0 }), e1_axis({ 0.0, 0.0, 0.0 }), z_axis({ 0.0, 0.0, 0.0 });
 		Eigen::Matrix3f mori;
 		Eigen::Vector3f face_center({ 0.0, 0.0, 0.0 }), cube_center({ 0.0, 0.0, 0.0 });
@@ -1104,7 +1231,7 @@ namespace robin
 				Eigen::Vector3f v_next = kp_next - kp;
 				float angle = std::acos(v_prev.dot(v_next) / (v_prev.norm() * v_next.norm()));				
 				
-				// Estimate the direction.
+				// Estimate the direction_vector
 				float ang_threshold(10.0);
 				if (angle < ang_threshold * M_PI / 180.0) {
 					va_dir = kp_next - kp_prev;
@@ -1115,13 +1242,13 @@ namespace robin
 			}
 
 			if (va_dir.norm() > 0.0) {
-				// The direction vector has been found
+				// The direction_vector has been found
 
 				// Remaining direction vector of the heuristic
 				Eigen::Vector3f vb_dir = face_normal.cross(va_dir);
 				vb_dir.normalize();
 
-				// Find the cube_face center
+				// Find the cube_face center /* NEEDS CORRECTION -> NOT THE CORRECT CENTER! */
 				for (auto p : cloud_face->points) {
 					face_center(0) += p.x;
 					face_center(1) += p.y;
@@ -1134,9 +1261,18 @@ namespace robin
 				float length_va = bounds_va[1] - bounds_va[0];
 				std::array<float, 2> bounds_vb(getPointCloudExtremes(*cloud_face, pcl::PointXYZ(face_center.x(), face_center.y(), face_center.z()), pcl::PointXYZ(vb_dir.x(), vb_dir.y(), vb_dir.z())));
 				float length_vb = bounds_vb[1] - bounds_vb[0];
-				std::array<float, 2> bounds_normal(getPointCloudExtremes(*cloud_suprims, pcl::PointXYZ(face_center.x(), face_center.y(), face_center.z()), pcl::PointXYZ(face_normal.x(), face_normal.y(), face_normal.z())));
-				float length_normal = bounds_normal[1] - bounds_normal[0];
+				//std::array<float, 2> bounds_normal(getPointCloudExtremes(*cloud_suprims, pcl::PointXYZ(face_center.x(), face_center.y(), face_center.z()), pcl::PointXYZ(face_normal.x(), face_normal.y(), face_normal.z())));
+				//float length_normal = bounds_normal[1] - bounds_normal[0];
 
+				//// Find the cube_face center
+				//Eigen::Vector3f vec(v_center.x() - h_center.x(), v_center.y() - h_center.y(), v_center.z() - h_center.z());
+				//Eigen::Vector3f face_center(
+				//	h_center.x() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.x(),
+				//	h_center.y() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.y(),
+				//	h_center.z() + v_dir.dot(vec) / std::pow(v_dir.norm(), 2) * v_dir.z()
+				//);
+
+				//// Select the larger dimension/direction as the Z-axis
 				if (length_va >= length_vb) {
 					// Cuboid z
 					cube_height = length_va;
@@ -1162,7 +1298,7 @@ namespace robin
 					e1_axis *= cube_width / 2;
 				}
 				// Cuboid e0
-				cube_depth = length_normal;
+				//cube_depth = length_normal;
 				e0_axis = face_normal;
 				e0_axis.normalize();
 				e0_axis *= cube_depth / 2;
@@ -1171,6 +1307,7 @@ namespace robin
 			}
 
 			// Since width (plane e0) <= height (plane e1)
+			// (assumption made for the cube)
 			properties_.e0_x = e0_axis(0);
 			properties_.e0_y = e0_axis(1);
 			properties_.e0_z = e0_axis(2);
