@@ -8,6 +8,7 @@
 #include "robin/solver/solver3_lasers.h"
 #include <robin/sensor/laser_array.h>
 #include <robin/primitive/primitive3_cylinder.h>
+#include <robin/feedback/feedback.h>
 
 int main(int argc, char** argv)
 {	
@@ -40,7 +41,8 @@ int main(int argc, char** argv)
 	// Create a Primitive
 	robin::Primitive3d3* prim(new robin::Primitive3Cylinder());
 
-
+	// Create a Feedback object
+	robin::feedback::Feedback feed;
 
 	// Create a PCL visualizer
 	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
@@ -76,6 +78,15 @@ int main(int argc, char** argv)
 		primitive_color_h.setInputCloud(prim->getPointCloud());
 		viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
 		prim->visualize(viewer);
+
+		feed.fromPointCloud(mysolver.getPointCloud(), robin::FEEDBACK_CLOUD::CLOSEST_POINT);
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> feed_color_h(255, 255, 255);
+		feed_color_h.setInputCloud(feed.getPointCloud());
+		viewer->addPointCloud(feed.getPointCloud(), feed_color_h, "feed");
+		feed.visualize(viewer);
+		std::cout << ">> ConvexHull size: " << feed.getPointCloud()->points.size() << std::endl;
+		for (auto p : feed.getPointCloud()->points)
+			std::cout << "\t(" << p.x << ", " << p.y << ", "<< p.z << ")" << std::endl;
 
 		viewer->spinOnce(1, true);
 
