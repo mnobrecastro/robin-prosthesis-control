@@ -9,6 +9,11 @@ list(APPEND robin_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sensor1.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sensor1.h
 
+    ${CMAKE_CURRENT_LIST_DIR}/tactor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tactor.h
+    ${CMAKE_CURRENT_LIST_DIR}/engacoustics_tactor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/engacoustics_tactor.h
+
     ${CMAKE_CURRENT_LIST_DIR}/sensor2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sensor2.h
 
@@ -22,9 +27,9 @@ list(APPEND robin_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/royale_picoflexx.cpp
     ${CMAKE_CURRENT_LIST_DIR}/royale_picoflexx.h
 
-	${CMAKE_CURRENT_LIST_DIR}/laser_scanner.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/laser_scanner.cpp
     ${CMAKE_CURRENT_LIST_DIR}/laser_scanner.h
-	${CMAKE_CURRENT_LIST_DIR}/laser_array.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/laser_array.cpp
     ${CMAKE_CURRENT_LIST_DIR}/laser_array.h
 
     ${CMAKE_CURRENT_LIST_DIR}/sensor4.cpp
@@ -45,6 +50,9 @@ list(APPEND robin_INCS
     ${CMAKE_CURRENT_LIST_DIR}/sensor_array.h
 
     ${CMAKE_CURRENT_LIST_DIR}/sensor1.h
+
+    ${CMAKE_CURRENT_LIST_DIR}/tactor.h
+    ${CMAKE_CURRENT_LIST_DIR}/engacoustics_tactor.h
 
     ${CMAKE_CURRENT_LIST_DIR}/sensor2.h
 
@@ -71,6 +79,9 @@ list(APPEND robin_SRCS
 
     ${CMAKE_CURRENT_LIST_DIR}/sensor1.cpp
 
+    ${CMAKE_CURRENT_LIST_DIR}/tactor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/engacoustics_tactor.cpp
+
     ${CMAKE_CURRENT_LIST_DIR}/sensor2.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/sensor3.cpp
@@ -79,8 +90,8 @@ list(APPEND robin_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/realsense_d400.cpp
     ${CMAKE_CURRENT_LIST_DIR}/royale_picoflexx.cpp
 
-	${CMAKE_CURRENT_LIST_DIR}/laser_scanner.cpp
-	${CMAKE_CURRENT_LIST_DIR}/laser_array.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/laser_scanner.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/laser_array.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/sensor4.cpp
 
