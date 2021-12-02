@@ -4,7 +4,6 @@
 #include "robin/sensor/laser_array.h"
 #include "robin/primitive/primitive3.h"
 
-
 #include <typeinfo>
 
 namespace robin

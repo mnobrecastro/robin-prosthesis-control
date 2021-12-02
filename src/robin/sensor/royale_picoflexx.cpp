@@ -51,7 +51,6 @@ namespace robin {
 
 			// Wait for the next set of frames from the camera
 			mu_data_.lock();
-			//printf("PPPPPPPPPPPPPPP: %d.\n", data_->points.size());
 			royale::DepthData* data = new royale::DepthData(*data_);
 			mu_data_.unlock();
 
