@@ -95,5 +95,7 @@ int main(int argc, char** argv)
 		std::chrono::duration<double, std::ratio<1>> t = toc - tic;
 		std::cout << "Cycle duration: " << 1.0 / t.count() << " Hz (in " << t.count() * 1000.0 << " ms).\n" << std::endl;
 		freq.push_back(t.count());
+
+		//std::cin.get();
 	}
 }

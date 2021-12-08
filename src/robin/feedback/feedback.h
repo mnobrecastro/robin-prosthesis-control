@@ -45,14 +45,17 @@ namespace robin
 		protected:
 			std::vector<Sensor*> sensors_;
 
-			/* Point cloud and vector for rendering purposes */
+			/* Point cloud and point on ConvHull for rendering purposes */
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
-			pcl::PointXYZ arrow_;
+			pcl::PointXYZ pHull_;
+			bool in_hull_ = false;
 
-			pcl::PointCloud<pcl::PointXYZ>::Ptr quick_hull_2d(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-			pcl::PointCloud<pcl::PointXYZ>::Ptr find_hull_2d(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointXYZ p0, pcl::PointXYZ p1);
+			pcl::PointCloud<pcl::PointXYZ>::Ptr quick_hull_2d(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+			pcl::PointCloud<pcl::PointXYZ>::Ptr find_hull_2d(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointXYZ p0, pcl::PointXYZ p1) const;
 
-			bool is_inside_hull(pcl::PointXYZ p, pcl::PointXYZ& d);
+			bool is_inside_hull(const pcl::PointCloud<pcl::PointXYZ>::Ptr hull, const pcl::PointXYZ p, pcl::PointXYZ& pHull) const;
+			int signum(float val) const;
+			float distance_to_lineseg(const pcl::PointXYZ a, const pcl::PointXYZ b, const pcl::PointXYZ p, pcl::PointXYZ& pHull) const;
 
 		};
 	}
