@@ -2,6 +2,8 @@
 #include "tactor.h"
 
 #include <iostream>
+#include <vector>
+#include <array>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -19,18 +21,30 @@ namespace robin
 		public Tactor
 	{
 	public:
-		EngAcousticsTactor();
+		EngAcousticsTactor() = delete;
+		EngAcousticsTactor(const std::vector<int> channels, float gainfactor=1.0, char* port=" ");
 		~EngAcousticsTactor();
 
-		void setSample(float value);
+		//void setSample(std::array<float,2> vals);
 
 	protected:
-		float getSample() = delete;
+		//float getSample() = delete;
+		//std::array<float,2> getSample();
 
-		void runFeedback();
+		void updateFeedback();
+
+		void update();
 
 	private:
 		int DeviceID_ = -1;
+		float gainFactor_;
+
+		// Channels
+		std::vector<int> ch_idx_ = {};
+		std::array<float, 4> ch_val_ = { 0.0, 0.0, 0.0, 0.0 };
+
+		bool mode_idle_ = true;
+		bool mode_trigger_ = false;
 
 		void CheckForError(int errorCode);
 	};

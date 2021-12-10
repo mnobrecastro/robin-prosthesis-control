@@ -10,9 +10,9 @@ namespace robin
 			cloud_ = cloud;
 		}
 		
-		void Feedback::addSensor(Sensor* s)
+		void Feedback::addTactor(Tactor* s)
 		{
-			sensors_.push_back(s);
+			tactor_ = s;
 		}
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr Feedback::getPointCloud() const
@@ -39,7 +39,8 @@ namespace robin
 		{
 			// Reset the feedback's PointCloud and pHull
 			cloud_->clear();
-			pHull_ = pcl::PointXYZ(0, 0, 0);
+			pHull_ = pcl::PointXYZ(-1.0, 0.0, 0.0);
+			in_hull_ = false;
 			
 			// Duplicate the pointcloud
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cpy(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
@@ -57,7 +58,6 @@ namespace robin
 					// Check whether the origin points lies inside the hull
 					in_hull_ = is_inside_hull(cloud_, pcl::PointXYZ(0, 0, 0), pHull_);					
 				}
-
 				break;
 
 			case robin::FEEDBACK_CLOUD::CENTER_OF_MASS:
@@ -72,6 +72,28 @@ namespace robin
 				ybar /= cloud->points.size();
 				zbar /= cloud->points.size();
 				break;
+			}
+
+			if (in_hull_) {
+				tactor_->setSample({ 0.0, 0.0 });
+			}
+			else {
+				if (cloud_->points.size() > 2) {
+					// Rho
+					float rho = std::sqrt(pHull_.x * pHull_.x + pHull_.y * pHull_.y);
+					const float MAX_RHO = 0.100; //m					
+					if (rho / MAX_RHO <= 1.0)
+						rho = rho / MAX_RHO;
+					else
+						rho = 1.0;
+					// Theta
+					float theta = std::atan2(pHull_.y, pHull_.x);
+
+					tactor_->setSample({rho, theta});
+				}
+				else {
+					tactor_->setSample({-1.0, 0.0});
+				}
 			}
 
 			return;
@@ -308,10 +330,6 @@ namespace robin
 					bool found(false);
 					while (!found) {
 						// Stopping criterion
-						/*if (idx == idx_min && idx == idx_max) {
-							break;
-						}*/
-
 						if ((idx_min + idx_max) / 2 == idx)
 							// (handle the integer division, which rounds towards zero)
 							idx = (idx_min + idx_max) / 2 + 1;
@@ -320,37 +338,26 @@ namespace robin
 
 						pK = Eigen::Vector3f(hull->points[idx].x, hull->points[idx].y, hull->points[idx].z); // p_k
 						pK1 = Eigen::Vector3f(hull->points[idx+1].x, hull->points[idx + 1].y, hull->points[idx + 1].z); // p_k+1
-
-						std::cout << "cross1: " << (pK - p0).cross(pP - p0).z() << " cross2: " << (pK1 - p0).cross(pP - p0).z() << std::endl;
-						std::cout << "HUUUUL! " << idx << " [" << idx_min << "," << idx_max << "]" << "/" << hull->points.size() << std::endl;
 						
 						if ( (pK - p0).cross(pP - p0).z() > 0.0 && (pK1 - p0).cross(pP - p0).z() <= 0.0) {
 							// Point 'p' lies polarly between pK and pK1
 							found = true;
-							std::cout << "**********!" << std::endl;
 							break;
 						}
 						else {
 							if ((pK - p0).cross(pP - p0).z() > 0.0 && (pK1 - p0).cross(pP - p0).z() > 0.0) {
 								// Point 'p' is further counter-clockwise (left) to pK and pK1
 								idx_min = idx;
-								//if (idx_min != idx)
-								//	idx_min = idx;
-								//else
-								//	break;
-							} else if ((pK - p0).cross(pP - p0).z() < 0.0 && (pK1 - p0).cross(pP - p0).z() < 0.0) {
+							}
+							else if ((pK - p0).cross(pP - p0).z() < 0.0 && (pK1 - p0).cross(pP - p0).z() < 0.0) {
 								// Point 'p' is further clockwise (right) to pK and pK1
 								idx_max = idx;
-								//if (idx_max != idx)
-								//	idx_max = idx;
-								//else
-								//	break;
 							}
-							//else {
-							//	// Point 'p' lies behind p0pN p0p1
-							//	std::cerr << "THE POINT WAS NOT FOUND" << std::endl;
-							//	break;
-							//}
+							else {
+								// Point 'p' lies behind p0pN p0p1
+								std::cerr << "THE POINT WAS NOT FOUND" << std::endl;
+								break;
+							}
 						}						
 					}
 

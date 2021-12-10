@@ -1,8 +1,10 @@
 #pragma once
 #include "robin/sensor/sensor.h"
 #include "robin/primitive/primitive.h"
+#include "robin/sensor/tactor.h"
 
 #include <vector>
+#include <cmath>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -31,7 +33,7 @@ namespace robin
 			Feedback();
 			~Feedback() {}
 
-			void addSensor(Sensor* s);
+			void addTactor(Tactor* s);
 
 			pcl::PointCloud<pcl::PointXYZ>::Ptr getPointCloud() const;
 
@@ -43,7 +45,7 @@ namespace robin
 			virtual void fromPrimitive(const robin::Primitive* prim, robin::FEEDBACK_PRIM fp);
 			
 		protected:
-			std::vector<Sensor*> sensors_;
+			Tactor* tactor_;
 
 			/* Point cloud and point on ConvHull for rendering purposes */
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
@@ -56,7 +58,6 @@ namespace robin
 			bool is_inside_hull(const pcl::PointCloud<pcl::PointXYZ>::Ptr hull, const pcl::PointXYZ p, pcl::PointXYZ& pHull) const;
 			int signum(float val) const;
 			float distance_to_lineseg(const pcl::PointXYZ a, const pcl::PointXYZ b, const pcl::PointXYZ p, pcl::PointXYZ& pHull) const;
-
 		};
 	}
 }
