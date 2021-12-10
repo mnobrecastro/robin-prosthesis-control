@@ -1,9 +1,9 @@
 #pragma once
 #include "sensor1.h"
 
-//#include <iostream>
-//#include <vector>
-//#include <mutex>
+#include <array>
+
+#define M_PI	3.14159265358979323846   // pi
 
 namespace robin
 {
@@ -18,6 +18,8 @@ namespace robin
 
 		virtual void runFeedback();
 
+		void setSample(std::array<float,2> vals);
+
 		/*virtual void captureFrame() {}
 		
 		void setSample(float value);
@@ -29,6 +31,10 @@ namespace robin
 		virtual void fromParent(const float data);*/
 
 	protected:
+
+		std::array<float,2> data_ = {-1.0, 0.0};
+		std::array<float,2> getSample();
+
 		/*float data_;
 		std::mutex mu_data_;
 

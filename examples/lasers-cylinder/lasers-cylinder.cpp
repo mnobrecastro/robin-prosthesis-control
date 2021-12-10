@@ -8,7 +8,8 @@
 #include "robin/solver/solver3_lasers.h"
 #include <robin/sensor/laser_array.h>
 #include <robin/primitive/primitive3_cylinder.h>
-#include <robin/feedback/feedback.h>
+//#include <robin/feedback/feedback.h>
+//#include <robin/sensor/engacoustics_tactor.h>
 
 int main(int argc, char** argv)
 {	
@@ -19,7 +20,7 @@ int main(int argc, char** argv)
 	mysolver.setPlaneRemoval(false);
 
 	// Create a sensor from a camera
-	robin::RealsenseD400* mycam(new robin::RealsenseD400());
+	robin::RealsenseD400* mycam(new robin::RealsenseD400);
 	mycam->printInfo();
 	mycam->setDisparity(false);
 
@@ -41,8 +42,12 @@ int main(int argc, char** argv)
 	// Create a Primitive
 	robin::Primitive3d3* prim(new robin::Primitive3Cylinder());
 
-	// Create a Feedback object
+
+	/*// Create a Feedback object and add a Tactor instance to it
 	robin::feedback::Feedback feed;
+	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({3, 4, 5, 6}, 0.5, "COM6"));
+	feed.addTactor(tactor);*/
+
 
 	// Create a PCL visualizer
 	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
@@ -79,14 +84,11 @@ int main(int argc, char** argv)
 		viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
 		prim->visualize(viewer);
 
-		feed.fromPointCloud(mysolver.getPointCloud(), robin::FEEDBACK_CLOUD::CLOSEST_POINT);
+		/*feed.fromPointCloud(mysolver.getPointCloud(), robin::FEEDBACK_CLOUD::CLOSEST_POINT);
 		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> feed_color_h(255, 255, 255);
 		feed_color_h.setInputCloud(feed.getPointCloud());
 		viewer->addPointCloud(feed.getPointCloud(), feed_color_h, "feed");
-		feed.visualize(viewer);
-		std::cout << ">> ConvexHull size: " << feed.getPointCloud()->points.size() << std::endl;
-		for (auto p : feed.getPointCloud()->points)
-			std::cout << "\t(" << p.x << ", " << p.y << ", "<< p.z << ")" << std::endl;
+		feed.visualize(viewer);*/
 
 		viewer->spinOnce(1, true);
 
