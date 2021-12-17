@@ -86,14 +86,14 @@ namespace robin {
 
 		std::cout << "A new EngAcousticsTactor was created\n";
 
-		thread_feedback_ = std::thread(&EngAcousticsTactor::updateFeedback, this);
+		thread_tactor_ = std::thread(&EngAcousticsTactor::updateTactor, this);
 	}
 	
 	EngAcousticsTactor::~EngAcousticsTactor()
 	{
 		CheckForError(Close(DeviceID_));
 		CheckForError(ShutdownTI());
-		thread_feedback_.join();
+		thread_tactor_.join();
 	}
 
 
@@ -125,11 +125,11 @@ namespace robin {
 			mode_idle_ = false;
 			if (rho > 0.0) {
 				// PointCloud being detected
-				mode_trigger_ = false;
+				mode_centered_ = false;
 			}
 			else {
 				// PointCloud is centered
-				mode_trigger_ = true;
+				mode_centered_ = true;
 			}
 		}
 
@@ -163,7 +163,7 @@ namespace robin {
 		return;
 	}
 
-	void EngAcousticsTactor::updateFeedback()
+	void EngAcousticsTactor::updateTactor()
 	{		
 		int tdiv, delayTime; // range 1-255: delay * timefactor -> on time 255 * 10
 		int timeFactor(1000); // ms
@@ -182,7 +182,7 @@ namespace robin {
 			}
 			else {				
 			
-				if(!mode_trigger_){
+				if(!mode_centered_){
 					// PointCloud being detected
 					int ch_val_adj[4] = {
 						ch_val_[0] * gainFactor_ * 255,
@@ -209,30 +209,109 @@ namespace robin {
 				}
 				else {
 					// PointCloud is centered
-					//int timeFactor(100); // 10 = 10ms
-					//SetTimeFactor(timeFactor);
-					tdiv = 2;
-					delayTime = 100 / tdiv;
+					mu_data_.lock();
+					size_t behaviour(behaviour_);
+					mu_data_.unlock();
 					
-					ChangeGain(DeviceID_, ch_idx_[0], 0.5 * gainFactor_ * 255 + 0.5f, 0);
-					ChangeGain(DeviceID_, ch_idx_[1], 0.5 * gainFactor_ * 255 + 0.5f, 0);
-					ChangeGain(DeviceID_, ch_idx_[2], 0.5 * gainFactor_ * 255 + 0.5f, 0);
-					ChangeGain(DeviceID_, ch_idx_[3], 0.5 * gainFactor_ * 255 + 0.5f, 0);
-					Pulse(DeviceID_, ch_idx_[0], 10, 0);
-					Pulse(DeviceID_, ch_idx_[1], 10, 0);
-					Pulse(DeviceID_, ch_idx_[2], 10, 0);
-					Pulse(DeviceID_, ch_idx_[3], 10, 0);
-					Pulse(DeviceID_, ch_idx_[0], 0, 10);
-					Pulse(DeviceID_, ch_idx_[1], 0, 10);
-					Pulse(DeviceID_, ch_idx_[2], 0, 10);
-					Pulse(DeviceID_, ch_idx_[3], 0, 10);
-					Sleep(20);
+					switch(behaviour)
+					{
+					case 1:
+						ChangeGain(DeviceID_, ch_idx_[0], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[1], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[2], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[3], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						Pulse(DeviceID_, ch_idx_[0], 10, 0);
+						Pulse(DeviceID_, ch_idx_[1], 10, 0);
+						Pulse(DeviceID_, ch_idx_[2], 10, 0);
+						Pulse(DeviceID_, ch_idx_[3], 10, 0);
+						Pulse(DeviceID_, ch_idx_[0], 0, 10);
+						Pulse(DeviceID_, ch_idx_[1], 0, 10);
+						Pulse(DeviceID_, ch_idx_[2], 0, 10);
+						Pulse(DeviceID_, ch_idx_[3], 0, 10);
+						Sleep(80);
+						break;
+
+					case 2:
+						ChangeGain(DeviceID_, ch_idx_[0], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[1], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[2], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[3], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						Pulse(DeviceID_, ch_idx_[0], 10, 0);
+						Pulse(DeviceID_, ch_idx_[1], 10, 0);
+						Pulse(DeviceID_, ch_idx_[2], 10, 0);
+						Pulse(DeviceID_, ch_idx_[3], 10, 0);
+						Pulse(DeviceID_, ch_idx_[0], 0, 10);
+						Pulse(DeviceID_, ch_idx_[1], 0, 10);
+						Pulse(DeviceID_, ch_idx_[2], 0, 10);
+						Pulse(DeviceID_, ch_idx_[3], 0, 10);
+						//
+						Pulse(DeviceID_, ch_idx_[0], 10, 20);
+						Pulse(DeviceID_, ch_idx_[1], 10, 20);
+						Pulse(DeviceID_, ch_idx_[2], 10, 20);
+						Pulse(DeviceID_, ch_idx_[3], 10, 20);
+						Pulse(DeviceID_, ch_idx_[0], 0, 30);
+						Pulse(DeviceID_, ch_idx_[1], 0, 30);
+						Pulse(DeviceID_, ch_idx_[2], 0, 30);
+						Pulse(DeviceID_, ch_idx_[3], 0, 30);
+						Sleep(80);
+						break;
+
+					case 3:
+						ChangeGain(DeviceID_, ch_idx_[0], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[1], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[2], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[3], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						Pulse(DeviceID_, ch_idx_[0], 10, 0);
+						Pulse(DeviceID_, ch_idx_[1], 10, 0);
+						Pulse(DeviceID_, ch_idx_[2], 10, 0);
+						Pulse(DeviceID_, ch_idx_[3], 10, 0);
+						Pulse(DeviceID_, ch_idx_[0], 0, 10);
+						Pulse(DeviceID_, ch_idx_[1], 0, 10);
+						Pulse(DeviceID_, ch_idx_[2], 0, 10);
+						Pulse(DeviceID_, ch_idx_[3], 0, 10);
+						//
+						Pulse(DeviceID_, ch_idx_[0], 10, 20);
+						Pulse(DeviceID_, ch_idx_[1], 10, 20);
+						Pulse(DeviceID_, ch_idx_[2], 10, 20);
+						Pulse(DeviceID_, ch_idx_[3], 10, 20);
+						Pulse(DeviceID_, ch_idx_[0], 0, 30);
+						Pulse(DeviceID_, ch_idx_[1], 0, 30);
+						Pulse(DeviceID_, ch_idx_[2], 0, 30);
+						Pulse(DeviceID_, ch_idx_[3], 0, 30);
+						//
+						Pulse(DeviceID_, ch_idx_[0], 10, 40);
+						Pulse(DeviceID_, ch_idx_[1], 10, 40);
+						Pulse(DeviceID_, ch_idx_[2], 10, 40);
+						Pulse(DeviceID_, ch_idx_[3], 10, 40);
+						Pulse(DeviceID_, ch_idx_[0], 0, 50);
+						Pulse(DeviceID_, ch_idx_[1], 0, 50);
+						Pulse(DeviceID_, ch_idx_[2], 0, 50);
+						Pulse(DeviceID_, ch_idx_[3], 0, 50);
+						Sleep(80);
+						break;
+
+					default:
+						ChangeGain(DeviceID_, ch_idx_[0], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[1], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[2], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						ChangeGain(DeviceID_, ch_idx_[3], 0.5 * gainFactor_ * 255 + 0.5f, 0);
+						Pulse(DeviceID_, ch_idx_[0], 10, 0);
+						Pulse(DeviceID_, ch_idx_[1], 10, 0);
+						Pulse(DeviceID_, ch_idx_[2], 10, 0);
+						Pulse(DeviceID_, ch_idx_[3], 10, 0);
+						Pulse(DeviceID_, ch_idx_[0], 0, 10);
+						Pulse(DeviceID_, ch_idx_[1], 0, 10);
+						Pulse(DeviceID_, ch_idx_[2], 0, 10);
+						Pulse(DeviceID_, ch_idx_[3], 0, 10);
+						Sleep(20);
+					}					
 				}
 			}
 
 			// Update the TactorInterface (Will return any internal errors)
 			UpdateTI();
 		}
+		return;
 	}
 
 	void EngAcousticsTactor::CheckForError(int errorCode)

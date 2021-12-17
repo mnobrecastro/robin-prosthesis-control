@@ -7,8 +7,10 @@ namespace robin
 		Feedback::Feedback()
 		{
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-			cloud_ = cloud;
+			cloud_hull_ = cloud;
 		}
+
+		Feedback::~Feedback() {}
 		
 		void Feedback::addTactor(Tactor* s)
 		{
@@ -17,28 +19,29 @@ namespace robin
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr Feedback::getPointCloud() const
 		{
-			return cloud_;
+			return cloud_hull_;
 		}
 
 		void Feedback::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 		{
-			for (int i(0); i < cloud_->points.size(); ++i) {
+			for (int i(0); i < cloud_hull_->points.size(); ++i) {
 				if (i == 0)
-					viewer->addLine<pcl::PointXYZ>(cloud_->points[cloud_->points.size()-1], cloud_->points[i], 1.0, 1.0, 1.0, "hull" + std::to_string(i));
+					viewer->addLine<pcl::PointXYZ>(cloud_hull_->points[cloud_hull_->points.size()-1], cloud_hull_->points[i], 1.0, 1.0, 1.0, "hull" + std::to_string(i));
 				else
-					viewer->addLine<pcl::PointXYZ>(cloud_->points[i-1], cloud_->points[i], 1.0, 1.0, 1.0, "hull" + std::to_string(i));
+					viewer->addLine<pcl::PointXYZ>(cloud_hull_->points[i-1], cloud_hull_->points[i], 1.0, 1.0, 1.0, "hull" + std::to_string(i));
 			}
 			if (!in_hull_) {
 				viewer->addLine<pcl::PointXYZ>(pcl::PointXYZ(0.0,0.0,0.0), pHull_, 1.0, 0.0, 1.0, "pHull");
 				std::cout << pHull_ << std::endl;
 			}
 
+			return;
 		}
 
-		void Feedback::fromPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, robin::FEEDBACK_CLOUD fc)
+		void Feedback::addPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, robin::FEEDBACK_CLOUD fc)
 		{
 			// Reset the feedback's PointCloud and pHull
-			cloud_->clear();
+			cloud_hull_->clear();
 			pHull_ = pcl::PointXYZ(-1.0, 0.0, 0.0);
 			in_hull_ = false;
 			
@@ -47,21 +50,24 @@ namespace robin
 
 			switch (fc)
 			{
-			case robin::FEEDBACK_CLOUD::CLOSEST_POINT:
+			case robin::FEEDBACK_CLOUD::DIST_TO_HULL:
 				// Transform the 'cloud' as a projection into the xOy plane
 				for (auto& p : cloud_cpy->points) { p.z = 0.0; }
 
 				// Obtain the convexhull of the projected cloud
-				cloud_ = this->quick_hull_2d(cloud_cpy);
+				cloud_hull_ = this->quick_hull_2d(cloud_cpy);
 
-				if (cloud_->points.size() > 2) {
+				if (cloud_hull_->points.size() > 2) {
 					// Check whether the origin points lies inside the hull
-					in_hull_ = is_inside_hull(cloud_, pcl::PointXYZ(0, 0, 0), pHull_);					
+					in_hull_ = this->is_inside_hull(cloud_hull_, pcl::PointXYZ(0, 0, 0), pHull_);
 				}
 				break;
 
-			case robin::FEEDBACK_CLOUD::CENTER_OF_MASS:
+			case robin::FEEDBACK_CLOUD::DIST_TO_COM:
 				// Transform the 'cloud' as a projection into the xOy plane
+				for (auto& p : cloud_cpy->points) { p.z = 0.0; }
+
+				// Calculate the Center-of-Mass of the projected cloud
 				float xbar(0.0), ybar(0.0), zbar(0.0);
 				for (auto p : cloud->points) {
 					xbar += p.x;
@@ -72,13 +78,59 @@ namespace robin
 				ybar /= cloud->points.size();
 				zbar /= cloud->points.size();
 				break;
+
 			}
 
+			return;
+		}
+
+		void Feedback::addPrimitive3(const robin::Primitive3d3* prim, robin::FEEDBACK_PRIM fp)
+		{
+			robin::PRIM_TYPE prim_type;
+			switch (fp)
+			{
+			case robin::FEEDBACK_PRIM::TYPE:
+				
+				if (typeid(*prim) == typeid(robin::Primitive3Sphere)) {
+					prim_type = robin::PRIM_TYPE::SPHERE;
+				}
+				else if (typeid(*prim) == typeid(robin::Primitive3Cylinder)) {
+					prim_type = robin::PRIM_TYPE::CYLINDER;
+				}
+				else if (typeid(*prim) == typeid(robin::Primitive3Cuboid)) {
+					prim_type = robin::PRIM_TYPE::CUBOID;
+				}
+				break;
+			}
+
+			prim_type_ = prim_type;
+			return;
+		}
+
+		void Feedback::run()
+		{
 			if (in_hull_) {
-				tactor_->setSample({ 0.0, 0.0 });
+				// Use the primitive type to set a specific behaviour
+				switch (prim_type_)
+				{
+				case robin::PRIM_TYPE::SPHERE:
+					tactor_->setSample({ 0.0, 0.0 });//, 1);
+					break;
+
+				case robin::PRIM_TYPE::CYLINDER:
+					tactor_->setSample({ 0.0, 0.0 });//, 2);
+					break;
+
+				case robin::PRIM_TYPE::CUBOID:
+					tactor_->setSample({ 0.0, 0.0 });// , 3);
+					break;
+
+				//default:
+					//tactor_->setSample({ 0.0, 0.0 });
+				}
 			}
 			else {
-				if (cloud_->points.size() > 2) {
+				if (cloud_hull_->points.size() > 2) {
 					// Rho
 					float rho = std::sqrt(pHull_.x * pHull_.x + pHull_.y * pHull_.y);
 					const float MAX_RHO = 0.100; //m					
@@ -89,21 +141,14 @@ namespace robin
 					// Theta
 					float theta = std::atan2(pHull_.y, pHull_.x);
 
-					tactor_->setSample({rho, theta});
+					tactor_->setSample({ rho, theta });
 				}
 				else {
-					tactor_->setSample({-1.0, 0.0});
+					tactor_->setSample({ -1.0, 0.0 });
 				}
 			}
-
 			return;
 		}
-
-		void Feedback::fromPrimitive(const robin::Primitive* prim, robin::FEEDBACK_PRIM fp)
-		{
-
-		}
-
 
 
 		//
@@ -277,7 +322,6 @@ namespace robin
 		bool Feedback::is_inside_hull(const pcl::PointCloud<pcl::PointXYZ>::Ptr hull, const pcl::PointXYZ p, pcl::PointXYZ& pHull) const
 		{
 			/* O(logN) */
-			//pHull = pcl::PointXYZ(0.0, 0.0, 0.0);
 
 			// Check whether the point 'p' lies, clockwise, between p0-p1 and p0-pN points of the hull
 			Eigen::Vector3f pP(p.x, p.y, p.z);

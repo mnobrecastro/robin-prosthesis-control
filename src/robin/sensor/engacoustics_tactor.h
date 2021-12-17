@@ -31,7 +31,7 @@ namespace robin
 		//float getSample() = delete;
 		//std::array<float,2> getSample();
 
-		void updateFeedback();
+		void updateTactor();
 
 		void update();
 
@@ -44,7 +44,7 @@ namespace robin
 		std::array<float, 4> ch_val_ = { 0.0, 0.0, 0.0, 0.0 };
 
 		bool mode_idle_ = true;
-		bool mode_trigger_ = false;
+		bool mode_centered_ = false;
 
 		void CheckForError(int errorCode);
 	};

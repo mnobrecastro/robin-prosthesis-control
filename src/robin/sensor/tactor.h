@@ -18,7 +18,7 @@ namespace robin
 
 		virtual void runFeedback();
 
-		void setSample(std::array<float,2> vals);
+		void setSample(std::array<float,2> vals, size_t behaviour = 0);
 
 		/*virtual void captureFrame() {}
 		
@@ -33,6 +33,7 @@ namespace robin
 	protected:
 
 		std::array<float,2> data_ = {-1.0, 0.0};
+		size_t behaviour_ = 0;
 		std::array<float,2> getSample();
 
 		/*float data_;
@@ -45,7 +46,7 @@ namespace robin
 		//virtual void fromParent(const float data);
 		*/
 
-		std::thread thread_feedback_;
+		std::thread thread_tactor_;
 
 	private:
 		static int counter_;
