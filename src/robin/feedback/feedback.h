@@ -1,10 +1,15 @@
 #pragma once
 #include "robin/sensor/sensor.h"
-#include "robin/primitive/primitive.h"
+#include "robin/primitive/primitive3.h"
+#include "robin/primitive/primitive3_sphere.h"
+#include "robin/primitive/primitive3_cylinder.h"
+#include "robin/primitive/primitive3_cuboid.h"
 #include "robin/sensor/tactor.h"
 
 #include <vector>
 #include <cmath>
+#include <thread>
+#include <mutex>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -17,12 +22,18 @@
 namespace robin
 {
 	enum class FEEDBACK_CLOUD {
-		CLOSEST_POINT,
-		CENTER_OF_MASS
+		DIST_TO_HULL,
+		DIST_TO_COM
 	};
 
 	enum class FEEDBACK_PRIM {
-		SOMETHING
+		TYPE
+	};
+
+	enum class PRIM_TYPE {
+		SPHERE,
+		CYLINDER,
+		CUBOID
 	};
 
 	namespace feedback
@@ -31,7 +42,7 @@ namespace robin
 		{
 		public:
 			Feedback();
-			~Feedback() {}
+			~Feedback();
 
 			void addTactor(Tactor* s);
 
@@ -40,17 +51,20 @@ namespace robin
 			/* Rendering of the feedback on a PCLVisualizer (ex. Hull). */
 			virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;
 
-			virtual void fromPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, robin::FEEDBACK_CLOUD fc);
+			virtual void addPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, robin::FEEDBACK_CLOUD fc);
 
-			virtual void fromPrimitive(const robin::Primitive* prim, robin::FEEDBACK_PRIM fp);
+			virtual void addPrimitive3(const robin::Primitive3d3* prim, robin::FEEDBACK_PRIM fp);
+
+			virtual void run();
 			
 		protected:
 			Tactor* tactor_;
 
 			/* Point cloud and point on ConvHull for rendering purposes */
-			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull_;
 			pcl::PointXYZ pHull_;
 			bool in_hull_ = false;
+			robin::PRIM_TYPE prim_type_;
 
 			pcl::PointCloud<pcl::PointXYZ>::Ptr quick_hull_2d(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 			pcl::PointCloud<pcl::PointXYZ>::Ptr find_hull_2d(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointXYZ p0, pcl::PointXYZ p1) const;
