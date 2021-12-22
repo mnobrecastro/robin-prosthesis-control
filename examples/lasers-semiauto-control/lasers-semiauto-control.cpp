@@ -3,7 +3,8 @@
 
 #include <robin/utils/data_manager.h>
 #include <robin/sensor/hand_michelangelo.h>
-#include <robin/control/control_simple.h>
+//#include <robin/control/control_simple.h>
+#include <robin/control/control_sequential.h>
 #include <robin/solver/solver3.h>
 #include <robin/solver/solver3_lccp.h>
 #include <robin/solver/solver3_lasers.h>
@@ -14,8 +15,8 @@
 #include <robin/primitive/primitive3_sphere.h>
 #include <robin/primitive/primitive3_cylinder.h>
 #include <robin/primitive/primitive3_cuboid.h>
-#include <robin/primitive/primitive3_line.h>
-#include <robin/primitive/primitive3_circle.h>
+#include <robin/feedback/feedback.h>
+#include <robin/sensor/engacoustics_tactor.h>
 
 #include <chrono>
 #include <thread>
@@ -23,6 +24,10 @@
 #ifdef GNUPLOT
 #include "gnuplot-iostream/gnuplot-iostream.h"
 #endif
+
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr rotate(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud, Eigen::Vector3f axis, float angle);
+
 
 int main(int argc, char** argv)
 {
@@ -32,13 +37,13 @@ int main(int argc, char** argv)
 	
 	Beep(523, 100); 
 
-	robin::hand::Michelangelo myhand(true);
+	robin::hand::Michelangelo myhand(false);
 	myhand.setDataManager(mydm);
 	myhand.plotEMG(false);
 	myhand.calibrateEMG();
 
-	robin::control::ControlSimple controller(myhand);
-	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 20); //20=~200ms     //MEDIAN, 40
+	robin::control::ControlSequential controller(myhand);
+	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 20); //20=~200ms     //MEDIAN, 40   // <--- Not being used at the moment
 	controller.setFullManual(false);
 	controller.setDataManager(mydm);
 
@@ -69,13 +74,20 @@ int main(int argc, char** argv)
 	mycam->setDisparity(false);
 
 	// Create a virtual array of sensors from another sensor
+	//robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002));
+	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
 	robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001));
 	mysolver.addSensor(myarr);
 
 	// Create a Primitive
 	robin::Primitive3d3* prim;
-	//robin::Primitive3d3* prim(new robin::Primitive3Cylinder);	
-	//prim->setVisualizeOnOff(false);
+
+
+	// Create a Feedback object and add a Tactor instance to it
+	robin::feedback::Feedback feed;
+	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({ 3, 4, 5, 6 }, 0.6, "COM6"));
+	feed.addTactor(tactor);
+
 
 	// Create a PCL visualizer
 	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
@@ -155,6 +167,14 @@ int main(int argc, char** argv)
 			std::cout << "\n" << std::endl;
 		}
 		///
+		
+		//feed.addPointCloud(mysolver.getPointCloud(), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
+		if (myhand.isRightHand())
+			feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
+		else
+			feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, -myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
+		feed.addPrimitive3(prim, robin::FEEDBACK_PRIM::TYPE);
+		feed.run();
 
 		//---- RENDERING ----
 		if (RENDER) {
@@ -182,14 +202,10 @@ int main(int argc, char** argv)
 			viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
 			prim->visualize(viewer);
 
-			//std::cout << *prim->getCoefficients() << std::endl;
-
-			//------
-			/*pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h(255, 255, 255);
-			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_color(mycam->getPointCloud());
-			cloud_color_h.setInputCloud(cloud_color);
-			viewer->addPointCloud(cloud_color, cloud_color_h);*/
-			//-----
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> feed_color_h(255, 255, 255);
+			feed_color_h.setInputCloud(feed.getPointCloud());
+			viewer->addPointCloud(feed.getPointCloud(), feed_color_h, "feed");
+			feed.visualize(viewer);
 
 			viewer->spinOnce(1, true);
 		}
@@ -229,4 +245,30 @@ int main(int argc, char** argv)
 		std::cout << "Cycle duration: " << 1.0/t.count() << " Hz (in " << t.count()*1000.0 << " ms).\n" << std::endl;
 		freq.push_back(t.count());
 	}	
+}
+
+
+
+/* Rotates a PointCloud about a given axis according to Euler's rotation theorem. */
+pcl::PointCloud<pcl::PointXYZ>::Ptr rotate(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud, Eigen::Vector3f axis, float angle)
+{
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_rot(new pcl::PointCloud<pcl::PointXYZ>);
+	axis.normalize();
+
+	// Calculate the Euler parameters for rotating a given point about the 'axis' by an amount of 'angle' 
+	float e0(std::cos(angle / 2.0));
+	Eigen::Vector3f e = axis * std::sin(angle / 2.0);
+	Eigen::Matrix3f e_skewsim;
+	e_skewsim << 0.0, -e(2), e(1),
+		e(2), 0.0, -e(0),
+		-e(1), e(0), 0.0;
+	Eigen::Matrix3f A = (2 * e0 * e0 - 1) * Eigen::Matrix3f::Identity() + 2 * (e * e.transpose() + e0 * e_skewsim);
+
+	// Rotate the PointCloud
+	for (auto p : cloud->points) {
+		Eigen::Vector3f p_rot = A * Eigen::Vector3f(p.x, p.y, p.z);
+		cloud_rot->points.push_back(pcl::PointXYZ(p_rot.x(), p_rot.y(), p_rot.z()));
+	}
+
+	return cloud_rot;
 }

@@ -36,11 +36,11 @@ namespace robin
 			MYOMENU_ROTATE
 		};
 
-		class ControlSimple :
+		class ControlSequential :
 			public Control
 		{
 		public:
-			ControlSimple(robin::hand::Hand& hand);
+			ControlSequential(robin::hand::Hand& hand);
 
 			float getGraspSize();
 			float getTiltAngle();
@@ -84,6 +84,14 @@ namespace robin
 			ControlVar target_grasp_size_;
 			ControlVar target_tilt_angle_;
 			ControlVar target_grasp_type_;
+
+			bool use_saved_targets_ = false;
+			float saved_grasp_size_;
+			float saved_tilt_angle_;
+			int saved_grasp_type_;
+			float last_grasp_size_ = 0.1;
+			float last_tilt_angle_ = 0.0;
+			int last_grasp_type_ = int(robin::hand::GRASP::PALMAR);
 
 			/* Receives a Primitive3 object and evaluates its type. */
 			Primitive3Type find_primitive3_type(robin::Primitive3* prim);
