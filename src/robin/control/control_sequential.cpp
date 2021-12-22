@@ -1,10 +1,10 @@
-#include "control_simple.h"
+#include "control_sequential.h"
 
 namespace robin
 {
 	namespace control
 	{
-		ControlSimple::ControlSimple(robin::hand::Hand& hand)
+		ControlSequential::ControlSequential(robin::hand::Hand& hand)
 		{
 			hand_ = &hand;
 
@@ -12,7 +12,7 @@ namespace robin
 			emg1_time_ = emg0_time_;
 		}
 
-		void ControlSimple::evaluate(robin::Primitive3* prim)
+		void ControlSequential::evaluate(robin::Primitive3* prim)
 		{
 			//std::vector<float> emg_channels = hand_->getEMG();
 			std::vector<Solver1EMG*> emg_channels = dynamic_cast<robin::hand::Michelangelo*>(hand_)->getEMGSolvers();
@@ -118,8 +118,9 @@ namespace robin
 				}
 			}
 
-			if (state_auto_)
-			{
+			if (state_auto_) {
+				/* SEMI-AUTO CONTROL */
+				
 				// Checks if the switch flag is still raised
 				if (flag_switch_) {
 					if (emg_cmd_extension_.value < emg_coactiv_threshold) {
@@ -157,6 +158,15 @@ namespace robin
 						Beep(2000, 100);
 					}
 					else {
+						// Checks if a saved_target cmd has been received
+						if (!flag_coactiv_ && emg_cmd_flexion_.value > emg_contract_threshold && !use_saved_targets_) {
+							key_stored_ = 's';
+							key_pressed_ = true;
+							flag_key_ = true;
+
+							Beep(1000, 100);
+						}
+
 						/* Current absolute supination angle of the prosthesis
 						 * (measured from the full pronated wrist position ref frame).
 						 *
@@ -191,6 +201,14 @@ namespace robin
 						this->estimate_grasp_type(prim);
 						this->estimate_tilt_angle(prim);
 
+						// -- Patch for the sequential control
+						if (!use_saved_targets_) {
+							saved_grasp_type_ = int(target_grasp_type_.value);
+							saved_tilt_angle_ = target_tilt_angle_.value;
+							saved_grasp_size_ = target_grasp_size_.value;
+						}
+						// --
+
 						if (flag_key_) {
 							switch (key_stored_) {
 							case ' ':
@@ -214,18 +232,31 @@ namespace robin
 								target_grasp_size_.value = 0.10;
 								break;
 
-							//case 's':
-							//	if (sequential) {
-							//		this->estimate_grasp_size(prim);
-							//		this->estimate_grasp_type(prim);
-							//		this->estimate_tilt_angle(prim);
-							//	}
-							//	break;
+							case 's':
+								use_saved_targets_ = true;
+								// Set target_grasp_type to saved val
+								target_grasp_type_.value = saved_grasp_type_;
+								// Set taget_tilt_angle to saved val
+								target_tilt_angle_.value = saved_tilt_angle_;
+								// Set target_grasp_size to saved val
+								target_grasp_size_.value = saved_grasp_size_;
+								break;
 							}
+
+							last_grasp_type_ = target_grasp_type_.value;
+							last_tilt_angle_ = target_tilt_angle_.value;
+							last_grasp_size_ = target_grasp_size_.value;
+						}
+						else {
+							// -- Patch for the sequential control
+							target_grasp_type_.value = last_grasp_type_;
+							target_tilt_angle_.value = last_tilt_angle_;
+							target_grasp_size_.value = last_grasp_size_;
 						}
 
+
 						// Tolerances
-						float grasp_size_slack(0.030); // 3 cm
+						float grasp_size_slack(0.015); // 3 cm
 						float grasp_size_error_tol(0.010); // 1 cm
 						float tilt_angle_error_tol(5 * M_PI / 180);
 
@@ -258,9 +289,10 @@ namespace robin
 								hand_->supinate(0.0, false);
 
 								// Upon key_pressed
-								if (key_pressed_ && flag_key_) {
-									flag_key_ = false;
-								}
+								if (key_pressed_ && flag_key_) { flag_key_ = false;	}
+
+								// Sequential saved_targets
+								if (use_saved_targets_) { use_saved_targets_ = false; }
 							}
 						}
 						else {
@@ -277,15 +309,18 @@ namespace robin
 								hand_->supinate(0.0, false);
 
 								// Upon key_pressed
-								if (key_pressed_ && flag_key_) {
-									flag_key_ = false;
-								}
+								if (key_pressed_ && flag_key_) { flag_key_ = false; }
+
+								// Sequential saved_targets
+								if(use_saved_targets_) { use_saved_targets_ = false; }
 							}
 						}
 					}
 				}
 			}
 			else {
+				/* MANUAL CONTROL */
+				
 				// Checks if the switch flag is still raised
 				if (flag_switch_){
 					if (emg_cmd_extension_.value < emg_coactiv_threshold) {
@@ -408,17 +443,17 @@ namespace robin
 		}
 
 
-		float ControlSimple::getGraspSize()
+		float ControlSequential::getGraspSize()
 		{
 			return target_grasp_size_.value;
 		}
 
-		float ControlSimple::getTiltAngle()
+		float ControlSequential::getTiltAngle()
 		{
 			return target_tilt_angle_.value;
 		}
 
-		std::vector<float> ControlSimple::getEMG()
+		std::vector<float> ControlSequential::getEMG()
 		{
 			std::vector<float> emg;
 			emg.push_back(emg_cmd_flexion_.value);
@@ -429,7 +464,7 @@ namespace robin
 
 
 		/* Receives a Primitive3 object and evaluates its type. */
-		Primitive3Type ControlSimple::find_primitive3_type(robin::Primitive3* prim)
+		Primitive3Type ControlSequential::find_primitive3_type(robin::Primitive3* prim)
 		{
 			if (typeid(*prim) == typeid(robin::Primitive3Sphere)) {
 				return Primitive3Type::PRIMITIVE3_SPHERE;				
@@ -446,7 +481,7 @@ namespace robin
 			}
 		}
 
-		void ControlSimple::estimate_grasp_size(robin::Primitive3* prim)
+		void ControlSequential::estimate_grasp_size(robin::Primitive3* prim)
 		{
 			// Cuboid vars
 			float projection(0.0), proj_e0_e1(0.0), proj_e0_ez(0.0), proj_e1_e0(0.0), proj_e1_ez(0.0), proj_ez_e0(0.0), proj_ez_e1(0.0);
@@ -652,11 +687,11 @@ namespace robin
 			target_grasp_size_.buffer.push_back(grasp_size);
 			std::cout << "Estimated grasp_size: " << grasp_size;
 
-			target_grasp_size_.update(filter_, window_size_);
+			target_grasp_size_.update(ControlVar::fname::MEDIAN, 10);
 			std::cout << " with movavg: " << target_grasp_size_.value << std::endl;
 		}
 
-		void ControlSimple::estimate_grasp_type(robin::Primitive3* prim)
+		void ControlSequential::estimate_grasp_type(robin::Primitive3* prim)
 		{
 			float length_threshold(0.080);
 			float grasp_size_threshold(0.050);
@@ -897,7 +932,8 @@ namespace robin
 				break;
 			}
 
-			target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+			//target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+			target_grasp_type_.update(ControlVar::fname::MODE, 10);
 			std::cout << " with majvote: ";
 			switch (int(target_grasp_type_.value)) {
 			case int(robin::hand::GRASP::PALMAR) :
@@ -909,7 +945,7 @@ namespace robin
 			}
 		}
 
-		void ControlSimple::estimate_tilt_angle(robin::Primitive3* prim)
+		void ControlSequential::estimate_tilt_angle(robin::Primitive3* prim)
 		{						
 			// Tilt angle calculated as an absolute supination angle, i.e. measured from the full pronated wrist position.
 			float tilt_angle(target_tilt_angle_.value);
@@ -967,7 +1003,7 @@ namespace robin
 			target_tilt_angle_.buffer.push_back(tilt_angle);
 			std::cout << "Estimated tilt_angle: " << tilt_angle;
 
-			target_tilt_angle_.update(filter_, window_size_);
+			target_tilt_angle_.update(ControlVar::fname::MEDIAN, 10);
 			std::cout << " with movavg: " << target_tilt_angle_.value << std::endl;
 		}
 
@@ -975,12 +1011,12 @@ namespace robin
 
 
 
-		void ControlSimple::setDataManager(robin::data::DataManager& dm)
+		void ControlSequential::setDataManager(robin::data::DataManager& dm)
 		{
 			dm_ = &dm;
 		}
 
-		int ControlSimple::saveEvent(bool flag) const
+		int ControlSequential::saveEvent(bool flag) const
 		{
 			robin::data::EventData data;
 			data.mode = int(state_auto_); // Mode Auto[1]/Manual[0]
@@ -1002,7 +1038,7 @@ namespace robin
 
 
 
-		bool ControlSimple::isKeyPressed(char* c)
+		bool ControlSequential::isKeyPressed(char* c)
 		{
 			if (kbhit()) {
 				*c = getch();

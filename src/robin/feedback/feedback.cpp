@@ -125,8 +125,8 @@ namespace robin
 					tactor_->setSample({ 0.0, 0.0 });// , 3);
 					break;
 
-				//default:
-					//tactor_->setSample({ 0.0, 0.0 });
+				default:
+					tactor_->setSample({ -1.0, 0.0 });
 				}
 			}
 			else {

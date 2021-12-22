@@ -44,8 +44,7 @@ namespace robin
 		{			
 			std::string m("");
 			for (size_t i(0); i < data.basevals.size(); ++i) {
-				m += std::to_string(data.basevals[i]) + " ";
-				m += std::to_string(data.normvals[i]);
+				m = std::to_string(data.basevals[i]) + " " + std::to_string(data.normvals[i]);
 				this->writeToFile(filename_calib_, m);
 			}
 			return 0;
