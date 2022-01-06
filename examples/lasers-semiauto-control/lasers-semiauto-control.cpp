@@ -5,16 +5,10 @@
 #include <robin/sensor/hand_michelangelo.h>
 //#include <robin/control/control_simple.h>
 #include <robin/control/control_sequential.h>
-#include <robin/solver/solver3.h>
-#include <robin/solver/solver3_lccp.h>
 #include <robin/solver/solver3_lasers.h>
 #include <robin/sensor/realsense_d400.h>
-//#include <robin/sensor/royale_picoflexx.h>
-#include <robin/sensor/laser_scanner.h>
 #include <robin/sensor/laser_array.h>
-#include <robin/primitive/primitive3_sphere.h>
-#include <robin/primitive/primitive3_cylinder.h>
-#include <robin/primitive/primitive3_cuboid.h>
+#include <robin/primitive/primitive3.h>
 #include <robin/feedback/feedback.h>
 #include <robin/sensor/engacoustics_tactor.h>
 
@@ -49,7 +43,8 @@ int main(int argc, char** argv)
 
 	// Declare a solver3
 	robin::Solver3Lasers mysolver;
-	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315);
+	//mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315);
+	mysolver.setCrop(-0.05, 0.05, -0.05, 0.05, 0.115, 0.215);
 	mysolver.setDownsample(0.002f);
 	//mysolver.setResample(2, 0.005);
 	mysolver.setPlaneRemoval(false);
@@ -74,9 +69,9 @@ int main(int argc, char** argv)
 	mycam->setDisparity(false);
 
 	// Create a virtual array of sensors from another sensor
-	//robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002));
+	robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002));
 	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
-	robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001));
+	//robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001));
 	mysolver.addSensor(myarr);
 
 	// Create a Primitive
@@ -85,7 +80,7 @@ int main(int argc, char** argv)
 
 	// Create a Feedback object and add a Tactor instance to it
 	robin::feedback::Feedback feed;
-	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({ 3, 4, 5, 6 }, 0.6, "COM6"));
+	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({ 3, 4, 5, 6 }, 0.7, "COM6"));
 	feed.addTactor(tactor);
 
 
@@ -109,6 +104,7 @@ int main(int argc, char** argv)
 	bool RENDER(true);
 	bool PLOT(false);
 	bool HAND_CONTROL(true);
+	bool FEEDBACK(true);
 	std::vector<double> freq;
 
 	while(true){
@@ -168,13 +164,14 @@ int main(int argc, char** argv)
 		}
 		///
 		
-		//feed.addPointCloud(mysolver.getPointCloud(), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
-		if (myhand.isRightHand())
-			feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
-		else
-			feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, -myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
-		feed.addPrimitive3(prim, robin::FEEDBACK_PRIM::TYPE);
-		feed.run();
+		if (FEEDBACK) {
+			if (myhand.isRightHand())
+				feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
+			else
+				feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, -myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
+			feed.addPrimitive3(prim, robin::FEEDBACK_PRIM::TYPE);
+			feed.run();
+		}
 
 		//---- RENDERING ----
 		if (RENDER) {
@@ -202,10 +199,12 @@ int main(int argc, char** argv)
 			viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
 			prim->visualize(viewer);
 
-			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> feed_color_h(255, 255, 255);
-			feed_color_h.setInputCloud(feed.getPointCloud());
-			viewer->addPointCloud(feed.getPointCloud(), feed_color_h, "feed");
-			feed.visualize(viewer);
+			if (FEEDBACK) {
+				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> feed_color_h(255, 255, 255);
+				feed_color_h.setInputCloud(feed.getPointCloud());
+				viewer->addPointCloud(feed.getPointCloud(), feed_color_h, "feed");
+				feed.visualize(viewer);
+			}
 
 			viewer->spinOnce(1, true);
 		}

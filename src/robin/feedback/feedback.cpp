@@ -133,7 +133,7 @@ namespace robin
 				if (cloud_hull_->points.size() > 2) {
 					// Rho
 					float rho = std::sqrt(pHull_.x * pHull_.x + pHull_.y * pHull_.y);
-					const float MAX_RHO = 0.100; //m					
+					const float MAX_RHO = 0.050; //m					
 					if (rho / MAX_RHO <= 1.0)
 						rho = rho / MAX_RHO;
 					else
