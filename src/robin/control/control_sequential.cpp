@@ -264,10 +264,10 @@ namespace robin
 						float grasp_size_error(target_grasp_size_.value + grasp_size_slack - hand_grasp_size_.value);
 						if (std::abs(grasp_size_error) > grasp_size_error_tol) {
 							if (grasp_size_error > 0.0) {
-								hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity, false); //* hand_velocity/2
+								hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity/2, false);
 							}
 							else {
-								hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity, false); //* hand_velocity/2
+								hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity/2, false);
 							}
 						}
 						else {
