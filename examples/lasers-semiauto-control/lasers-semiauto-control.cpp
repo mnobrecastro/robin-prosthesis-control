@@ -31,7 +31,7 @@ int main(int argc, char** argv)
 	
 	Beep(523, 100); 
 
-	robin::hand::Michelangelo myhand(false);
+	robin::hand::Michelangelo myhand(true);
 	myhand.setDataManager(mydm);
 	myhand.plotEMG(false);
 	myhand.calibrateEMG();
@@ -69,8 +69,8 @@ int main(int argc, char** argv)
 	mycam->setDisparity(false);
 
 	// Create a virtual array of sensors from another sensor
-	robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002));
-	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
+	//robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002));
+	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
 	//robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001));
 	mysolver.addSensor(myarr);
 
@@ -104,7 +104,7 @@ int main(int argc, char** argv)
 	bool RENDER(true);
 	bool PLOT(false);
 	bool HAND_CONTROL(true);
-	bool FEEDBACK(true);
+	bool FEEDBACK(false);
 	std::vector<double> freq;
 
 	while(true){
