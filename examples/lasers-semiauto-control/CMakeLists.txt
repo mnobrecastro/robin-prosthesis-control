@@ -25,7 +25,6 @@ link_libraries(${ROYALE_LIBS})
 set(ENGACOUSTICS_PATH CACHE PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tdk-engacoustics/)
 include_directories(${ENGACOUSTICS_PATH}/include)
 link_directories(${ENGACOUSTICS_PATH}/lib)
-#find_library(ENGACOUSTICS_LIB TactorInterface HINTS ${CMAKE_CURRENT_SOURCE_DIR}../../dependencies/tflite/lib/)
 set(ENGACOUSTICS_LIB "TactorInterface.lib")
 link_libraries(${ENGACOUSTICS_LIB})
 

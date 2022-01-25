@@ -22,6 +22,12 @@ link_directories(${ROYALE_INSTALL_PATH}/lib)
 set(ROYALE_LIBS "royale.lib")
 link_libraries(${ROYALE_LIBS})
 
+set(ENGACOUSTICS_PATH CACHE PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tdk-engacoustics/)
+include_directories(${ENGACOUSTICS_PATH}/include)
+link_directories(${ENGACOUSTICS_PATH}/lib)
+set(ENGACOUSTICS_LIB "TactorInterface.lib")
+link_libraries(${ENGACOUSTICS_LIB})
+
 add_executable (lccp-semiauto-control lccp-semiauto-control.cpp)
 target_link_libraries (lccp-semiauto-control robin)
 
