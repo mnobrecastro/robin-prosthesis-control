@@ -147,7 +147,7 @@ namespace robin
 
 			// Create a Gnuplot canvas
 			Gnuplot gp_;
-			std::vector<std::pair<double, double>> gnup_emg0_, gnup_emg1_, gnup_emg2_, gnup_emg3_, gnup_emg4_, gnup_emg5_, gnup_emg6_, gnup_emg7_;
+			std::vector<std::pair<double, double>> gnup_emg0_, gnup_emg1_, gnup_emg2_, gnup_emg3_, gnup_emg4_, gnup_emg5_, gnup_emg6_, gnup_emg7_; /* NEEDS CORRECTION! */
 			std::size_t kdata_ = 0;
 			
 			float dummy = 0.05;

@@ -20,12 +20,18 @@ namespace robin
 		public Solver
 	{
 	public:
-		Solver1();
+		Solver1() : Solver1(1024) {}
+		Solver1(size_t N);
 		~Solver1();
 
 		float getSample();
 
+		/* Get the mean value over a window of size w. */
+		float getMean(size_t w);
+
 		std::vector<float> getData();
+
+		std::vector<float> getWindow(size_t w);
 
 		std::vector<float> getPreprocessed();
 
@@ -50,6 +56,7 @@ namespace robin
 		//virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;
 
 	protected:
+		int BUFFER_LEN_;
 
 		std::vector<robin::Sensor1*> sensors_;
 
@@ -92,9 +99,9 @@ namespace robin
 		float normval_ = 1.0;
 		void normalize(float& val);
 
-		/* The update method works, on purpose, at a different pace (F) of that of the sensor (Fs).
+		/* The setSample() method works, on purpose, at a different pace (F) of that of the sensor (Fs).
 		 * Hence, some new samples constantly made available by the sensor are dropped in case the
 		 * processing time of the Solver1::solve() works at F < Fs. */
-		void update(float& val);
+		void setSample(float& val);
 	};
 }
