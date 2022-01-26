@@ -3,7 +3,7 @@
 
 #include <robin/utils/data_manager.h>
 #include <robin/sensor/hand_michelangelo.h>
-#include <robin/control/control_simple.h>
+#include <robin/control/control_continuous.h>
 #include <robin/solver/solver3.h>
 #include <robin/solver/solver3_lccp.h>
 #include <robin/solver/solver3_lasers.h>
@@ -32,15 +32,15 @@ int main(int argc, char** argv)
 	robin::data::DataManager mydm;
 	// ---
 	
-	Beep(523, 100);
+	Beep(1000, 100);
 
-	robin::hand::Michelangelo myhand(true);
+	robin::hand::Michelangelo myhand(false);
 	myhand.setDataManager(mydm);
 	myhand.plotEMG(false);
 	myhand.calibrateEMG();
 
-	robin::control::ControlSimple controller(myhand);
-	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 20); //20=~200ms     //MEDIAN, 40
+	robin::control::ControlContinuous controller(myhand);
+	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 10); //20=~200ms     //MEDIAN, 40
 	controller.setFullManual(false);
 	controller.setDataManager(mydm);
 

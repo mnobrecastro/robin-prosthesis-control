@@ -2,10 +2,13 @@
 
 namespace robin
 {
-	Solver1::Solver1()
+	Solver1::Solver1(size_t N)
 	{
-		raw_buffer_.push_back(0.0);
-		data_buffer_.push_back(0.0);
+		BUFFER_LEN_ = N;
+		for (int i(0); i < N; ++i) {
+			raw_buffer_.push_back(0.0);
+			data_buffer_.push_back(0.0);
+		}
 	}
 
 	Solver1::~Solver1() {}
@@ -17,6 +20,24 @@ namespace robin
 		val = data_buffer_.back();
 		mu_data_.unlock();
 		return val;
+	}
+
+	float Solver1::getMean(size_t w)
+	{
+		float val(0.0f);
+		for (auto sample : this->getWindow(w)) {
+			val += sample;
+		}
+		return val/w;
+	}
+
+	std::vector<float> Solver1::getWindow(size_t w)
+	{
+		std::vector<float> vec;
+		mu_data_.lock();
+		vec = std::vector<float>(data_buffer_.end()-w, data_buffer_.end());
+		mu_data_.unlock();
+		return vec;
 	}
 
 	std::vector<float> Solver1::getData()
@@ -78,7 +99,7 @@ namespace robin
 		this->normalize(val);
 
 		// Update the buffer/signal according to the chosen filter
-		this->update(val);
+		this->setSample(val);
 	}
 
 	void Solver1::readSample()
@@ -89,6 +110,7 @@ namespace robin
 		}
 		mu_raw_.lock();
 		raw_buffer_.push_back(val);
+		raw_buffer_.erase(raw_buffer_.begin()); /* Pseudo FIFO (TO DO: deque for larger buffers) */
 		mu_raw_.unlock();
 	}
 
@@ -222,11 +244,12 @@ namespace robin
 		return val;
 	}
 
-	void Solver1::update(float& val)
+	void Solver1::setSample(float& val)
 	{
 		// Copy the value to the data_buffer
 		mu_data_.lock();
 		data_buffer_.push_back(val);
+		data_buffer_.erase(data_buffer_.begin()); /* Pseudo FIFO (TO DO: deque for larger buffers) */
 		mu_data_.unlock();
 	}
 }

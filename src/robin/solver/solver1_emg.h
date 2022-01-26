@@ -7,7 +7,8 @@ namespace robin {
 		public Solver1
 	{
 	public:
-		Solver1EMG() {};
+		Solver1EMG(size_t N) :
+			Solver1(N) {}
 		~Solver1EMG() {};
 
 		void calibrate();
