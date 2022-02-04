@@ -32,7 +32,7 @@ int main(int argc, char** argv)
 	robin::data::DataManager mydm;
 	// ---
 	
-	Beep(1000, 100);
+	Beep(1000, 100); Beep(0, 100); Beep(2000, 100); Beep(0, 100); Beep(3000, 100); Beep(0, 100); Beep(4000, 100);
 
 	robin::hand::Michelangelo myhand(false);
 	myhand.setDataManager(mydm);
