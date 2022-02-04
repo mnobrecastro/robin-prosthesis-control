@@ -55,10 +55,14 @@ namespace robin
 
 			virtual void addPrimitive3(const robin::Primitive3d3* prim, robin::FEEDBACK_PRIM fp);
 
+			virtual void setActive(bool b) { is_active_ = b; }
+
 			virtual void run();
 			
 		protected:
 			Tactor* tactor_;
+
+			bool is_active_ = true;
 
 			/* Point cloud and point on ConvHull for rendering purposes */
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull_;

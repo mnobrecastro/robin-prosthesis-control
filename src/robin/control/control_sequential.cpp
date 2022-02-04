@@ -25,98 +25,84 @@ namespace robin
 
 			// Current Force measure
 			force_detection_.buffer.push_back(hand_->getGraspForce());
-			force_detection_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 10);
+			force_detection_.update(robin::control::ControlVar::fname::MOVING_AVERAGE, 1); //10
 
 			// Interpret user commands
-			float emg_contract_threshold(0.15); // [0.0-1.0]
-			float emg_coactiv_threshold(0.2); // [0.0-1.0]
-			float time_coactiv_threshold(150.0); // [ms]
-			float force_threshold(5.0); // [N]
-			bool usr_cmd_myomenu(false);
+			float emg_minimal_threshold(0.1); // [0.0-1.0]
+			float emg_command_threshold(0.4); // [0.0-1.0] //0.7
+			float emg_coactiv_threshold(0.7); // [0.0-1.0] //0.5
+
 			float hand_velocity(0.5); // [0.0-1.0]
-						
-			//////////////////////////////////////////////////////////////////////////////////////////////////////////
-						
-			//int n_samples = 20; // 200ms @ 100Hz			
-			//auto ch0_win = emg_channels[0]->getWindow(n_samples); 
-			//auto ch1_win = emg_channels[1]->getWindow(n_samples);
-
-			//// Check for chn co-activation
-			//bool ch0_transition(false);
-			//bool ch1_transition(false);
-			//for (int i(1); i < n_samples; ++i){
-			//	if (!flag_coactiv_) {
-			//		if (!ch0_transition && ch0_win[i] < emg_coactiv_threshold && ch0_win[i + 1] > emg_coactiv_threshold)
-			//			ch0_transition = true;
-			//		if (!ch1_transition && ch1_win[i] < emg_coactiv_threshold && ch1_win[i + 1] > emg_coactiv_threshold)
-			//			ch1_transition = true;
-			//	}
-			//	else {
-			//		if (!ch0_transition && ch0_win[i] > emg_coactiv_threshold && ch0_win[i + 1] < emg_coactiv_threshold)
-			//			ch0_transition = true;
-			//		if (!ch1_transition && ch1_win[i] > emg_coactiv_threshold && ch1_win[i + 1] < emg_coactiv_threshold)
-			//			ch1_transition = true;
-			//	}
-			//}
-			//if (!flag_coactiv_ && ch0_transition && ch1_transition) {
-			//	flag_coactiv_ = true;
-			//}
-			//else if (flag_coactiv_ && ch0_transition && ch1_transition) {
-			//	flag_coactiv_ = false;
-			//}
-
-			////state_auto_
-
-			//// Check for channel activation
-			//// EMG ch0
-
-			//for (int i(0); i < n_samples; ++i) {
-			//	if()
-			//}
+			float force_threshold(5.0); // [N]		
 
 
-			//// EMG ch0
-			if (!emg0_lock_ && emg_cmd_flexion_.value >= emg_coactiv_threshold) {
-				auto t = std::chrono::high_resolution_clock::now();
-				if (!emg1_lock_) {
-					emg0_lock_ = true;
-					emg0_time_ = t;
+			////////////////////////////////////////////////////////////////////////////////////////////////
+
+			int window_size = 15; // 150ms @ 100hz
+			float act_ch0 = emg_channels[0]->getMean(window_size);
+			float act_ch1 = emg_channels[1]->getMean(window_size);
+			auto win_ch0 = emg_channels[0]->getWindow(window_size);
+			auto win_ch1 = emg_channels[1]->getWindow(window_size);
+
+			std::cout << "**** CH0: ";
+			for (auto val : win_ch0) {
+				std::cout << val << ' ';
+			}
+			std::cout << "(" << act_ch0 << ")" << '\n';
+			std::cout << "**** CH1: ";
+			for (auto val : win_ch1) {
+				std::cout << val << ' ';
+			}
+			std::cout << "(" << act_ch1 << ")" << '\n';
+
+			//// Check for COACTIVATION
+			bool usr_cmd_myomenu(false);
+			if (!state_auto_) //if (!flag_emg0_ && !flag_emg1_)
+			{
+				if (!flag_coactiv_ && (act_ch0 > emg_coactiv_threshold && act_ch1 > emg_coactiv_threshold)) {
+					// Flag raised
+					flag_coactiv_ = true;
 				}
-				else if(emg1_lock_ && std::chrono::duration<double, std::ratio<1>>(t - emg1_time_).count()*1000.0 <= time_coactiv_threshold) {
-					emg0_lock_ = true;
-					emg0_time_ = t;
+				else if (flag_coactiv_ && (act_ch0 < emg_minimal_threshold && act_ch1 < emg_minimal_threshold)) {
+					// Flag lowered
+					flag_coactiv_ = false;
+					// Cmd Myomenu
+					usr_cmd_myomenu = true;
 				}
 			}
-			else if (emg_cmd_flexion_.value < emg_coactiv_threshold) {
-				emg0_lock_ = false;
+
+			//// Check for EMG COMMANDs
+			bool usr_cmd_ch0(false);
+			bool usr_cmd_ch1(false);
+			if (state_auto_) //if (!flag_coactiv_)
+			{
+				if (!flag_emg1_) {
+					// EMG Ch0
+					if (!flag_emg0_ && act_ch0 > emg_command_threshold) {
+						flag_emg0_ = true;
+					}
+					else if (flag_emg0_ && act_ch0 < emg_minimal_threshold) {
+						flag_emg0_ = false;
+						usr_cmd_ch0 = true;
+						state_usr_ = true;
+					}
+				}
+				if (!flag_emg0_) {
+					// EMG Ch1
+					if (!flag_emg1_ && act_ch1 > emg_command_threshold) {
+						flag_emg1_ = true;
+					}
+					else if (flag_emg1_ && act_ch1 < emg_minimal_threshold) {
+						flag_emg1_ = false;
+						usr_cmd_ch1 = true;
+						state_usr_ = true;
+					}
+				}
 			}
 
-			// EMG ch1
-			if (!emg1_lock_ && emg_cmd_extension_.value >= emg_coactiv_threshold) {
-				auto t = std::chrono::high_resolution_clock::now();
-				if (!emg0_lock_) {
-					emg1_lock_ = true;
-					emg1_time_ = t;
-				}
-				else if (emg0_lock_ && std::chrono::duration<double, std::ratio<1>>(t - emg0_time_).count()*1000.0 <= time_coactiv_threshold) {
-					emg1_lock_ = true;
-					emg1_time_ = t;
-				}
-			}
-			else if (emg_cmd_extension_.value < emg_coactiv_threshold) {
-				emg1_lock_ = false;
-			}
-
-			if (!flag_coactiv_ && (emg0_lock_ && emg1_lock_)) {
-				// Flag is raised
-				flag_coactiv_ = true;
-			}
-			else if (flag_coactiv_ && (!emg0_lock_ && !emg1_lock_)) {
-				// Flag is lowered
-				flag_coactiv_ = false;
-				// usr_cmd_myomenu is triggered 
-				usr_cmd_myomenu = true;
-			}
+			std::cout << ">>>>>>  EMG0: " << flag_emg0_ << " [" << usr_cmd_ch0 << "]"
+				<< " EMG1: " << flag_emg1_ << " [" << usr_cmd_ch1 << "]"
+				<< " COACT: " << flag_coactiv_ << " [" << usr_cmd_myomenu << "]" << '\n';
 
 			// Set current GRASP command
 			bool hand_cmd_grasp(false);
@@ -124,9 +110,9 @@ namespace robin
 				hand_cmd_grasp = true;
 			}
 
-			std::cout << "*******  EMG1: " << emg_cmd_flexion_.value 
-				<< " EMG2: " << emg_cmd_extension_.value 
-				<< " FORCE: " << force_detection_.value << std::endl;
+			std::cout << "******  EMG0: " << emg_cmd_flexion_.value
+				<< " EMG1: " << emg_cmd_extension_.value
+				<< " FORCE: " << force_detection_.value << '\n';
 
 			// ----
 
@@ -140,9 +126,18 @@ namespace robin
 			 * operation, which can also be alternated to "Supination/Pronation" upon user input.
 			 */
 
-			//// Checks if a key has been pressed to RESET the hand position
+			 //// Checks if a key has been pressed to RESET the hand position
 			char key = '#';
 			bool pressed = isKeyPressed(&key);
+			
+			if (usr_cmd_ch0 && !use_saved_targets_) {
+				// Checks whether a saved_target cmd has been received instead
+				pressed = true;
+				key = 's';
+				use_saved_targets_ = true;
+				Beep(1000, 100);
+			}
+
 			if (pressed && (key == ' ' || key == 'v' || key == 's')) {
 				key_stored_ = key;
 				key_pressed_ = true;
@@ -158,323 +153,311 @@ namespace robin
 				}
 			}
 
-			if (state_auto_) {
+			// ***************************************************************************
+			if (state_auto_)
+			{
 				/* SEMI-AUTO CONTROL */
-				
-				// Checks if the switch flag is still raised
-				if (flag_switch_) {
-					if (emg_cmd_extension_.value < emg_coactiv_threshold) {
-						flag_switch_ = false;
+
+				if (usr_cmd_ch1) {
+					// Save event to DataManager (double)
+					this->saveEvent();
+
+					hand_->stop();
+					state_auto_ = false;
+
+					// Change the target_grasp_type_ accordingly
+					switch (static_cast<robin::hand::GRASP>(int(target_grasp_type_.value))) {
+					case robin::hand::GRASP::PALMAR:
+						state_myomenu_ = MyocontrolMenu::MYOMENU_PALMAR;
+						break;
+					case robin::hand::GRASP::LATERAL:
+						state_myomenu_ = MyocontrolMenu::MYOMENU_LATERAL;
+						break;
+					default:
+						/* do nothing */
+						break;
 					}
+
+					// cmd_ch0: Sequential saved_targets
+					if (use_saved_targets_) { use_saved_targets_ = false; }
+
+					// Save event to DataManager
+					this->saveEvent();
+
+					//usr_cmd_stop = false;
+					Beep(2000, 100);
 				}
-				else {
-					// Checks if a stopping cmd has been received
-					if (!flag_coactiv_ && emg_cmd_extension_.value > emg_contract_threshold) {
-						// Save event to DataManager (double)
-						this->saveEvent();
-						
-						hand_->stop();
-						state_auto_ = false;
-						flag_switch_ = true;
+				else {					
 
-
-						// Change the target_grasp_type_ accordingly
-						switch (static_cast<robin::hand::GRASP>(int(target_grasp_type_.value))) {
-						case robin::hand::GRASP::PALMAR:
-							state_myomenu_ = MyocontrolMenu::MYOMENU_PALMAR;
-							break;
-						case robin::hand::GRASP::LATERAL:
-							state_myomenu_ = MyocontrolMenu::MYOMENU_LATERAL;
-							break;
-						default:
-							/* do nothing */
-							break;
-						}
-
-						// Save event to DataManager
-						this->saveEvent();
-
-						//usr_cmd_stop = false;
-						Beep(2000, 100);
+					/* Current absolute supination angle of the prosthesis
+					 * (measured from the full pronated wrist position ref frame).
+					 *
+					 *			                 (Z)
+					 *                           /
+					 *                          /
+					 *		                   /_ _ _ _ (X)
+					 *                         |
+					 *                  A      |      A
+					 * (Sup Right-hand) |__    |    __| (Sup Left-hand)
+					 *                        (Y)
+					 */
+					float supination_angle;
+					if (hand_->isRightHand()) {
+						// Right-hand prosthesis (positive angle)
+						supination_angle = hand_->getWristSupProAngle();
 					}
 					else {
-						// Checks if a saved_target cmd has been received
-						if (!flag_coactiv_ && emg_cmd_flexion_.value > emg_contract_threshold && !use_saved_targets_) {
-							key_stored_ = 's';
-							key_pressed_ = true;
-							flag_key_ = true;
+						// Left-hand prosthesis (negative angle)
+						supination_angle = -hand_->getWristSupProAngle();
+					}
+					hand_supination_angle_.value = supination_angle;
+					hand_supination_angle_.buffer.push_back(supination_angle);
 
-							Beep(1000, 100);
+					// Current grasp size of the prosthesis
+					float hand_grasp_size = hand_->getGraspSize();
+					hand_grasp_size_.value = hand_grasp_size;
+					hand_grasp_size_.buffer.push_back(hand_grasp_size);
+
+
+					this->estimate_grasp_size(prim);
+					this->estimate_grasp_type(prim);
+					this->estimate_tilt_angle(prim);
+
+					// -- Patch for the sequential control
+					if (!use_saved_targets_) {
+						saved_grasp_type_ = int(target_grasp_type_.value);
+						saved_tilt_angle_ = target_tilt_angle_.value;
+						saved_grasp_size_ = target_grasp_size_.value;
+					}
+					// --
+
+					if (flag_key_) {
+						switch (key_stored_) {
+						case ' ':
+							// Set target_grasp_type to GRASP::PALMAR
+							target_grasp_type_.value = int(robin::hand::GRASP::PALMAR);
+							// Set taget_tilt_angle to neutral
+							target_tilt_angle_.value = 0.0;
+							// Set target_grasp_size to full opened hand
+							target_grasp_size_.value = 0.10;
+							break;
+
+						case 'v':
+							// Set target_grasp_type to GRASP::PALMAR
+							target_grasp_type_.value = int(robin::hand::GRASP::PALMAR);
+							// Set taget_tilt_angle to 90 deg
+							if (hand_->isRightHand())
+								target_tilt_angle_.value = M_PI / 2.0;
+							else
+								target_tilt_angle_.value = -M_PI / 2.0;
+							// Set target_grasp_size to full opened hand
+							target_grasp_size_.value = 0.10;
+							break;
+
+						case 's':
+							//use_saved_targets_ = true;
+							// Set target_grasp_type to saved val
+							target_grasp_type_.value = saved_grasp_type_;
+							// Set taget_tilt_angle to saved val
+							target_tilt_angle_.value = saved_tilt_angle_;
+							// Set target_grasp_size to saved val
+							target_grasp_size_.value = saved_grasp_size_;
+							break;
 						}
-
-						/* Current absolute supination angle of the prosthesis
-						 * (measured from the full pronated wrist position ref frame).
-						 *
-						 *			                 (Z)
-						 *                           /
-						 *                          /
-						 *		                   /_ _ _ _ (X)
-						 *                         |
-						 *                  A      |      A
-						 * (Sup Right-hand) |__    |    __| (Sup Left-hand) 
-						 *                        (Y)
-						 */
-						float supination_angle;
-						if (hand_->isRightHand()) {
-							// Right-hand prosthesis (positive angle)
-							supination_angle = hand_->getWristSupProAngle();
-						}
-						else {
-							// Left-hand prosthesis (negative angle)
-							supination_angle = -hand_->getWristSupProAngle();
-						}
-						hand_supination_angle_.value = supination_angle;
-						hand_supination_angle_.buffer.push_back(supination_angle);
-
-						// Current grasp size of the prosthesis
-						float hand_grasp_size = hand_->getGraspSize();
-						hand_grasp_size_.value = hand_grasp_size;
-						hand_grasp_size_.buffer.push_back(hand_grasp_size);
-
-
-						this->estimate_grasp_size(prim);
-						this->estimate_grasp_type(prim);
-						this->estimate_tilt_angle(prim);
 
 						// -- Patch for the sequential control
-						if (!use_saved_targets_) {
-							saved_grasp_type_ = int(target_grasp_type_.value);
-							saved_tilt_angle_ = target_tilt_angle_.value;
-							saved_grasp_size_ = target_grasp_size_.value;
-						}
-						// --
+						last_grasp_type_ = target_grasp_type_.value;
+						last_tilt_angle_ = target_tilt_angle_.value;
+						last_grasp_size_ = target_grasp_size_.value;
+					}
+					else {
+						// -- Patch for the sequential control
+						target_grasp_type_.value = last_grasp_type_;
+						target_tilt_angle_.value = last_tilt_angle_;
+						target_grasp_size_.value = last_grasp_size_;
+					}
 
-						if (flag_key_) {
-							switch (key_stored_) {
-							case ' ':
-								// Set target_grasp_type to GRASP::PALMAR
-								target_grasp_type_.value = int(robin::hand::GRASP::PALMAR);
-								// Set taget_tilt_angle to neutral
-								target_tilt_angle_.value = 0.0;
-								// Set target_grasp_size to full opened hand
-								target_grasp_size_.value = 0.10;
-								break;
+					// Tolerances
+					float grasp_size_slack(0.030); // 3 cm
+					float grasp_size_error_tol(0.010); // 1 cm
+					float tilt_angle_error_tol(5 * M_PI / 180);
 
-							case 'v':
-								// Set target_grasp_type to GRASP::PALMAR
-								target_grasp_type_.value = int(robin::hand::GRASP::PALMAR);
-								// Set taget_tilt_angle to 90 deg
-								if (hand_->isRightHand())
-									target_tilt_angle_.value = M_PI / 2.0;
-								else
-									target_tilt_angle_.value = -M_PI / 2.0;
-								// Set target_grasp_size to full opened hand
-								target_grasp_size_.value = 0.10;
-								break;
 
-							case 's':
-								use_saved_targets_ = true;
-								// Set target_grasp_type to saved val
-								target_grasp_type_.value = saved_grasp_type_;
-								// Set taget_tilt_angle to saved val
-								target_tilt_angle_.value = saved_tilt_angle_;
-								// Set target_grasp_size to saved val
-								target_grasp_size_.value = saved_grasp_size_;
-								break;
-							}
-
-							last_grasp_type_ = target_grasp_type_.value;
-							last_tilt_angle_ = target_tilt_angle_.value;
-							last_grasp_size_ = target_grasp_size_.value;
+					float grasp_size_error(target_grasp_size_.value + grasp_size_slack - hand_grasp_size_.value);
+					if (std::abs(grasp_size_error) > grasp_size_error_tol) {
+						if (grasp_size_error > 0.0) {
+							hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity, false); //* hand_velocity/2
 						}
 						else {
-							// -- Patch for the sequential control
-							target_grasp_type_.value = last_grasp_type_;
-							target_tilt_angle_.value = last_tilt_angle_;
-							target_grasp_size_.value = last_grasp_size_;
+							hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity, false); //* hand_velocity/2
 						}
+					}
+					else {
+						hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.0, false);
+					}
 
-
-						// Tolerances
-						float grasp_size_slack(0.015); // 3 cm
-						float grasp_size_error_tol(0.010); // 1 cm
-						float tilt_angle_error_tol(5 * M_PI / 180);
-
-
-						float grasp_size_error(target_grasp_size_.value + grasp_size_slack - hand_grasp_size_.value);
-						if (std::abs(grasp_size_error) > grasp_size_error_tol) {
-							if (grasp_size_error > 0.0) {
-								hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity/2, false);
+					float tilt_angle_error(target_tilt_angle_.value - hand_supination_angle_.value);
+					if (hand_->isRightHand()) {
+						// Right-hand prosthesis (positive tilt angle)				
+						if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
+							if (tilt_angle_error > 0.0) {
+								hand_->supinate(hand_velocity, false);
 							}
 							else {
-								hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), hand_velocity/2, false);
+								hand_->pronate(hand_velocity, false);
 							}
 						}
 						else {
-							hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.0, false);
-						}
+							hand_->supinate(0.0, false);
 
-						float tilt_angle_error(target_tilt_angle_.value - hand_supination_angle_.value);
-						if (hand_->isRightHand()) {
-							// Right-hand prosthesis (positive tilt angle)				
-							if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
-								if (tilt_angle_error > 0.0) {
-									hand_->supinate(hand_velocity, false);
-								}
-								else {
-									hand_->pronate(hand_velocity, false);
-								}
+							// Upon key_pressed (...or ch0_cmd)
+							if (key_pressed_ && flag_key_) { flag_key_ = false; }
+
+							// cmd_ch0: Sequential saved_targets
+							if (use_saved_targets_) { use_saved_targets_ = false; }
+
+							// cmd_ch0: State_usr for feedback
+							if (state_usr_) { state_usr_ = false; }
+						}
+					}
+					else {
+						// Left-hand prosthesis (negative tilt angle)
+						if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
+							if (tilt_angle_error < 0.0) {
+								hand_->supinate(hand_velocity, false);
 							}
 							else {
-								hand_->supinate(0.0, false);
-
-								// Upon key_pressed
-								if (key_pressed_ && flag_key_) { flag_key_ = false;	}
-
-								// Sequential saved_targets
-								if (use_saved_targets_) { use_saved_targets_ = false; }
+								hand_->pronate(hand_velocity, false);
 							}
 						}
 						else {
-							// Left-hand prosthesis (negative tilt angle)
-							if (std::abs(tilt_angle_error) > tilt_angle_error_tol) {
-								if (tilt_angle_error < 0.0) {
-									hand_->supinate(hand_velocity, false);
-								}
-								else {
-									hand_->pronate(hand_velocity, false);
-								}
-							}
-							else {
-								hand_->supinate(0.0, false);
+							hand_->supinate(0.0, false);
 
-								// Upon key_pressed
-								if (key_pressed_ && flag_key_) { flag_key_ = false; }
+							// Upon key_pressed (...or ch0_cmd)
+							if (key_pressed_ && flag_key_) { flag_key_ = false; }
 
-								// Sequential saved_targets
-								if(use_saved_targets_) { use_saved_targets_ = false; }
-							}
+							// cmd_ch0: Sequential saved_targets
+							if (use_saved_targets_) { use_saved_targets_ = false; }
+
+							// cmd_ch0: State_usr for feedback
+							if (state_usr_) { state_usr_ = false; }
 						}
 					}
 				}
 			}
 			else {
 				/* MANUAL CONTROL */
-				
-				// Checks if the switch flag is still raised
-				if (flag_switch_){
-					if (emg_cmd_extension_.value < emg_coactiv_threshold) {
-						flag_switch_ = false;
+
+				// Checks if a rotate cmd has been triggered
+				if (usr_cmd_myomenu) {
+					hand_->stop();
+					if (state_myomenu_ == MyocontrolMenu::MYOMENU_ROTATE) {
+						state_myomenu_ = MyocontrolMenu::MYOMENU_PALMAR;
+					}
+					else {
+						state_myomenu_ = static_cast<MyocontrolMenu>(int(state_myomenu_) + 1);
+					}
+					usr_cmd_myomenu = false;
+
+
+					// Change the target_grasp_type_ accordingly
+					switch (state_myomenu_) {
+					case MyocontrolMenu::MYOMENU_PALMAR:
+						target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::PALMAR));
+						target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+						break;
+					case MyocontrolMenu::MYOMENU_LATERAL:
+						target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::LATERAL));
+						target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+						break;
+					default:
+						/* do nothing */
+						break;
+					}
+
+					// Save event to DataManager
+					this->saveEvent();
+
+					Beep(2000, 100); Beep(2000, 100);
+				}
+
+				if (state_myomenu_ != MyocontrolMenu::MYOMENU_ROTATE) {
+					// The hand is in Manual [Open/Close] mode
+					if (!flag_coactiv_)
+					{
+						if (emg_cmd_flexion_.value > emg_minimal_threshold || emg_cmd_extension_.value > emg_minimal_threshold)
+						{
+							if (emg_cmd_flexion_.value >= emg_cmd_extension_.value) {
+								hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), (emg_cmd_flexion_.value - emg_minimal_threshold) / (1.0 - emg_minimal_threshold), false);
+							}
+							else {
+								// Checks if the force sensor has been activated
+								if (hand_cmd_grasp) {
+									// Successful grasp completion - reset all state variables
+
+									// Save event to DataManager (double)
+									this->saveEvent();
+
+									hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.5, true); // ("true" forces the command to be excuted right away)
+									state_auto_ = true;
+
+									/*// Change the grasp_type in case of full manual mode
+									if (full_manual_) {
+										if (static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)) == robin::hand::GRASP::PALMAR) {
+											target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::LATERAL));
+											target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+										}
+										else {
+											target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::PALMAR));
+											target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
+										}
+									}*/
+
+									// Save event to DataManager
+									this->saveEvent(true);
+
+									// State_usr for feedback
+									if (state_usr_) { state_usr_ = false; }
+
+									Beep(523, 100);
+									std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+								}
+								else {
+									hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), (emg_cmd_extension_.value - emg_minimal_threshold) / (1.0 - emg_minimal_threshold), false);
+
+									// Save event to DataManager
+									this->saveEvent();
+								}
+							}
+						}
+						else {
+							// Stop moving the hand in case no EMG signal is recorded
+							hand_->stop();
+						}
 					}
 				}
 				else {
-					// Checks if a rotate cmd has been triggered
-					if (usr_cmd_myomenu) {
-						hand_->stop();
-						if (state_myomenu_ == MyocontrolMenu::MYOMENU_ROTATE) {
-							state_myomenu_ = MyocontrolMenu::MYOMENU_PALMAR;
-						} else {
-							state_myomenu_ = static_cast<MyocontrolMenu>(int(state_myomenu_) + 1);
-						}
-						usr_cmd_myomenu = false;
-
-
-						// Change the target_grasp_type_ accordingly
-						switch (state_myomenu_) {
-						case MyocontrolMenu::MYOMENU_PALMAR:
-							target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::PALMAR));
-							target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
-							break;
-						case MyocontrolMenu::MYOMENU_LATERAL:
-							target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::LATERAL));
-							target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
-							break;
-						default:
-							/* do nothing */
-							break;
-						}
-
-						// Save event to DataManager
-						this->saveEvent();
-
-						Beep(2000, 100); Beep(2000, 100);
-					}
-
-					if (state_myomenu_ != MyocontrolMenu::MYOMENU_ROTATE) {
-						// The hand is in Manual [Open/Close] mode
-						if (!flag_coactiv_)
+					// The hand is in Manual [Supination/Pronation] mode
+					if (!flag_coactiv_)
+					{
+						if (emg_cmd_flexion_.value > emg_minimal_threshold || emg_cmd_extension_.value > emg_minimal_threshold)
 						{
-							if (emg_cmd_flexion_.value > emg_contract_threshold || emg_cmd_extension_.value > emg_contract_threshold)
-							{
-								if (emg_cmd_flexion_.value >= emg_cmd_extension_.value) {
-									hand_->close(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), (emg_cmd_flexion_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
-								} else {
-									// Checks if the force sensor has been activated
-									if (hand_cmd_grasp) {
-										// Successful grasp completion - reset all state variables
+							if (emg_cmd_flexion_.value >= emg_cmd_extension_.value) {
+								hand_->pronate((emg_cmd_flexion_.value - emg_minimal_threshold) / (1.0 - emg_minimal_threshold), false);
 
-										// Save event to DataManager (double)
-										this->saveEvent();
-																				
-										hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), 0.5, true); // ("true" forces the command to be excuted right away)
-										state_auto_ = true;
-										hand_cmd_grasp = false;
-										flag_switch_ = true;
-
-										/*// Change the grasp_type in case of full manual mode
-										if (full_manual_) {
-											if (static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)) == robin::hand::GRASP::PALMAR) {
-												target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::LATERAL));
-												target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
-											}
-											else {
-												target_grasp_type_.buffer.push_back(int(robin::hand::GRASP::PALMAR));
-												target_grasp_type_.value = target_grasp_type_.buffer.back(); // Direct assignement without var.update()
-											}
-										}*/
-
-										// Save event to DataManager
-										this->saveEvent(true);
-
-										Beep(523, 100);
-										std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-									}
-									else {
-										hand_->open(static_cast<robin::hand::GRASP>(int(target_grasp_type_.value)), (emg_cmd_extension_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
-
-										// Save event to DataManager
-										this->saveEvent();
-									}
-								}
+								// Save event to DataManager
+								this->saveEvent();
 							}
 							else {
-								// Stop moving the hand in case no EMG signal is recorded
-								hand_->stop();
+								hand_->supinate((emg_cmd_extension_.value - emg_minimal_threshold) / (1.0 - emg_minimal_threshold), false);
+
+								// Save event to DataManager
+								this->saveEvent();
 							}
 						}
-					}
-					else {
-						// The hand is in Manual [Supination/Pronation] mode
-						if (!flag_coactiv_)
-						{
-							if (emg_cmd_flexion_.value > emg_contract_threshold || emg_cmd_extension_.value > emg_contract_threshold)
-							{
-								if (emg_cmd_flexion_.value >= emg_cmd_extension_.value) {
-									hand_->pronate((emg_cmd_flexion_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
-
-									// Save event to DataManager
-									this->saveEvent();
-								} else {
-									hand_->supinate((emg_cmd_extension_.value-emg_contract_threshold)/(1.0-emg_contract_threshold), false);
-
-									// Save event to DataManager
-									this->saveEvent();
-								}
-							}
-							else {
-								// Stop moving the hand in case no EMG signal is recorded
-								hand_->stop();
-							}
+						else {
+							// Stop moving the hand in case no EMG signal is recorded
+							hand_->stop();
 						}
 					}
 				}
@@ -500,8 +483,6 @@ namespace robin
 			emg.push_back(emg_cmd_extension_.value);
 			return emg;
 		}
-
-
 
 		/* Receives a Primitive3 object and evaluates its type. */
 		Primitive3Type ControlSequential::find_primitive3_type(robin::Primitive3* prim)
@@ -531,7 +512,7 @@ namespace robin
 			bool found(false);
 			//
 
-			//float grasp_size(10.0);
+			//float grasp_size(10.0); //
 			float grasp_size(target_grasp_size_.value);
 
 			if (!prim->isEmpty())

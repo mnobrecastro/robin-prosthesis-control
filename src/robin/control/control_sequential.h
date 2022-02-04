@@ -45,6 +45,8 @@ namespace robin
 			float getGraspSize();
 			float getTiltAngle();
 			std::vector<float> getEMG();
+			
+			bool getStateUsr() { return state_usr_; }
 
 			bool getStateAuto() { return state_auto_; }
 			bool getStateGrasp() { return state_grasp_; }
@@ -62,16 +64,17 @@ namespace robin
 			ControlVar force_detection_;
 
 			// Channel locking variables
-			bool emg0_lock_ = false;
+			bool flag_emg0_ = false;
 			std::chrono::steady_clock::time_point emg0_time_;
-			bool emg1_lock_ = false;
+			bool flag_emg1_ = false;
 			std::chrono::steady_clock::time_point emg1_time_;
+			// State usr:=false is activated after each user takeover
+			bool state_usr_ = false;
 
 			// Full manual control option
 			bool full_manual_ = false;
 			// State auto:=true corresponds to "auto" mode, while move:=false corresponds to "manual" mode
 			bool state_auto_ = true;
-			bool flag_switch_ = false;
 			// State rotation:=true corresponds to pro/sup movements, rotation:=false corresponds to 
 			MyocontrolMenu state_myomenu_ = MyocontrolMenu::MYOMENU_PALMAR;
 			bool flag_coactiv_ = false;

@@ -29,9 +29,9 @@ int main(int argc, char** argv)
 	robin::data::DataManager mydm;
 	// ---
 	
-	Beep(523, 100); 
+	Beep(1000, 100); Beep(0, 100); Beep(2000, 100); Beep(0, 100); Beep(3000, 100); Beep(0, 100); Beep(4000, 100);
 
-	robin::hand::Michelangelo myhand(true);
+	robin::hand::Michelangelo myhand(false);
 	myhand.setDataManager(mydm);
 	myhand.plotEMG(false);
 	myhand.calibrateEMG();
@@ -70,8 +70,8 @@ int main(int argc, char** argv)
 
 	// Create a virtual array of sensors from another sensor
 	//robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002));
-	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
-	//robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001));
+	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
+	robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001));
 	mysolver.addSensor(myarr);
 
 	// Create a Primitive
@@ -80,7 +80,7 @@ int main(int argc, char** argv)
 
 	// Create a Feedback object and add a Tactor instance to it
 	robin::feedback::Feedback feed;
-	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({ 3, 4, 5, 6 }, 0.7, "COM6"));
+	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({ 1, 2, 3, 4 }, 0.7, "COM6")); //{3, 4, 5, 6}
 	feed.addTactor(tactor);
 
 
@@ -104,7 +104,7 @@ int main(int argc, char** argv)
 	bool RENDER(true);
 	bool PLOT(false);
 	bool HAND_CONTROL(true);
-	bool FEEDBACK(false);
+	bool FEEDBACK(true);
 	std::vector<double> freq;
 
 	while(true){
@@ -170,6 +170,7 @@ int main(int argc, char** argv)
 			else
 				feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, -myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
 			feed.addPrimitive3(prim, robin::FEEDBACK_PRIM::TYPE);
+			feed.setActive(!controller.getStateUsr());
 			feed.run();
 		}
 

@@ -38,13 +38,13 @@ namespace robin
 
 			////////////////////////////////////////////////////////////////////////////////////////////////
 
-			int window_size = 15; // 150ms @ 50hz
+			int window_size = 15; // 150ms @ 100hz
 			float act_ch0 = emg_channels[0]->getMean(window_size);
 			float act_ch1 = emg_channels[1]->getMean(window_size);
 
 			//// Check for COACTIVATION
 			bool usr_cmd_myomenu(false);
-			if (!flag_emg0_ && !flag_emg1_)
+			if (!state_auto_) //if (!flag_emg0_ && !flag_emg1_)
 			{
 				if (!flag_coactiv_ && (act_ch0 > emg_coactiv_threshold && act_ch1 > emg_coactiv_threshold)) {
 					// Flag raised
@@ -61,13 +61,12 @@ namespace robin
 			//// Check for EMG COMMANDs
 			bool usr_cmd_ch0(false);
 			bool usr_cmd_ch1(false);
-			if (!flag_coactiv_)
+			if (state_auto_) //if (!flag_coactiv_)
 			{				
 				if (!flag_emg1_) {
 					// EMG Ch0
 					if (!flag_emg0_ && act_ch0 > emg_command_threshold) {
 						flag_emg0_ = true;
-
 					}
 					else if (flag_emg0_ && act_ch0 < emg_minimal_threshold) {
 						flag_emg0_ = false;

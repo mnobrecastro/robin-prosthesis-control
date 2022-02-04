@@ -109,42 +109,48 @@ namespace robin
 
 		void Feedback::run()
 		{
-			if (in_hull_) {
-				// Use the primitive type to set a specific behaviour
-				switch (prim_type_)
-				{
-				case robin::PRIM_TYPE::SPHERE:
-					tactor_->setSample({ 0.0, 0.0 });//, 1);
-					break;
-
-				case robin::PRIM_TYPE::CYLINDER:
-					tactor_->setSample({ 0.0, 0.0 });//, 2);
-					break;
-
-				case robin::PRIM_TYPE::CUBOID:
-					tactor_->setSample({ 0.0, 0.0 });// , 3);
-					break;
-
-				default:
-					tactor_->setSample({ -1.0, 0.0 });
-				}
+			if (!is_active_) {
+				// Not active
+				tactor_->setSample({ -1.0, 0.0 });
 			}
 			else {
-				if (cloud_hull_->points.size() > 2) {
-					// Rho
-					float rho = std::sqrt(pHull_.x * pHull_.x + pHull_.y * pHull_.y);
-					const float MAX_RHO = 0.050; //m					
-					if (rho / MAX_RHO <= 1.0)
-						rho = rho / MAX_RHO;
-					else
-						rho = 1.0;
-					// Theta
-					float theta = std::atan2(pHull_.y, pHull_.x);
+				if (in_hull_) {
+					// Use the primitive type to set a specific behaviour
+					switch (prim_type_)
+					{
+					case robin::PRIM_TYPE::SPHERE:
+						tactor_->setSample({ 0.0, 0.0 });//, 1);
+						break;
 
-					tactor_->setSample({ rho, theta });
+					case robin::PRIM_TYPE::CYLINDER:
+						tactor_->setSample({ 0.0, 0.0 });//, 2);
+						break;
+
+					case robin::PRIM_TYPE::CUBOID:
+						tactor_->setSample({ 0.0, 0.0 });// , 3);
+						break;
+
+					default:
+						tactor_->setSample({ -1.0, 0.0 });
+					}
 				}
 				else {
-					tactor_->setSample({ -1.0, 0.0 });
+					if (cloud_hull_->points.size() > 2) {
+						// Rho
+						float rho = std::sqrt(pHull_.x * pHull_.x + pHull_.y * pHull_.y);
+						const float MAX_RHO = 0.050; //m					
+						if (rho / MAX_RHO <= 1.0)
+							rho = rho / MAX_RHO;
+						else
+							rho = 1.0;
+						// Theta
+						float theta = std::atan2(pHull_.y, pHull_.x);
+
+						tactor_->setSample({ rho, theta });
+					}
+					else {
+						tactor_->setSample({ -1.0, 0.0 });
+					}
 				}
 			}
 			return;
