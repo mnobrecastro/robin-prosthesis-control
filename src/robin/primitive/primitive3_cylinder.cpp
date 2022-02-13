@@ -203,7 +203,7 @@ namespace robin
 			//*cloud_ += *cut_prim->getPointCloud();
 			subprim_arr_circle.push_back(cut_prim);
 			++n_subprims_circle;
-			std::cout << "\t" << "CIRCLE: " << cut_prim->getPointCloud()->size() << "/" << cloud_circle->size() << std::endl;
+			std::cout << "\t" << "CIRCLE: " << cut_prim->getPointCloud()->size() << "/" << cur_size << std::endl;
 		}
 #else
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ellipse(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
@@ -217,7 +217,7 @@ namespace robin
 			//*cloud_ += *cut_prim->getPointCloud();
 			subprim_arr_ellipse.push_back(cut_prim);
 			++n_subprims_ellipse;
-			std::cout << "\t" << "ELLIPSE: " << cut_prim->getPointCloud()->size() << "/" << cloud_ellipse->size() << std::endl;
+			std::cout << "\t" << "ELLIPSE: " << cut_prim->getPointCloud()->size() << "/" << cur_size << std::endl;
 		}
 #endif
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_line(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
@@ -231,7 +231,7 @@ namespace robin
 			//*cloud_ += *cut_prim->getPointCloud();
 			subprim_arr_line.push_back(cut_prim);
 			++n_subprims_line;
-			std::cout << "\t" << "LINE: " << cut_prim->getPointCloud()->size() << "/" << cloud_line->size() << std::endl;
+			std::cout << "\t" << "LINE: " << cut_prim->getPointCloud()->size() << "/" << cur_size << std::endl;
 		}
 
 
@@ -247,13 +247,11 @@ namespace robin
 		if (cloud_ellipse->points.size() == n_pts_ellipse) {
 			// (when the ellipse fitting fails, take the line model)
 			subprims_.push_back(subprim_arr_line);
-			//has_line_ = true;
 		}
-		else if (cloud_ellipse->points.size() < n_pts_ellipse) {
+		//else if (cloud_ellipse->points.size() < n_pts_ellipse) {
+		else {
 			// (else pick the ellipse model)
 			subprims_.push_back(subprim_arr_ellipse);
-			if (ellipse_count_ == -1) { ellipse_count_ = 0; }
-			++ellipse_count_;
 		}
 #endif
 	}
@@ -269,7 +267,6 @@ namespace robin
 
 			Primitive3Circle* cut_prim(new Primitive3Circle);
 			cut_prim->fit(cloud_circle, seg);
-			//*cloud_ += *cut_prim->getPointCloud();
 			subprim_arr_circle.push_back(cut_prim);
 			++n_subprims_circle;
 			std::cout << "\t" << "CIRCLE: " << cut_prim->getPointCloud()->points.size() << "/" << cur_size << std::endl;
@@ -283,7 +280,6 @@ namespace robin
 
 			Primitive3Line* cut_prim(new Primitive3Line);
 			cut_prim->fit(cloud_line, seg);
-			//*cloud_ += *cut_prim->getPointCloud();
 			subprim_arr_line.push_back(cut_prim);
 			++n_subprims_line;
 			std::cout << "\t" << "LINE: " << cut_prim->getPointCloud()->points.size() << "/" << cur_size << std::endl;
@@ -291,7 +287,7 @@ namespace robin
 
 #ifdef USE_ELLIPSE
 		seg->setDistanceThreshold(0.010); // ellipse only := 0.005
-		seg->setRadiusLimits(0.025, 0.5); // ellipse only := [0.025, 0.5]
+		seg->setRadiusLimits(0.025, 0.25); // ellipse only := [0.025, 0.5]
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ellipse(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
 		std::vector<Primitive3d1*> subprim_arr_ellipse;
@@ -301,7 +297,6 @@ namespace robin
 
 			Primitive3Ellipse* cut_prim(new Primitive3Ellipse);
 			cut_prim->fit(cloud_ellipse, seg);
-			//*cloud_ += *cut_prim->getPointCloud();
 			subprim_arr_ellipse.push_back(cut_prim);
 			++n_subprims_ellipse;
 			std::cout << "\t" << "ELLIPSE: " << cut_prim->getPointCloud()->points.size() << "/" << cur_size << std::endl;
@@ -321,13 +316,11 @@ namespace robin
 		if (cloud_ellipse->points.size() == n_pts_ellipse) {
 			// (when the ellipse fitting fails, take the line model)
 			subprims_.push_back(subprim_arr_line);
-			//has_line_ = true;
 		}
-		else if (cloud_ellipse->points.size() < n_pts_ellipse) {
+		//else if (cloud_ellipse->points.size() < n_pts_ellipse) {
+		else {
 			// (else pick the ellipse model)
 			subprims_.push_back(subprim_arr_ellipse);
-			if (ellipse_count_ == -1) { ellipse_count_ = 0; }
-			++ellipse_count_;
 		}
 #endif
 		return;
@@ -658,6 +651,9 @@ namespace robin
 
 	void Primitive3Cylinder::heuristic_laser_array_star()
 	{
+		// Reset total ellipse count
+		ellipse_count_ = 0;
+		
 		float radius(0.001);
 		Eigen::Vector3f center(0.0, 0.0, 0.0), dir(0.0, 0.0, 0.0);
 
@@ -682,7 +678,8 @@ namespace robin
 
 		bool has_line(false);
 		int idx_line(-1);
-		int ellipse_counter(0);
+		int ellipse_counter(0); // usefull ellipses only
+		std::vector<int> ellipse_idx; // usefull ellipses only
 
 		std::array<int, 4> idx({ -1, -1, -1, -1 }); // idx of the selected sub-primitive within each cut (if found)
 		std::array<std::array<float, 2>, 4> bounds;
@@ -694,7 +691,7 @@ namespace robin
 				std::array<float, 2> bounds_temp(getPointCloudExtremes(*subprims_[k][i]->getPointCloud(), pcl::PointXYZ(0, 0, 0), normals[k], min, max));
 				bounds[i] = { bounds_temp[0], bounds_temp[1] };
 
-				// Find the front face spaned by the intersection '+'
+				// Find the front face spaned by the intersection '+'				
 				if (bounds_temp[0] < 0.0 && bounds_temp[1] > 0.0) {
 					keypoints[k + 4] = min; // ex. negative x-axis -> 4
 					keypoints[k] = max; // ex. positive x-axis -> 0					
@@ -714,29 +711,34 @@ namespace robin
 						*cloud_suprims += *subprims_[k][i]->getPointCloud();
 						std::cout << "LINE\n" << std::endl;
 					}
-					//if (subprims_[k][i]->getCoefficients()->values.size() == 11) {
-					if (subprims_[k][i]->getCoefficients()->values[2] > 0.050 && subprims_[k][i]->getCoefficients()->values.size() == 11) {
-						// Subprimitive is an Ellipse						
-						center += Eigen::Vector3f(
-							subprims_[k][i]->getCoefficients()->values[0],
-							subprims_[k][i]->getCoefficients()->values[1],
-							subprims_[k][i]->getCoefficients()->values[2]
-						);
+					else if (subprims_[k][i]->getCoefficients()->values.size() == 11) { //subprims_[k][i]->getCoefficients()->values[2] > 0.0f //0.050
+						// Subprimitive is an Ellipse				
+						
+						// Pick the smallest semi-minor axes (sma) lenght as the radius
+						float ssma(0.0);
+						if (subprims_[k][i]->getCoefficients()->values[3] > subprims_[k][i]->getCoefficients()->values[4]) {
+							ssma = subprims_[k][i]->getCoefficients()->values[4];
+						} else {
+							ssma = subprims_[k][i]->getCoefficients()->values[3];
+						}
 
-						// Pick the largest semi-minor axes (sma) lenght
-						if (subprims_[k][i]->getCoefficients()->values[3] >= subprims_[k][i]->getCoefficients()->values[4]) {
-							//sma_lenght = subprims_[k][i]->getCoefficients()->values[3];
-							radius += subprims_[k][i]->getCoefficients()->values[4];
+						// Exclude the larger ellipse(s) for center and radius calculation if the radius ssma > 0.05
+						if (ssma < 0.05) {							
+							center += Eigen::Vector3f(
+								subprims_[k][i]->getCoefficients()->values[0],
+								subprims_[k][i]->getCoefficients()->values[1],
+								subprims_[k][i]->getCoefficients()->values[2]
+							);
+							radius += ssma;
+
+							ellipse_idx.push_back(k);
+							ellipse_counter += 1;
 						}
-						else {
-							//sma_lenght = subprims_[k][i]->getCoefficients()->values[4];
-							radius += subprims_[k][i]->getCoefficients()->values[3];
-						}
-						ellipse_counter += 1;
 
 						idx[k] = i;
 
 						*cloud_suprims += *subprims_[k][i]->getPointCloud();
+						++ellipse_count_;
 						std::cout << "ELLIPSE\n" << std::endl;
 					}
 				}
@@ -750,6 +752,11 @@ namespace robin
 			center /= static_cast<float>(ellipse_counter);
 		}
 
+		// Checks the minimal number (three) of ellipse cuts
+		if (ellipse_count_ < 3) {
+			return;
+		}
+
 		if (subprims_.size() == 4 && idx[0] != -1 && idx[1] != -1 && idx[2] != -1 && idx[3] != -1) {
 			std::cout << "idx_0: " << idx[0] << " idx_1: " << idx[1] << " idx_2: " << idx[2] << " idx_3: " << idx[3] << std::endl;
 
@@ -757,17 +764,15 @@ namespace robin
 				// Find the plane that contains the extreme keypoints of the ellipses
 				std::array<Eigen::Vector3f, 4> plane_pts; // (four keypoints at most)
 				int p_counter(0);
-				for (int k(0); k < 4; ++k) {
-					if (k != idx_line) {
-						// Alternate the selection of min or max points
-						if (k % 2 == 0) {
-							plane_pts[p_counter] = Eigen::Vector3f(keypoints[k].x, keypoints[k].y, keypoints[k].z);
-							++p_counter;
-						}
-						else {
-							plane_pts[p_counter] = Eigen::Vector3f(keypoints[k + 4].x, keypoints[k + 4].y, keypoints[k + 4].z);
-							++p_counter;
-						}
+				for (auto k : ellipse_idx) {
+					// Alternate the selection of min or max points
+					if (k % 2 == 0) {
+						plane_pts[p_counter] = Eigen::Vector3f(keypoints[k].x, keypoints[k].y, keypoints[k].z);
+						++p_counter;
+					}
+					else {
+						plane_pts[p_counter] = Eigen::Vector3f(keypoints[k + 4].x, keypoints[k + 4].y, keypoints[k + 4].z);
+						++p_counter;
 					}
 				}
 				Eigen::Vector3f plane_normal = (plane_pts[1] - plane_pts[0]).cross((plane_pts[2] - plane_pts[1])).normalized();
@@ -813,7 +818,7 @@ namespace robin
 					float angle = std::acos(v_prev.dot(v_next) / (v_prev.norm() * v_next.norm()));
 
 					// Estimate the direction
-					float ang_threshold(5.0);
+					float ang_threshold(10.0f); //5.0
 					if (angle < ang_threshold * M_PI / 180.0) {
 						dir = kp_next - kp_prev;
 						dir.normalize();
@@ -831,7 +836,9 @@ namespace robin
 			coefficients_->values[4] = dir.y(); //axis_y
 			coefficients_->values[5] = dir.z(); //axis_z
 			coefficients_->values[6] = radius; //radius
-			std::cout << *coefficients_ << std::endl;
+			std::cout << *coefficients_ << std::endl;			
+			std::cout << "Ellipse count: " << ellipse_count_ << '\n';
+			std::cout << "Subprims count: " << subprims_.size() << '\n';
 		}
 		return;
 	}
@@ -877,7 +884,7 @@ namespace robin
 		{
 			this->reset();
 			return false;
-		}
+		}		
 
 		isempty_ = false;
 		return true;
