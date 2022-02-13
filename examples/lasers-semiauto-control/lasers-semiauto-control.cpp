@@ -103,8 +103,8 @@ int main(int argc, char** argv)
 
 	bool RENDER(true);
 	bool PLOT(false);
-	bool HAND_CONTROL(false);
-	bool FEEDBACK(false);
+	bool HAND_CONTROL(true);
+	bool FEEDBACK(true);
 	std::vector<double> freq;
 
 	while(true){

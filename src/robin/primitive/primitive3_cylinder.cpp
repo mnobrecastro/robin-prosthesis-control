@@ -694,7 +694,7 @@ namespace robin
 				bounds[i] = { bounds_temp[0], bounds_temp[1] };
 
 				// Find the front face spaned by the intersection '+'				
-				if (bounds_temp[0] < 0.0 && bounds_temp[1] > 0.0) {
+				if (true) { //if (bounds_temp[0] < 0.0 && bounds_temp[1] > 0.0) {
 					keypoints[k + 4] = min; // ex. negative x-axis -> 4
 					keypoints[k] = max; // ex. positive x-axis -> 0					
 
