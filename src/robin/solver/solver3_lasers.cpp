@@ -142,7 +142,8 @@ namespace robin
 					primitive_ = p_cub_;
 					//cloud_ = c_cub;
 				}
-				if (fit_percent < cyl_size / cloud_size) {
+				float slack(0.25f); // slack tiebreak between cylinder and sphere
+				if (fit_percent < cyl_size / cloud_size - slack) {
 					fit_percent = cyl_size / cloud_size;
 					primitive_ = p_cyl_;
 					//cloud_ = c_cyl;

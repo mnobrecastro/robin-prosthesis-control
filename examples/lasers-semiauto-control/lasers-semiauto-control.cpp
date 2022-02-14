@@ -44,7 +44,7 @@ int main(int argc, char** argv)
 	// Declare a solver3
 	robin::Solver3Lasers mysolver;
 	//mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315);
-	mysolver.setCrop(-0.05, 0.05, -0.05, 0.05, 0.115, 0.215);
+	mysolver.setCrop(-0.05, 0.05, -0.05, 0.05, 0.150, 0.250);
 	mysolver.setDownsample(0.002f);
 	//mysolver.setResample(2, 0.005);
 	mysolver.setPlaneRemoval(false);
@@ -80,7 +80,7 @@ int main(int argc, char** argv)
 
 	// Create a Feedback object and add a Tactor instance to it
 	robin::feedback::Feedback feed;
-	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({ 1, 2, 3, 4 }, 0.7, "COM6")); //{3, 4, 5, 6}
+	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({ 1, 2, 3, 4 }, 0.7, "COM6"));
 	feed.addTactor(tactor);
 
 

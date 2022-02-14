@@ -655,6 +655,7 @@ namespace robin
 	{
 		// Reset total ellipse count
 		ellipse_count_ = 0;
+		float sma_diff(0.0f); // ellipses semi-minor axes difference
 		
 		float radius(0.001);
 		Eigen::Vector3f center(0.0, 0.0, 0.0), dir(0.0, 0.0, 0.0);
@@ -724,6 +725,8 @@ namespace robin
 							ssma = subprims_[k][i]->getCoefficients()->values[3];
 						}
 
+						sma_diff += std::abs(subprims_[k][i]->getCoefficients()->values[3] - subprims_[k][i]->getCoefficients()->values[4]);
+
 						// Exclude the larger ellipse(s) for center and radius calculation if the radius ssma > 0.05
 						if (ssma < 0.05) {							
 							center += Eigen::Vector3f(
@@ -756,6 +759,10 @@ namespace robin
 
 		// Checks the minimal number (three) of ellipse cuts
 		if (ellipse_count_ < 3) {
+			return;
+		}
+		// Checks if all ellipses approximate a sphere instead
+		if (ellipse_count_ == 4 && sma_diff < 0.025) {
 			return;
 		}
 
