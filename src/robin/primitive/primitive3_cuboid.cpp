@@ -1,5 +1,7 @@
 #include "primitive3_cuboid.h"
 
+#define RENDER
+
 namespace robin
 {
 	Primitive3Cuboid::Primitive3Cuboid()
@@ -31,17 +33,41 @@ namespace robin
 
 	void Primitive3Cuboid::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
 	{
-		if (visualizeOnOff_) {			
-			
+#ifndef RENDER
+		//if (visualizeOnOff_)
+		//viewer->addCube(*coefficients_, "cube");
+		for (auto plane : planes_) {
+			plane->setVisualizeOnOff(false);
+			plane->visualize(viewer);
+		}
+
+		pcl::PointXYZ center(properties_.center_x, properties_.center_y, properties_.center_z);
+		pcl::PointXYZ point_x(properties_.center_x + properties_.e0_x, properties_.center_y + properties_.e0_y, properties_.center_z + properties_.e0_z);
+		pcl::PointXYZ point_y(properties_.center_x + properties_.e1_x, properties_.center_y + properties_.e1_y, properties_.center_z + properties_.e1_z);
+		pcl::PointXYZ point_z(properties_.center_x + properties_.axis_x, properties_.center_y + properties_.axis_y, properties_.center_z + properties_.axis_z);
+		viewer->addLine<pcl::PointXYZ>(center, point_x, 1.0, 0.4, 0.4, "axis0");
+		viewer->addLine<pcl::PointXYZ>(center, point_y, 0.4, 1.0, 0.4, "axis1");
+		viewer->addLine<pcl::PointXYZ>(center, point_z, 0.4, 0.4, 1.0, "axis2");
+
+		// Intersection point (as a sphere)
+		pcl::ModelCoefficients::Ptr coefs(new pcl::ModelCoefficients);
+		coefs->values.push_back(inters_point_.x());
+		coefs->values.push_back(inters_point_.y());
+		coefs->values.push_back(inters_point_.z());
+		coefs->values.push_back(0.005);
+		viewer->addSphere(*coefs, "inters_sph");
+#else
+		if (visualizeOnOff_) {
+
 			viewer->addCube(*coefficients_, "cube");
 			viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 76.0 / 255.0, 0 / 255.0, 102 / 255.0, "cube"); //153,0,204
 			if (false) {
-			//if (view_face_idx_ == -1) {
+				//if (view_face_idx_ == -1) {
 				viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 1.0, "cube");
 			}
 			else {
 				viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.1, "cube");
-				
+
 				// Automatic selection of the Cuboid face
 				size_t view_face_idx;
 
@@ -51,7 +77,7 @@ namespace robin
 				Eigen::Vector3f axis, cam_axis(0.0, 0.0, 1.0), e0_axis, e1_axis, z_axis, p_center;
 				Eigen::Vector3f p_face_e0, p_face_e1, p_face_ez, p_inters_e0(0.0, 0.0, 0.0), p_inters_e1(0.0, 0.0, 0.0), p_inters_ez(0.0, 0.0, 0.0), vecon_e0(0.0, 0.0, 0.0), vecon_e1(0.0, 0.0, 0.0), vecon_ez(0.0, 0.0, 0.0);
 				bool found(false);
-				
+
 				//// Ray casting
 				p_center = { properties_.center_x,properties_.center_y, properties_.center_z };
 				e0_axis = { properties_.e0_x, properties_.e0_y, properties_.e0_z };
@@ -427,6 +453,7 @@ namespace robin
 		coefs->values.push_back(inters_point_.z());
 		coefs->values.push_back(0.005);
 		viewer->addSphere(*coefs, "inters_sph");
+#endif
 	}
 
 	void Primitive3Cuboid::reset()
@@ -586,6 +613,7 @@ namespace robin
 	/* Correct the obtained coefficients if necessary. */
 	void Primitive3Cuboid::correct_coefficients()
 	{
+#ifndef RENDER
 		if (planes_.size() > 0) {
 			// Cuboid obtained after fitting Primitive3Planes
 
@@ -755,6 +783,175 @@ namespace robin
 			coefficients_->values[8] = width; //height;
 			coefficients_->values[9] = height; //depth;
 		}
+#else
+		if (planes_.size() > 0) {
+			float width(0.0), height(0.0), depth(0.001);
+			Eigen::Vector3f e0_axis, e1_axis, z_axis;
+			Eigen::Matrix3f mori;
+			Eigen::Vector3f face_center, cube_center;
+			Eigen::Vector3f intersection_axis, point_on_axis;
+
+			if (planes_.size() == 1) {
+				/*
+				 *    ___________
+				 *   |   Z ^    ||
+				 *   |     |    ||
+				 *   |     |    ||
+				 *   |     ---> ||
+				 *   |    /     ||
+				 *   |  e0	    ||
+				 *   |__________/
+				 */
+
+				width = planes_[0]->getProperty_width(); // In the e1-direction
+				height = planes_[0]->getProperty_height(); // In the z-direction
+
+				// Plane z -> Cube e0
+				e0_axis = { planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z() };
+				e0_axis.normalize();
+				e0_axis *= depth / 2;
+				// Plane -e1 -> Cube e1
+				e1_axis = { -planes_[0]->getProperty_e1_x(), -planes_[0]->getProperty_e1_y(), -planes_[0]->getProperty_e1_z() };
+				e1_axis.normalize();
+				e1_axis *= width / 2;
+				// Plane e0 -> Cube z
+				z_axis = { planes_[0]->getProperty_e0_x(), planes_[0]->getProperty_e0_y(), planes_[0]->getProperty_e0_z() };
+				z_axis.normalize();
+				z_axis *= height / 2;
+			}
+			else if (planes_.size() > 1) {
+				// Case of 2 or 3
+				// e0 is by convention the face closest to the view
+				// Z defines HEIGHT, e0 defines DEPTH, e1 defines WIDTH
+				/*
+				 *      ___________
+				 *     /   Z      /|
+				 *    /    ^     / |
+				 *   /_____|____/F1|
+				 *   |F0   |    |  |
+				 *   |     |    |  |
+				 *   |     |    |  |
+				 *   |     -----|->|
+				 *   |    /     |e1|
+				 *   |   /	    |  |
+				 *   | e0       | /
+				 *   |__________|/
+				 */
+
+				float a1(planes_[0]->getProperty_axis_x());
+				float b1(planes_[0]->getProperty_axis_y());
+				float c1(planes_[0]->getProperty_axis_z());
+				float d1(planes_[0]->getProperty_d());
+
+				float a2(planes_[1]->getProperty_axis_x());
+				float b2(planes_[1]->getProperty_axis_y());
+				float c2(planes_[1]->getProperty_axis_z());
+				float d2(planes_[1]->getProperty_d());
+
+				// Calculate the intersection axis between the two planes (defines the new Z)
+				intersection_axis(0) = b1 / a1 * (c2 - a2 * c1 / a1) / (b2 - a2 * b1 / a1) - c1 / a1;
+				intersection_axis(1) = -(c2 - a2 * c1 / a1) / (b2 - a2 * b1 / a1);
+				intersection_axis(2) = 1;
+
+				// Calculate a point on the axis
+				point_on_axis(0) = intersection_axis(0) + b1 / a1 * (d2 - a2 * d1 / a1) / (b2 - a2 * b1 / a1) - d1 / a1;
+				point_on_axis(1) = intersection_axis(1) - (d2 - a2 * d1 / a1) / (b2 - a2 * b1 / a1);
+				point_on_axis(2) = 0;
+
+				// Calculate height from projecting all points from all planes
+				pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+				for (auto plane : planes_) {
+					*cloud += *plane->getPointCloud();
+				}
+				std::array<float, 2> height_arr(getPointCloudExtremes(
+					*cloud,
+					pcl::PointXYZ(point_on_axis.x(), point_on_axis.y(), point_on_axis.z()),
+					pcl::PointXYZ(intersection_axis.x(), intersection_axis.y(), intersection_axis.z())
+				));
+				height = height_arr[1] - height_arr[0];
+
+				// Calculate width
+				Eigen::Vector3f face0_e0_axis = { planes_[0]->getProperty_axis_x(), planes_[0]->getProperty_axis_y(), planes_[0]->getProperty_axis_z() }; // normalized
+				Eigen::Vector3f face0_e1_axis = intersection_axis.cross(face0_e0_axis); // new/updated face0_e1_axis
+				std::array<float, 2> width_arr(getPointCloudExtremes(
+					*planes_[0]->getPointCloud(),
+					pcl::PointXYZ(planes_[0]->getProperty_center_x(), planes_[0]->getProperty_center_y(), planes_[0]->getProperty_center_z()),
+					pcl::PointXYZ(face0_e1_axis.x(), face0_e1_axis.y(), face0_e1_axis.z()) //intersection_axis.
+				));
+				width = width_arr[1] - width_arr[0];
+
+				// Calculate depth
+				Eigen::Vector3f face1_e0_axis = { planes_[1]->getProperty_axis_x(), planes_[1]->getProperty_axis_y(), planes_[1]->getProperty_axis_z() }; // normalized (no longer used)
+				Eigen::Vector3f face1_e1_axis = intersection_axis.cross(face1_e0_axis); // new/updated face1_e1_axis (no longer used)
+				std::array<float, 2> depth_arr(getPointCloudExtremes(
+					*planes_[1]->getPointCloud(),
+					pcl::PointXYZ(planes_[0]->getProperty_center_x(), planes_[0]->getProperty_center_y(), planes_[0]->getProperty_center_z()), //planes_[1]
+					pcl::PointXYZ(face0_e0_axis.x(), face0_e0_axis.y(), face0_e0_axis.z()) //intersection_axis.
+				));
+				depth = depth_arr[1] - depth_arr[0];
+
+				// Plane z -> Cube e0
+				e0_axis = face0_e0_axis;
+				e0_axis.normalize();
+				e0_axis *= depth / 2;
+				// Plane -e1 -> Cube e1
+				e1_axis = face0_e1_axis;
+				e1_axis.normalize();
+				e1_axis *= width / 2;
+				// Plane e0 -> Cube z
+				z_axis = intersection_axis;
+				z_axis.normalize();
+				z_axis *= height / 2;
+			}
+
+			face_center(0) = planes_[0]->getProperty_center_x();
+			face_center(1) = planes_[0]->getProperty_center_y();
+			face_center(2) = planes_[0]->getProperty_center_z();
+
+			cube_center(0) = face_center.x() - e0_axis(0);
+			cube_center(1) = face_center.y() - e0_axis(1);
+			cube_center(2) = face_center.z() - e0_axis(2);
+
+			// Since width (plane e0) <= height (plane e1)
+			properties_.e0_x = e0_axis(0);
+			properties_.e0_y = e0_axis(1);
+			properties_.e0_z = e0_axis(2);
+			properties_.e1_x = e1_axis(0);
+			properties_.e1_y = e1_axis(1);
+			properties_.e1_z = e1_axis(2);
+			properties_.axis_x = z_axis(0);
+			properties_.axis_y = z_axis(1);
+			properties_.axis_z = z_axis(2);
+
+			// Transformation matrix
+			e0_axis.normalize();
+			mori(0, 0) = e0_axis(0);
+			mori(1, 0) = e0_axis(1);
+			mori(2, 0) = e0_axis(2);
+			e1_axis.normalize();
+			mori(0, 1) = e1_axis(0);
+			mori(1, 1) = e1_axis(1);
+			mori(2, 1) = e1_axis(2);
+			z_axis.normalize();
+			mori(0, 2) = z_axis(0);
+			mori(1, 2) = z_axis(1);
+			mori(2, 2) = z_axis(2);
+
+			Eigen::Quaternionf quat(mori);
+
+			//Cube coefficients(Tx, Ty, Tz, Qx, Qy, Qz, Qw, width, height, depth)
+			coefficients_->values[0] = cube_center.x(); //Tx
+			coefficients_->values[1] = cube_center.y(); //Ty
+			coefficients_->values[2] = cube_center.z(); //Tz
+			coefficients_->values[3] = quat.x(); //Qx
+			coefficients_->values[4] = quat.y(); //Qy
+			coefficients_->values[5] = quat.z(); //Qz
+			coefficients_->values[6] = quat.w(); //Qw
+			coefficients_->values[7] = depth; //width;
+			coefficients_->values[8] = width; //height;
+			coefficients_->values[9] = height; //depth;
+		}
+#endif
 	}
 
 	/* Update the properties of the Primitive3. */

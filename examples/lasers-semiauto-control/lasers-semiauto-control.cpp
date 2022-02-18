@@ -90,8 +90,7 @@ int main(int argc, char** argv)
 	viewer->createViewPort(0.0, 0.0, 1.0, 1.0, vp);
 	viewer->setCameraPosition(0.0, 0.0, -0.5, 0.0, -1.0, 0.0, vp);
 	viewer->setSize(800, 600);
-	float bckgr_gray_level = 0.0;  // Black:=0.0
-	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
+	viewer->setBackgroundColor(0.91, 0.96, 0.97, vp);
 	viewer->addCoordinateSystem(0.1);
 
 #ifdef GNUPLOT
@@ -185,7 +184,7 @@ int main(int argc, char** argv)
 				cloud_color_h.setInputCloud(s->getPointCloud());
 				viewer->addPointCloud(s->getPointCloud(), cloud_color_h, std::to_string(std::rand()));
 			}*/
-			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> preproc_color_h(255, 255, 255);
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> preproc_color_h(0, 0, 0);
 			preproc_color_h.setInputCloud(mysolver.getPreprocessed());
 			viewer->addPointCloud(mysolver.getPreprocessed(), preproc_color_h, "preproc");
 

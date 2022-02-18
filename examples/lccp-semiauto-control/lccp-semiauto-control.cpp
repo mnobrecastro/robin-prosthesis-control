@@ -47,7 +47,7 @@ int main(int argc, char** argv)
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
 	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315); //0.105 or 0.160 //(0.115, 0.215)
-	mysolver.setDownsample(0.002f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f
+	mysolver.setDownsample(0.002f);
 	//mysolver.setResample(2, 0.005);
 	mysolver.setPlaneRemoval(false);
 	mysolver.setFairSelection(false);
@@ -82,8 +82,7 @@ int main(int argc, char** argv)
 	viewer->createViewPort(0.0, 0.0, 1.0, 1.0, vp);
 	viewer->setCameraPosition(0.0, 0.0, -0.5, 0.0, -1.0, 0.0, vp);
 	viewer->setSize(800, 600);
-	float bckgr_gray_level = 0.0;  // Black:=0.0
-	viewer->setBackgroundColor(bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, vp);
+	viewer->setBackgroundColor(0.91, 0.96, 0.97, vp);
 	viewer->addCoordinateSystem(0.1);
 
 #ifdef GNUPLOT
@@ -166,7 +165,7 @@ int main(int argc, char** argv)
 				cloud_color_h.setInputCloud(s->getPointCloud());
 				viewer->addPointCloud(s->getPointCloud(), cloud_color_h, std::to_string(std::rand()));
 			}*/
-			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> preproc_color_h(255, 255, 255);
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> preproc_color_h(0, 0, 0);
 			preproc_color_h.setInputCloud(mysolver.getPreprocessed());
 			viewer->addPointCloud(mysolver.getPreprocessed(), preproc_color_h, "preproc");
 
