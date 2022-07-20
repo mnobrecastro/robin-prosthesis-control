@@ -54,7 +54,7 @@ namespace robin
 		// (tiggered if one of the lasers is empty)
 		if (has_invalid_cloud) {
 			primitive_->reset();
-			std::cerr << "* Not enough points to perform the heuristic fitting." << std::endl;
+			std::cerr << "* Not enough points to perform the heuristic fitting.\n";
 			return;
 		}
 
@@ -69,7 +69,7 @@ namespace robin
 		// Check whether the PointCloud has enough points to proceed
 		if (cloud_->points.size() < MIN_POINTS_PROCEED_) {
 			primitive_->reset();
-			std::cerr << "* Not enough points to perform the Heuristic fitting." << std::endl;
+			std::cerr << "* Not enough points to perform the Heuristic fitting.\n";
 			return;
 		}
 
@@ -116,11 +116,11 @@ namespace robin
 				float fit_percent(0.0);
 
 				float sph_size(p_sph_->getPointCloud()->points.size());
-				std::cout << "Sphere FitPercent: " << sph_size / cloud_size << std::endl;
+				std::cout << "Sphere FitPercent: " << sph_size / cloud_size << '\n';
 				float cub_size(p_cub_->getPointCloud()->points.size());
-				std::cout << "Cuboid FitPercent: " << cub_size / cloud_size << std::endl;
+				std::cout << "Cuboid FitPercent: " << cub_size / cloud_size << '\n';
 				float cyl_size(p_cyl_->getPointCloud()->points.size());
-				std::cout << "Cylinder FitPercent: " << cyl_size / cloud_size << std::endl;
+				std::cout << "Cylinder FitPercent: " << cyl_size / cloud_size << '\n';
 
 				if (fairselectionOnOff_) {
 					if (sph_size == 0 || cub_size == 0 || cyl_size == 0) {
@@ -158,11 +158,11 @@ namespace robin
 	{
 		// Check whether an instance of Segmentation has been provided.
 		if (seg_obj_ptr_ != nullptr) {
-			std::cout << "Segmentation object has been provided!" << std::endl;
+			std::cout << "Segmentation object has been provided!\n";
 			prim->heuristic(cloud_arr, seg_obj, heu);
 		}
 		else {
-			std::cout << "NO segmentation object has been provided." << std::endl;
+			std::cout << "NO segmentation object has been provided.\n";
 			//primitive_->heuristic(cloud_arr, seg_obj_ptr_, heu); // Needs workaround later
 		}
 	}

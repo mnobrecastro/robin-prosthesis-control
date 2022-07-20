@@ -26,7 +26,7 @@ namespace robin
 		Primitive3d3* primitive_ = nullptr;
 		HEURISTIC heu_;
 
-		unsigned int MIN_POINTS_PROCEED_ = 20;
+		unsigned int MIN_POINTS_PROCEED_ = 10;
 
 		/* Remove the method from the interface. */
 		using Solver3::addSensor;
