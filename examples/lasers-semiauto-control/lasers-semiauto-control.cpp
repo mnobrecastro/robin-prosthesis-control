@@ -1,11 +1,16 @@
 //#define MULTITHREADING
 //#define GNUPLOT
+//#define LCCP
 
 #include <robin/utils/data_manager.h>
 #include <robin/sensor/hand_michelangelo.h>
 //#include <robin/control/control_simple.h>
 #include <robin/control/control_sequential.h>
+#ifndef LCCP
 #include <robin/solver/solver3_lasers.h>
+#else
+#include <robin/solver/solver3_lccp.h>
+#endif
 #include <robin/sensor/realsense_d400.h>
 #include <robin/sensor/laser_array.h>
 #include <robin/primitive/primitive3.h>
@@ -37,19 +42,25 @@ int main(int argc, char** argv)
 	myhand.calibrateEMG();
 
 	robin::control::ControlSequential controller(myhand);
-	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 20); //20=~200ms     //MEDIAN, 40   // <--- Not being used at the moment
+	controller.setFilter(robin::control::ControlVar::fname::MOVING_AVERAGE, 10); //10=~100ms
 	controller.setFullManual(false);
 	controller.setDataManager(mydm);
 
 	// Declare a solver3
+#ifndef LCCP
 	robin::Solver3Lasers mysolver;
+#else
+	robin::Solver3LCCP mysolver;
+#endif
 	//mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315);
 	mysolver.setCrop(-0.05, 0.05, -0.05, 0.05, 0.150, 0.250);
+#ifndef LCCP
+	mysolver.setDownsample(0.001f);
+#else
 	mysolver.setDownsample(0.002f);
-	//mysolver.setResample(2, 0.005);
+#endif
 	mysolver.setPlaneRemoval(false);
 	mysolver.setFairSelection(false);
-	//solver.setUseNormals(true);
 	
 	// Dummy Segmentation object
 	//pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg(new pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>);
@@ -64,15 +75,18 @@ int main(int argc, char** argv)
 	
 	// Create a sensor from a camera
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
-	//robin::RoyalePicoflexx* mycam(new robin::RoyalePicoflexx());
 	mycam->printInfo();
 	mycam->setDisparity(false);
+#ifdef LCCP
+	mysolver.addSensor(mycam);
+#else
 
 	// Create a virtual array of sensors from another sensor
 	//robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002));
 	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
-	robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001));
+	robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001f));
 	mysolver.addSensor(myarr);
+#endif
 
 	// Create a Primitive
 	robin::Primitive3d3* prim;
@@ -80,7 +94,7 @@ int main(int argc, char** argv)
 
 	// Create a Feedback object and add a Tactor instance to it
 	robin::feedback::Feedback feed;
-	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({ 1, 2, 3, 4 }, 0.7, "COM6"));
+	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({ 1, 2, 3, 4 }, 0.5, "COM6"));
 	feed.addTactor(tactor);
 
 
@@ -91,7 +105,7 @@ int main(int argc, char** argv)
 	viewer->setCameraPosition(0.0, 0.0, -0.5, 0.0, -1.0, 0.0, vp);
 	viewer->setSize(800, 600);
 	viewer->setBackgroundColor(0.91, 0.96, 0.97, vp);
-	viewer->addCoordinateSystem(0.1);
+	//viewer->addCoordinateSystem(0.1);
 
 #ifdef GNUPLOT
 	// Create a Gnuplot canvas
@@ -103,7 +117,7 @@ int main(int argc, char** argv)
 	bool RENDER(true);
 	bool PLOT(false);
 	bool HAND_CONTROL(true);
-	bool FEEDBACK(true);
+	bool FEEDBACK(false);
 	std::vector<double> freq;
 
 	while(true){
