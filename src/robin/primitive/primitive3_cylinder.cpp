@@ -288,7 +288,7 @@ namespace robin
 		}
 
 #ifdef USE_ELLIPSE
-		seg->setDistanceThreshold(0.010); // ellipse only := 0.005
+		seg->setDistanceThreshold(0.010); // ellipse only := 0.005  //0.010
 		seg->setRadiusLimits(0.025, 0.25); // ellipse only := [0.025, 0.5]
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ellipse(new pcl::PointCloud<pcl::PointXYZ>(*cloud));
