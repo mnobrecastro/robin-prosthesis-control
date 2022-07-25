@@ -1,36 +1,36 @@
-#include "camera_depth.h"
+#include "mask_rgbd.h"
 
 #include <iostream>
 #include <ctime>
 
-#include <pcl/filters/passthrough.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/filters/approximate_voxel_grid.h>
-#include <pcl/filters/random_sample.h>
+//#include <pcl/filters/passthrough.h>
+//#include <pcl/filters/voxel_grid.h>
+//#include <pcl/filters/approximate_voxel_grid.h>
+//#include <pcl/filters/random_sample.h>
 
 namespace robin {
-
-	CameraDepth::CameraDepth() { std::cout << "A new CameraDepth was created.\n"; }
+	/*
+	MaskRgbd::MaskRgbd() { std::cout << "A new CameraRgb was created.\n"; }
 	
-	CameraDepth::~CameraDepth() {}
+	MaskRgb::~MaskRgb() {}
 
-	void CameraDepth::printInfo() {}
+	void MaskRgb::printInfo() {}
 
-	void CameraDepth::captureFrame() { std::cout << "CameraDepth.captureFrame().\n"; }
+	void MaskRgb::captureFrame() { std::cout << "CameraRgb.captureFrame().\n"; }
 
-	void CameraDepth::setCrop(float x0=999.9, float x1=999.9, float y0=999.9, float y1=999.9, float z0=999.9, float z1=999.9)
+	void MaskRgb::setCrop(float x0=999.9, float x1=999.9, float y0=999.9, float y1=999.9, float z0=999.9, float z1=999.9)
 	{
 		filterOnOff_ = true;
 		limits_ = { x0, x1, y0, y1, z0, z1 };		
 	}
 
-	void CameraDepth::setDownsample(float voxel_size = 0.005)
+	void CameraRgb::setDownsample(float voxel_size = 0.005)
 	{
 		downsampleOnOff_ = true;
 		voxel_size_ = voxel_size;
 	}
-
-	pcl::PointCloud<pcl::PointXYZ>::Ptr CameraDepth::trimPointCloud()
+	/*
+	pcl::PointCloud<pcl::PointXYZ>::Ptr CameraRgb::trimPointCloud()
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_trimmed(new pcl::PointCloud<pcl::PointXYZ>());
 		for (auto p : cloud_->points) {
@@ -43,7 +43,7 @@ namespace robin {
 		return cloud_trimmed;
 	}
 
-	void CameraDepth::crop()
+	void CameraRgb::crop()
 	{
 		if (filterOnOff_) {
 			std::time_t t0, tf;
@@ -76,7 +76,7 @@ namespace robin {
 		}
 	}
 
-	void CameraDepth::downsample()
+	void CameraRgb::downsample()
 	{
 		if (downsampleOnOff_) {
 			std::time_t t0,tf;
@@ -101,5 +101,5 @@ namespace robin {
 					  << " data points (in " << std::difftime(t0, tf) << " ms).\n";
 		}
 	}
-
+	*/
 }

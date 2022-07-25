@@ -17,6 +17,13 @@ list(APPEND robin_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sensor2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sensor2.h
 
+    ${CMAKE_CURRENT_LIST_DIR}/camera_rgb.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/camera_rgb.h
+    ${CMAKE_CURRENT_LIST_DIR}/webcam.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/webcam.h
+    ${CMAKE_CURRENT_LIST_DIR}/mask_rgbd.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mask_rgbd.h
+
     ${CMAKE_CURRENT_LIST_DIR}/sensor3.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sensor3.h
 
@@ -56,6 +63,10 @@ list(APPEND robin_INCS
 
     ${CMAKE_CURRENT_LIST_DIR}/sensor2.h
 
+    ${CMAKE_CURRENT_LIST_DIR}/camera_rgb.h
+    ${CMAKE_CURRENT_LIST_DIR}/webcam.h
+    ${CMAKE_CURRENT_LIST_DIR}/mask_rgbd.h
+
     ${CMAKE_CURRENT_LIST_DIR}/sensor3.h
 
     ${CMAKE_CURRENT_LIST_DIR}/camera_depth.h
@@ -83,6 +94,10 @@ list(APPEND robin_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/engacoustics_tactor.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/sensor2.cpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/camera_rgb.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/webcam.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mask_rgbd.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/sensor3.cpp
 

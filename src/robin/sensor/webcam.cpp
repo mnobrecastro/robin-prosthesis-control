@@ -1,36 +1,50 @@
-#include "realsense_d400.h"
+#include "webcam.h"
 
 namespace robin {
 
-	RealsenseD400::RealsenseD400()
+	Webcam::Webcam(int dev_index)
 	{
-		dev_ = [] {
-			rs2::context ctx;
-			std::cout << "Waiting for device..." << std::endl;
-			while (true) {
-				for (auto&& dev : ctx.query_devices())
-					return dev;
-				std::this_thread::sleep_for(std::chrono::milliseconds(10));
-			}
-		}();
 
-		std::cout << "Device found:" << std::endl;
-		std::cout << dev_.get_info(RS2_CAMERA_INFO_NAME) << " "
-			<< dev_.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) << " "
-			<< dev_.get_info(RS2_CAMERA_INFO_PRODUCT_ID) << "\n\n";
 
-		std::cout << "A new RealsenseD400 was created\n\n";
-
-		this->start(DISPARITY_);
-
-		thread_capture_ = std::thread(&RealsenseD400::captureFrame, this);
+		thread_capture_ = std::thread(&Webcam::captureFrame, this);
 	}
 
-	RealsenseD400::~RealsenseD400() {}
+	Webcam::Webcam(const std::string dev_str)
+	{
+		// CV_WRAP explicit VideoCapture(const String& filename, int apiPreference, const std::vector<int>& params);
 
-	void RealsenseD400::printInfo() {
+		VCap cap;
+		if (!cap.dev_.isOpened()) {
+			std::cerr << "ERROR: Could not open the webcam.\n";
+		}
 
-		auto sensors = dev_.query_sensors();
+		cap.dev_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+		//cam.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', '2'));
+		cap.dev_.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
+		cap.dev_.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
+		cap.dev_.set(cv::CAP_PROP_FPS, 30);
+
+		std::cout << "Device found:\n";
+		/*std::cout << dev_.get(RS2_CAMERA_INFO_NAME) << " "
+			<< dev_.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) << " "
+			<< dev_.get_info(RS2_CAMERA_INFO_PRODUCT_ID) << "\n\n";*/
+		std::cout << cap.dev_.get(cv::CAP_PROP_FOURCC) << " "
+			<< cap.dev_.get(cv::CAP_PROP_FRAME_WIDTH) << " "
+			<< cap.dev_.get(cv::CAP_PROP_FRAME_HEIGHT) << " "
+			<< cap.dev_.get(cv::CAP_PROP_FPS) << "\n\n";
+
+		std::cout << "A new Webcam was created.\n" << std::endl;
+
+		//this->start(DISPARITY_);
+
+		thread_capture_ = std::thread(&Webcam::captureFrame, this);
+	}
+
+	Webcam::~Webcam() { }
+
+	void Webcam::printInfo()
+	{
+		/*auto sensors = dev_.query_sensors();
 		for (rs2::sensor& sensor : sensors) {
 			std::cout << "Sensor " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
 			for (rs2::stream_profile& profile : sensor.get_stream_profiles()) {
@@ -52,20 +66,20 @@ namespace robin {
 				//std::cout << "  stream " << profile.stream_type() << " " << profile.stream_name() << " " << profile.format() << " @" << profile.fps() << " Hz" << std::endl;
 			}
 		}
-		std::cout << '\n';
-		return;
+		std::cout << "\n";
+		return;*/
 	}
 
-	void RealsenseD400::setDisparity(bool disparity)
+	/*void Webcam::setDisparity(bool disparity)
 	{
-		DISPARITY_ = disparity;
+		/*DISPARITY_ = disparity;
 		return;
-	}
+	}*/
 
-	void RealsenseD400::start(bool disparity)
+	/*void Webcam::start(bool disparity)
 	{
 		serialnumber_ = dev_.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
-		std::cout << "Opening pipeline for " << serialnumber_ << '\n';
+		std::cout << "Opening pipeline for " << serialnumber_ << "\n";
 		cfg_.enable_device(serialnumber_);
 		if (!disparity) {
 			// Depth stream
@@ -99,27 +113,54 @@ namespace robin {
 
 		rs2::pipeline_profile profile = pipe_.start(cfg_);
 		return;
-	}
+	}*/
 
-	void RealsenseD400::captureFrame()
+	void Webcam::captureFrame()
 	{
+		// CV_WRAP explicit VideoCapture(int index, int apiPreference, const std::vector<int>& params);
+
+		VCap cap;
+		cap.dev_.open(0);
+		if (!cap.dev_.isOpened()) {
+			std::cerr << "ERROR: Could not open the webcam.\n";
+		}
+
+		cap.dev_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+		//cam.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', '2'));
+		cap.dev_.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
+		cap.dev_.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
+		cap.dev_.set(cv::CAP_PROP_FPS, 30);
+
+		std::cout << "Device found:\n";
+		/*std::cout << dev_.get(RS2_CAMERA_INFO_NAME) << " "
+			<< dev_.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) << " "
+			<< dev_.get_info(RS2_CAMERA_INFO_PRODUCT_ID) << "\n\n";*/
+		std::cout << cap.dev_.get(cv::CAP_PROP_FOURCC) << " "
+			<< cap.dev_.get(cv::CAP_PROP_FRAME_WIDTH) << " "
+			<< cap.dev_.get(cv::CAP_PROP_FRAME_HEIGHT) << " "
+			<< cap.dev_.get(cv::CAP_PROP_FPS) << "\n\n";
+
+		std::cout << "A new Webcam was created.\n" << std::endl;
+
+		//this->start(DISPARITY_);
+		
 		while (true) {
 			std::time_t t0, tf;
 			t0 = std::time(0);
+			
+			// Copy the next frame from the camera
+			//std::shared_ptr<cv::Mat> image_ptr(new cv::Mat());
+			cv::Mat image;
+			std::cout << "One\n" << cap.dev_.get(cv::CAP_PROP_FPS) << '\n';
+			cap.dev_.read(image);
+			std::cout << "Two\n";
+			
+			// Assign the image frame to the camera
+			mu_image_.lock();
+			*image_ = image;
+			mu_image_.unlock();
 
-			// Wait for the next set of frames from the camera
-			rs2::frameset frames(pipe_.wait_for_frames());
-			rs2::depth_frame depth(frames.get_depth_frame());
-			rs2::video_frame color(frames.get_color_frame());
-
-			// Generate the pointcloud and color texture mappings
-			rs2::pointcloud pc;
-			pc.map_to(color); // RGB texture
-			rs2::points pts = pc.calculate(depth);
-
-			// Transform rs2::pointcloud into pcl::PointCloud<PointXYZ>::Ptr
-			this->points_to_pcl(pts, color);
-
+			std::cout << "Three\n";
 			// Feed the children Sensors
 			this->feedChildren();
 
@@ -128,7 +169,7 @@ namespace robin {
 		return;
 	}
 
-	std::tuple<uint8_t, uint8_t, uint8_t> RealsenseD400::get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords)
+	/*std::tuple<uint8_t, uint8_t, uint8_t> Webcam::get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords)
 	{
 		const int w = texture.get_width(), h = texture.get_height();
 		int x = std::min(std::max(int(texcoords.u * w + .5f), 0), w - 1);
@@ -136,9 +177,9 @@ namespace robin {
 		int idx = x * texture.get_bytes_per_pixel() + y * texture.get_stride_in_bytes();
 		const auto texture_data = reinterpret_cast<const uint8_t*>(texture.get_data());
 		return std::tuple<uint8_t, uint8_t, uint8_t>(texture_data[idx], texture_data[idx + 1], texture_data[idx + 2]);
-	}
+	}*/
 
-	void RealsenseD400::points_to_pcl(const rs2::points pts, const rs2::video_frame color)
+	/*void Webcam::points_to_pcl(const rs2::points pts, const rs2::video_frame color)
 	{
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_raw(new pcl::PointCloud<pcl::PointXYZ>());
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_clr(new pcl::PointCloud<pcl::PointXYZRGB>());
@@ -147,7 +188,7 @@ namespace robin {
 		auto sp = pts.get_profile().as<rs2::video_stream_profile>();
 		auto ptr_v = pts.get_vertices();
 		auto ptr_tc = pts.get_texture_coordinates();
-		
+
 		// pcl::PointXYZ
 		cloud_raw->width = sp.width();
 		cloud_raw->height = sp.height();
@@ -178,10 +219,10 @@ namespace robin {
 			cloud_clr->points[i].b = std::get<0>(rgb);
 		}
 
-		mu_cloud_.lock();		
+		mu_cloud_.lock();
 		cloud_ = cloud_raw;
 		cloud_clr_ = cloud_clr;
 		mu_cloud_.unlock();
 		return;
-	}
+	}*/
 }

@@ -13,6 +13,11 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 link_libraries(${PCL_LIBRARIES})
 
+find_package(OpenCV REQUIRED PATHS "C:/opencv/build/")
+include_directories(${OpenCV_INCLUDE_DIRS})
+link_directories(${OpenCV_DIR}/x64/vc15/lib)
+link_libraries(${OpenCV_LIBS})
+
 set(REALSENSE_INSTALL_PATH CACHE PATH "C:/Program Files (x86)/Intel RealSense SDK 2.0/")
 include_directories(${REALSENSE_INSTALL_PATH}/include/)
 link_directories(${REALSENSE_INSTALL_PATH}/lib/x64)
