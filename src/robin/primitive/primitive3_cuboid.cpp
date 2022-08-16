@@ -1,5 +1,7 @@
 #include "primitive3_cuboid.h"
 
+//#define RENDER
+
 namespace robin
 {
 	Primitive3Cuboid::Primitive3Cuboid()
@@ -1587,6 +1589,5 @@ namespace robin
 				return 2;
 			}
 		}
-
 	}
 }

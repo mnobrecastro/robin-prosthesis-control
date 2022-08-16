@@ -517,6 +517,7 @@ namespace robin
 
 					// Assess the following three conditions
 					// 1. Calculate the projection vector to the 'inters' (intersection) point on each face
+
 					// // face e0
 					proj_e0_e1 = std::abs(vecon_e0.dot(e1_axis) / e1_axis.norm());
 					proj_e0_ez = std::abs(vecon_e0.dot(z_axis) / z_axis.norm());
@@ -548,6 +549,7 @@ namespace robin
 							}
 						}
 					}
+
 					// // face e1
 					proj_e1_e0 = std::abs(vecon_e1.dot(e0_axis) / e0_axis.norm());
 					proj_e1_ez = std::abs(vecon_e1.dot(z_axis) / z_axis.norm());
@@ -579,6 +581,7 @@ namespace robin
 							}
 						}
 					}
+
 					// // face ez
 					proj_ez_e0 = std::abs(vecon_ez.dot(e0_axis) / e0_axis.norm());
 					proj_ez_e1 = std::abs(vecon_ez.dot(e1_axis) / e1_axis.norm());
