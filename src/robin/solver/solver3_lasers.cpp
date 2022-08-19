@@ -58,6 +58,7 @@ namespace robin
 			return;
 		}
 
+		tic = std::chrono::high_resolution_clock::now();
 		this->heuristic();
 
 		// Copy the address in case a Primitive3d3 has been provided and mutated to a derived primitive

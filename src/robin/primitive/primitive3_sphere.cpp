@@ -22,7 +22,7 @@ namespace robin
 	{
 		viewer->addSphere(*coefficients_, "sphere");
 		viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 76.0 / 255.0, 0 / 255.0, 102 / 255.0, "sphere"); //153,0,204
-		viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 1.0, "sphere");
+		viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.3, "sphere"); //1.0
 	}
 
 	void Primitive3Sphere::reset()

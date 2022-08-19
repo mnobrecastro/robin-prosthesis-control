@@ -1,6 +1,13 @@
 //#define MULTITHREADING
 //#define GNUPLOT
-//#define LCCP
+#define LCCP
+//#define FEEDBACK
+
+//#define MANUSCRIPT
+
+#include <chrono>
+#include <thread>
+std::chrono::time_point<std::chrono::steady_clock> tic;
 
 #include <robin/utils/data_manager.h>
 #include <robin/sensor/hand_michelangelo.h>
@@ -14,11 +21,12 @@
 #include <robin/sensor/realsense_d400.h>
 #include <robin/sensor/laser_array.h>
 #include <robin/primitive/primitive3.h>
+#ifdef FEEDBACK
 #include <robin/feedback/feedback.h>
 #include <robin/sensor/engacoustics_tactor.h>
+#endif
 
-#include <chrono>
-#include <thread>
+
 
 #ifdef GNUPLOT
 #include "gnuplot-iostream/gnuplot-iostream.h"
@@ -84,18 +92,20 @@ int main(int argc, char** argv)
 	// Create a virtual array of sensors from another sensor
 	//robin::LaserArraySingle* myarr(new robin::LaserArraySingle(mycam, 0.002));
 	//robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002));
-	robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.001f));
+	robin::LaserArrayStar* myarr(new robin::LaserArrayStar(mycam, 0.002f)); //0.001f
 	mysolver.addSensor(myarr);
 #endif
 
 	// Create a Primitive
 	robin::Primitive3d3* prim;
 
-
+#ifdef FEEDBACK
 	// Create a Feedback object and add a Tactor instance to it
 	robin::feedback::Feedback feed;
 	robin::EngAcousticsTactor* tactor(new robin::EngAcousticsTactor({ 1, 2, 3, 4 }, 0.5, "COM6"));
 	feed.addTactor(tactor);
+#endif
+
 
 
 	// Create a PCL visualizer
@@ -103,7 +113,7 @@ int main(int argc, char** argv)
 	int vp(0);
 	viewer->createViewPort(0.0, 0.0, 1.0, 1.0, vp);
 	viewer->setCameraPosition(0.0, 0.0, -0.5, 0.0, -1.0, 0.0, vp);
-	viewer->setSize(800, 600);
+	viewer->setSize(800, 600); //1920,1080 //1680,1050 //1600,900 // 1280,1024 //800, 600
 	viewer->setBackgroundColor(0.91, 0.96, 0.97, vp);
 	//viewer->addCoordinateSystem(0.1);
 
@@ -114,14 +124,65 @@ int main(int argc, char** argv)
 	size_t kdata(0);
 #endif
 
-	bool RENDER(true);
+
+
+	//###########################################################
+#ifdef MANUSCRIPT
+	robin::Solver3 dum_solver;
+	dum_solver.setCrop(-0.05, 0.05, -0.05, 0.05, 0.150, 0.250);
+	dum_solver.setDownsample(0.002f);
+	dum_solver.setPlaneRemoval(false);
+	dum_solver.setFairSelection(false);
+
+	pcl::SACSegmentation<pcl::PointXYZ>* dum_seg(new pcl::SACSegmentation<pcl::PointXYZ>);
+	dum_seg->setOptimizeCoefficients(true);
+	dum_seg->setMethodType(pcl::SAC_PROSAC);
+	dum_seg->setMaxIterations(1000);
+	dum_seg->setDistanceThreshold(0.001);
+	dum_seg->setRadiusLimits(0.005, 0.050);
+	dum_solver.setSegmentation(dum_seg);
+
+	dum_solver.addSensor(mycam);
+
+	robin::Primitive3d3* dum_prim;
+
+	pcl::visualization::PCLVisualizer::Ptr dum_view1(new pcl::visualization::PCLVisualizer("3D Viewer1"));
+	int vp1(1);
+	dum_view1->createViewPort(0.0, 0.0, 1.0, 1.0, vp1);
+	dum_view1->setCameraPosition(0.0, 0.0, -0.8, 0.0, -1.0, 0.0, vp1);
+	dum_view1->setSize(800, 600); //1920,1080 //1680,1050 //1600,900 // 1280,1024 //800, 600
+	dum_view1->setBackgroundColor(0.91, 0.96, 0.97, vp1);
+
+	// Create a PCL visualizer
+	pcl::visualization::PCLVisualizer::Ptr dum_view2(new pcl::visualization::PCLVisualizer("3D Viewer2"));
+	int vp2(2);
+	dum_view2->createViewPort(0.0, 0.0, 1.0, 1.0, vp2);
+	dum_view2->setCameraPosition(0.0, 0.0, -0.8, 0.0, -1.0, 0.0, vp2);
+	dum_view2->setSize(800, 600); //1920,1080 //1680,1050 //1600,900 // 1280,1024 //800, 600
+	dum_view2->setBackgroundColor(0.91, 0.96, 0.97, vp2);
+
+#endif
+	//###########################################################
+
+
+
+	bool RENDER(false);
 	bool PLOT(false);
 	bool HAND_CONTROL(true);
 	bool FEEDBACK(false);
 	std::vector<double> freq;
 
 	while(true){
-		auto tic = std::chrono::high_resolution_clock::now();
+#ifdef LCCP
+		tic = std::chrono::high_resolution_clock::now();
+#endif
+
+		////###########################################################
+#ifdef MANUSCRIPT
+		dum_prim = new robin::Primitive3d3;
+		dum_solver.solve(dum_prim);
+#endif
+		////###########################################################
 
 		// Reset the dummy Primitive3d3 for multiple primitive inference
 		prim = new robin::Primitive3d3;
@@ -177,15 +238,15 @@ int main(int argc, char** argv)
 		}
 		///
 		
-		if (FEEDBACK) {
-			if (myhand.isRightHand())
-				feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
-			else
-				feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, -myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
-			feed.addPrimitive3(prim, robin::FEEDBACK_PRIM::TYPE);
-			feed.setActive(!controller.getStateUsr());
-			feed.run();
-		}
+#ifdef FEEDBACK
+		if (myhand.isRightHand())
+			feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
+		else
+			feed.addPointCloud(rotate(mysolver.getPointCloud(), { 0.0, 0.0, 1.0 }, -myhand.getWristSupProAngle()), robin::FEEDBACK_CLOUD::DIST_TO_HULL);
+		feed.addPrimitive3(prim, robin::FEEDBACK_PRIM::TYPE);
+		feed.setActive(!controller.getStateUsr());
+		feed.run();
+#endif
 
 		//---- RENDERING ----
 		if (RENDER) {
@@ -201,7 +262,6 @@ int main(int argc, char** argv)
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> preproc_color_h(0, 0, 0);
 			preproc_color_h.setInputCloud(mysolver.getPreprocessed());
 			viewer->addPointCloud(mysolver.getPreprocessed(), preproc_color_h, "preproc");
-
 			///
 
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);
@@ -213,14 +273,57 @@ int main(int argc, char** argv)
 			viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
 			prim->visualize(viewer);
 
-			if (FEEDBACK) {
-				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> feed_color_h(255, 255, 255);
-				feed_color_h.setInputCloud(feed.getPointCloud());
-				viewer->addPointCloud(feed.getPointCloud(), feed_color_h, "feed");
-				feed.visualize(viewer);
-			}
+#ifdef FEEDBACK
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> feed_color_h(255, 255, 255);
+			feed_color_h.setInputCloud(feed.getPointCloud());
+			viewer->addPointCloud(feed.getPointCloud(), feed_color_h, "feed");
+			feed.visualize(viewer);
+#endif
 
 			viewer->spinOnce(1, true);
+
+
+			//###########################################################
+#ifdef MANUSCRIPT
+			//// DUMMY VIEWER 1
+			dum_view1->removeAllShapes();
+			dum_view1->removeAllPointClouds();
+
+			//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> preproc_color_h(0, 0, 0);
+			//preproc_color_h.setInputCloud(dum_solver.getRawColored());
+			dum_view1->addPointCloud(dum_solver.getRawColored(), "rawcolor");
+
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h1(0, 255, 0);
+			solver_color_h.setInputCloud(mysolver.getPointCloud());
+			dum_view1->addPointCloud(mysolver.getPointCloud(), solver_color_h, "solver");
+
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h1(255, 0, 0);
+			primitive_color_h.setInputCloud(prim->getPointCloud());
+			//dum_view1->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
+			//prim->visualize(dum_view1);
+
+			dum_view1->spinOnce(1, true);
+
+
+			//// DUMMY VIEWER 2
+			dum_view2->removeAllShapes();
+			dum_view2->removeAllPointClouds();
+
+			//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> preproc_color_h(0, 0, 0);
+			//preproc_color_h.setInputCloud(dum_solver.getRawColored());
+			dum_view2->addPointCloud(dum_solver.getRawColored(), "rawcolor");
+
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h2(0, 255, 0);
+			solver_color_h.setInputCloud(mysolver.getPointCloud());
+			//dum_view2->addPointCloud(mysolver.getPointCloud(), solver_color_h, "solver");
+
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h2(255, 0, 0);
+			primitive_color_h.setInputCloud(prim->getPointCloud());
+			dum_view2->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
+			prim->visualize(dum_view2);
+
+			dum_view2->spinOnce(1, true);
+#endif
 		}
 
 #ifdef GNUPLOT

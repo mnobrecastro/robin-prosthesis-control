@@ -406,6 +406,7 @@ namespace robin
 						}
 						viewer->addCube(*coefs_cube, "plane");
 						viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 76.0 / 255.0, 0 / 255.0, 102 / 255.0, "plane"); //153,0,204
+						viewer->setShapeRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_OPACITY, 0.3, "plane");
 					}
 				}
 			}

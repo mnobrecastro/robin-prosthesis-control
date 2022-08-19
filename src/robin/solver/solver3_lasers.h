@@ -6,6 +6,8 @@
 
 #include <typeinfo>
 
+extern std::chrono::time_point<std::chrono::steady_clock> tic;
+
 namespace robin
 {
 	class Solver3Lasers :
