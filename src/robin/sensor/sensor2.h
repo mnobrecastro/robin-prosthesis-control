@@ -23,7 +23,7 @@ namespace robin {
 		void addChild(Sensor2* s);
 
 	protected:
-		std::shared_ptr<cv::Mat> image_;
+		std::unique_ptr<cv::Mat> image_;
 		std::mutex mu_image_;
 
 		Sensor2* parent_ = nullptr;

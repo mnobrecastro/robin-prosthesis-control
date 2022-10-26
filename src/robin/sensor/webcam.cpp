@@ -3,164 +3,62 @@
 namespace robin {
 
 	Webcam::Webcam(int dev_index)
+		: dev_(new cv::VideoCapture)
 	{
+		// Open and check if the camera was successfully initialized
+		dev_->open(dev_index);
+		if (!dev_->isOpened()) {
+			std::cerr << "ERROR: Could not open the webcam.\n";
+		}
+		std::cout << "Device found:\n";
+		std::cout << dev_->get(cv::CAP_PROP_FOURCC) << " "
+			<< dev_->get(cv::CAP_PROP_FRAME_WIDTH) << " "
+			<< dev_->get(cv::CAP_PROP_FRAME_HEIGHT) << " "
+			<< dev_->get(cv::CAP_PROP_FPS) << "\n\n";
 
+		std::cout << "A new Webcam was created.\n" << std::endl;
 
 		thread_capture_ = std::thread(&Webcam::captureFrame, this);
 	}
 
 	Webcam::Webcam(const std::string dev_str)
+		: dev_(new cv::VideoCapture)
 	{
-		// CV_WRAP explicit VideoCapture(const String& filename, int apiPreference, const std::vector<int>& params);
-
-		VCap cap;
-		if (!cap.dev_.isOpened()) {
+		// Open and check if the camera was successfully initialized
+		dev_->open(dev_str);
+		if (!dev_->isOpened()) {
 			std::cerr << "ERROR: Could not open the webcam.\n";
 		}
-
-		cap.dev_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-		//cam.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', '2'));
-		cap.dev_.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
-		cap.dev_.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
-		cap.dev_.set(cv::CAP_PROP_FPS, 30);
-
 		std::cout << "Device found:\n";
-		/*std::cout << dev_.get(RS2_CAMERA_INFO_NAME) << " "
-			<< dev_.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) << " "
-			<< dev_.get_info(RS2_CAMERA_INFO_PRODUCT_ID) << "\n\n";*/
-		std::cout << cap.dev_.get(cv::CAP_PROP_FOURCC) << " "
-			<< cap.dev_.get(cv::CAP_PROP_FRAME_WIDTH) << " "
-			<< cap.dev_.get(cv::CAP_PROP_FRAME_HEIGHT) << " "
-			<< cap.dev_.get(cv::CAP_PROP_FPS) << "\n\n";
+		std::cout << dev_->get(cv::CAP_PROP_FOURCC) << " "
+			<< dev_->get(cv::CAP_PROP_FRAME_WIDTH) << " "
+			<< dev_->get(cv::CAP_PROP_FRAME_HEIGHT) << " "
+			<< dev_->get(cv::CAP_PROP_FPS) << "\n\n";
 
 		std::cout << "A new Webcam was created.\n" << std::endl;
-
-		//this->start(DISPARITY_);
 
 		thread_capture_ = std::thread(&Webcam::captureFrame, this);
 	}
 
 	Webcam::~Webcam() { }
 
-	void Webcam::printInfo()
-	{
-		/*auto sensors = dev_.query_sensors();
-		for (rs2::sensor& sensor : sensors) {
-			std::cout << "Sensor " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
-			for (rs2::stream_profile& profile : sensor.get_stream_profiles()) {
-				if (profile.is<rs2::video_stream_profile>()) {
-					rs2::video_stream_profile video_stream_profile = profile.as<rs2::video_stream_profile>();
-					std::cout << " stream " << video_stream_profile.stream_name() << " " << video_stream_profile.format() << " " <<
-						video_stream_profile.width() << "x" << video_stream_profile.height() << " @" << video_stream_profile.fps() << " Hz\n";
-				}
-				if (profile.is<rs2::motion_stream_profile>()) {
-					rs2::motion_stream_profile motion_stream_profile = profile.as<rs2::motion_stream_profile>();
-					std::cout << " stream " << motion_stream_profile.stream_name() << " " << motion_stream_profile.format() << " " <<
-						motion_stream_profile.stream_type() << " @" << motion_stream_profile.fps() << " Hz\n";
-				}
-				if (profile.is<rs2::pose_stream_profile>()) {
-					rs2::pose_stream_profile pose_stream_profile = profile.as<rs2::pose_stream_profile>();
-					std::cout << " stream " << pose_stream_profile.stream_name() << " " << pose_stream_profile.format() << " " <<
-						pose_stream_profile.stream_type() << " @" << pose_stream_profile.fps() << " Hz\n";
-				}
-				//std::cout << "  stream " << profile.stream_type() << " " << profile.stream_name() << " " << profile.format() << " @" << profile.fps() << " Hz" << std::endl;
-			}
-		}
-		std::cout << "\n";
-		return;*/
-	}
-
-	/*void Webcam::setDisparity(bool disparity)
-	{
-		/*DISPARITY_ = disparity;
-		return;
-	}*/
-
-	/*void Webcam::start(bool disparity)
-	{
-		serialnumber_ = dev_.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
-		std::cout << "Opening pipeline for " << serialnumber_ << "\n";
-		cfg_.enable_device(serialnumber_);
-		if (!disparity) {
-			// Depth stream
-			//cfg_.enable_stream(RS2_STREAM_DEPTH, 256, 144, RS2_FORMAT_Z16, 90); //works fine!
-			cfg_.enable_stream(RS2_STREAM_DEPTH, 424, 240, RS2_FORMAT_Z16, 90); //works fine!
-			//cfg_.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 60);
-
-			// Color stream
-			cfg_.enable_stream(RS2_STREAM_COLOR, 424, 240, RS2_FORMAT_BGR8, 60);
-		}
-		else {
-			//cfg.enable_stream(RS2_STREAM_DEPTH, 848, 480, RS2_FORMAT_Z16, 30);
-			cfg_.enable_stream(RS2_STREAM_DEPTH, 848, 100, RS2_FORMAT_Z16, 100); // USB3.0 only!
-		}
-
-		auto advanceddev_ = dev_.as<rs400::advanced_mode>();
-		STDepthTableControl depth_table = advanceddev_.get_depth_table();
-		if (!disparity) {
-			depth_table.depthUnits = 1000; // 0.001m
-			depth_table.depthClampMin = 0;
-			depth_table.depthClampMax = 300; // mm
-			depth_table.disparityShift = 0;
-		}
-		else {
-			depth_table.depthUnits = 1000;  // 0.001m
-			depth_table.depthClampMin = 0;
-			depth_table.depthClampMax = 200; // mm
-			depth_table.disparityShift = 145; // 145@30 or [125-175]@100
-		}
-		advanceddev_.set_depth_table(depth_table);
-
-		rs2::pipeline_profile profile = pipe_.start(cfg_);
-		return;
-	}*/
+	void Webcam::printInfo() { }
 
 	void Webcam::captureFrame()
 	{
-		// CV_WRAP explicit VideoCapture(int index, int apiPreference, const std::vector<int>& params);
-
-		VCap cap;
-		cap.dev_.open(0);
-		if (!cap.dev_.isOpened()) {
-			std::cerr << "ERROR: Could not open the webcam.\n";
-		}
-
-		cap.dev_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-		//cam.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', '2'));
-		cap.dev_.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
-		cap.dev_.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
-		cap.dev_.set(cv::CAP_PROP_FPS, 30);
-
-		std::cout << "Device found:\n";
-		/*std::cout << dev_.get(RS2_CAMERA_INFO_NAME) << " "
-			<< dev_.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) << " "
-			<< dev_.get_info(RS2_CAMERA_INFO_PRODUCT_ID) << "\n\n";*/
-		std::cout << cap.dev_.get(cv::CAP_PROP_FOURCC) << " "
-			<< cap.dev_.get(cv::CAP_PROP_FRAME_WIDTH) << " "
-			<< cap.dev_.get(cv::CAP_PROP_FRAME_HEIGHT) << " "
-			<< cap.dev_.get(cv::CAP_PROP_FPS) << "\n\n";
-
-		std::cout << "A new Webcam was created.\n" << std::endl;
-
-		//this->start(DISPARITY_);
-		
 		while (true) {
 			std::time_t t0, tf;
 			t0 = std::time(0);
-			
-			// Copy the next frame from the camera
-			//std::shared_ptr<cv::Mat> image_ptr(new cv::Mat());
-			cv::Mat image;
-			std::cout << "One\n" << cap.dev_.get(cv::CAP_PROP_FPS) << '\n';
-			cap.dev_.read(image);
-			std::cout << "Two\n";
-			
-			// Assign the image frame to the camera
+
+			// Get the next frame from the camera
+			cv::Mat frame;
+			dev_->read(frame);
+						
+			// Assign the image frame to the image_
 			mu_image_.lock();
-			*image_ = image;
+			frame.copyTo(*image_);
 			mu_image_.unlock();
 
-			std::cout << "Three\n";
 			// Feed the children Sensors
 			this->feedChildren();
 
@@ -203,7 +101,7 @@ namespace robin {
 
 		for (size_t i(0); i < pts.size(); ++i) {
 			// pcl::PointXYZ
-			cloud_raw->points[i].x = ptr_v[i].x;
+			cloud_raw->points[i].x = ptr_v[i].x;it 
 			cloud_raw->points[i].y = ptr_v[i].y;
 			cloud_raw->points[i].z = ptr_v[i].z;
 

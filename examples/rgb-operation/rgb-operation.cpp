@@ -5,6 +5,7 @@
 
 //#include <robin/solver/solver2.h>
 #include <robin/sensor/camera_rgb.h>
+#include <robin/sensor/webcam.h>
 //#include "robin/solver/solver3_lasers.h"
 //#include <robin/sensor/laser_array.h>
 //#include <robin/primitive/primitive3_cylinder.h>
@@ -17,26 +18,25 @@
 #include <limits>
 
 #include <pcl/visualization/pcl_visualizer.h>
+#include <robin/solver/solver3.h>
 
 int main(int argc, char** argv)
 {	
-	/*// Declare a solver2
-	robin::Solver3Lasers mysolver;
+	// Declare a solver3
+	robin::Solver3 mysolver;
 	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315);
 	//mysolver.setDownsample(0.002f);
-	mysolver.setPlaneRemoval(false);*/
+	mysolver.setPlaneRemoval(false);
 
 	// Create a sensor from a camera
-	robin::CameraRgb* mycam(new robin::CameraRgb);
-	//robin::Webcam* mycam(new robin::Webcam);
+	//robin::CameraRgb* mycam(new robin::CameraRgb);
+	const std::string url("http://192.168.87.188:5000/video_feed"); // Home
+	//const std::string url("http://172.26.24.220:5000/video_feed"); // AAU
+	robin::Webcam* webcam(new robin::Webcam(url));
 	//mycam->printInfo();
 	//mycam->setDisparity(false);
 
-	/*// Create a virtual array of sensors from another sensor
-	robin::LaserArrayCross* myarr(new robin::LaserArrayCross(mycam, 0.002)); //0.001
-	mysolver.addSensor(myarr);
-
-	// Segmentation object
+	// Declare and instanciate a segmentation object
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_RANSAC);
@@ -46,8 +46,7 @@ int main(int argc, char** argv)
 	mysolver.setSegmentation(seg);
 
 	// Create a Primitive
-	robin::Primitive3d3* prim(new robin::Primitive3Cylinder());
-	*/
+	robin::Primitive3d3* prim;
 
 	// Create a PCL visualizer
 	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
@@ -59,25 +58,6 @@ int main(int argc, char** argv)
 	viewer->addCoordinateSystem(0.1);
 
 
-	//------------------
-	cv::VideoCapture dev;
-	dev.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-
-	int deviceID(0);
-	//dev.open(deviceID);
-	const std::string url("http://192.168.87.188:5000/video_feed");
-	//const std::string url("rtsp://192.168.87.188:5000/video_feed");
-	dev.open(url); //, cv::CAP_FFMPEG
-	if (!dev.isOpened()) {
-		std::cerr << "ERROR: Could not open the webcam.\n";
-	}
-
-	//dev.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G')); // ('Y', 'U', 'Y', '2')
-	//dev.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
-	//dev.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
-	//dev.set(cv::CAP_PROP_FPS, 30);
-	//------------------
-
 	// Create an OpenCV rendering window
 	std::string wname("Input");
 	cv::namedWindow(wname, cv::WINDOW_AUTOSIZE);
@@ -86,6 +66,16 @@ int main(int argc, char** argv)
 	cv::namedWindow(win_depth, cv::WINDOW_AUTOSIZE);
 	std::string win_mask("Mask");
 	cv::namedWindow(win_mask, cv::WINDOW_AUTOSIZE);
+
+	////
+
+	robin::Sensor3* depthcam(new robin::Sensor3);
+	mysolver.addSensor(depthcam);
+
+
+	// To avoid a "cv::Exception at memory location" before the camera is initialized in a secondary thread
+	// a couple of waiting seconds should be considered before entering the main thread loop below.
+	cv::waitKey(5000);
 
 	std::vector<double> freq;
 	while (true) {
@@ -114,20 +104,12 @@ int main(int argc, char** argv)
 		viewer->spinOnce(1, true);
 		*/
 
-		//------------------
-		cv::Mat image;
-		dev.read(image);
-		mycam->setImage(image);
-		//------------------
-
-		// Render the output image
-		cv::imshow(wname, *(mycam->getImage()));
-		//------------------
+		cv::imshow(wname, *(webcam->getImage()));
 
 		// Rescale the ouput image
 		//cv::resize(img_out, img_out, cv::Size(INPUT_WIDTH, INPUT_HEIGHT), 0, 0, cv::INTER_AREA);
 
-		cv::Mat im(*(mycam->getImage())); // CV_8UC3
+		cv::Mat im(*(webcam->getImage())); // CV_8UC3
 		int H(im.size().height), W(im.size().width);
 		// Cropping the 'depthmap' image
 		cv::Mat im_depth = im(cv::Range(H/4, 3*H/4), cv::Range(0, W/2));
@@ -158,10 +140,6 @@ int main(int argc, char** argv)
 				float pY = (y - cy) * pZ / f;
 				if (pZ > 0.100) {
 					cloud_raw->push_back(pcl::PointXYZ(pX, pY, pZ));
-
-					/*if (im_mask.at<cv::Vec3b>(y, x).val[0] > 0) {
-						cloud_mask->push_back(pcl::PointXYZ(pX, pY, pZ));
-					}*/
 				}
 			}
 		}
@@ -198,6 +176,7 @@ int main(int argc, char** argv)
 			}
 		}
 
+		// Reconstruct the point cloud by masking the depthdata with the affordance blob
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask(new pcl::PointCloud<pcl::PointXYZ>());
 		cv::Mat affordance_depth;
 		im_depth.copyTo(affordance_depth, affordance_blob);
@@ -215,6 +194,15 @@ int main(int argc, char** argv)
 		std::cout << "mask: " << cloud_mask->size() << "\n";
 
 
+		// ----------------------------------------------------
+		// Process the affordance point cloud
+
+		depthcam->setPointCloud(*cloud_mask);
+
+		// Reset the dummy Primitive3d3 for multiple primitive inference
+		prim = new robin::Primitive3d3;
+
+		mysolver.solve(prim);
 
 		viewer->removeAllShapes();
 		viewer->removeAllPointClouds();
@@ -223,9 +211,14 @@ int main(int argc, char** argv)
 		cloud_color_h.setInputCloud(cloud_raw);
 		viewer->addPointCloud(cloud_raw, cloud_color_h, "cloud");
 
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> mask_color_h(255, 0, 0);
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> mask_color_h(0, 255, 0);
 		mask_color_h.setInputCloud(cloud_mask);
 		viewer->addPointCloud(cloud_mask, mask_color_h, "mask");
+
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
+		primitive_color_h.setInputCloud(prim->getPointCloud());
+		viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
+		prim->visualize(viewer);
 
 		viewer->spinOnce(1, true);
 

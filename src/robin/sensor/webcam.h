@@ -21,10 +21,6 @@ namespace robin
 
 		void printInfo();
 
-		//void setDisparity(bool disparity = false);
-
-		//void start(bool);// override;
-
 	protected:
 		//std::tuple<uint8_t, uint8_t, uint8_t> get_texcolor(rs2::video_frame texture, rs2::texture_coordinate texcoords);
 		//void points_to_pcl(const rs2::points pts, const rs2::video_frame color);
@@ -32,9 +28,7 @@ namespace robin
 
 	private:
 
-		struct VCap {
-			cv::VideoCapture dev_;
-		};
+		std::shared_ptr<cv::VideoCapture> dev_;
 
 		//cv::VideoCapture dev_;
 		bool DISPARITY_ = false;
