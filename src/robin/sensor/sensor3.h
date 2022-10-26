@@ -27,15 +27,15 @@ namespace robin {
 		pcl::PointCloud<pcl::PointXYZ>::Ptr getPointCloud();
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr getRawColored();
 
-		void addChild(Sensor3* s);
+		void addChild(std::shared_ptr<Sensor3> s);
 
 	protected:
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_clr_;
+		std::unique_ptr<pcl::PointCloud<pcl::PointXYZ>> cloud_;
+		std::unique_ptr<pcl::PointCloud<pcl::PointXYZRGB>> cloud_clr_;
 		std::mutex mu_cloud_;
 
-		Sensor3* parent_ = nullptr;
-		std::vector<Sensor3*> children_;
+		std::shared_ptr<Sensor3> parent_ = nullptr;
+		std::vector<std::shared_ptr<Sensor3>> children_;
 
 		void feedChildren();
 		virtual void fromParent(const pcl::PointCloud<pcl::PointXYZ>& cloud);

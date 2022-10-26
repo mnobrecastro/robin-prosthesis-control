@@ -10,7 +10,7 @@ namespace robin {
 		id_ = str;
 	}
 
-	void Sensor::addChild(Sensor* s)
+	void Sensor::addChild(std::shared_ptr<Sensor> s)
 	{
 		children_.push_back(s);
 	}

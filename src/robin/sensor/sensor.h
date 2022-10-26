@@ -18,15 +18,15 @@ namespace robin {
 
 		virtual void printInfo() {}
 
-		virtual void addChild(Sensor* s);
+		virtual void addChild(std::shared_ptr<Sensor> s);
 
 		//virtual auto getFrame() {};
 
 	protected:
 		std::string id_;
 
-		Sensor* parent_ = nullptr;
-		std::vector<Sensor*> children_;
+		std::shared_ptr<Sensor> parent_ = nullptr;
+		std::vector<std::shared_ptr<Sensor>> children_;
 
 		virtual void feedChildren() {}
 

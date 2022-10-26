@@ -3,14 +3,12 @@
 namespace robin {
 
 	Sensor3::Sensor3()
+		: cloud_(new pcl::PointCloud<pcl::PointXYZ>), cloud_clr_(new pcl::PointCloud<pcl::PointXYZRGB>)
 	{ 
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-		cloud_ = cloud;
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_clr(new pcl::PointCloud<pcl::PointXYZRGB>);
-		cloud_clr_ = cloud_clr;
 		std::cout << "A new Sensor3 was created" << std::endl;
 	}
-	Sensor3::~Sensor3() {}
+
+	Sensor3::~Sensor3() { }
 
 	void Sensor3::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>& cloud)
 	{
@@ -33,9 +31,9 @@ namespace robin {
 		return cloud;
 	}
 
-	//
+	////
 
-	void Sensor3::addChild(Sensor3* s)
+	void Sensor3::addChild(std::shared_ptr<Sensor3> s)
 	{
 		children_.push_back(s);
 	}
@@ -43,7 +41,7 @@ namespace robin {
 	void Sensor3::feedChildren()
 	{
 		mu_cloud_.lock();
-		for (Sensor3* s : children_) {
+		for (auto s : children_) {
 			s->fromParent(*cloud_);
 			s->fromParent(*cloud_clr_);
 		}

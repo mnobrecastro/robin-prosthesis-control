@@ -20,14 +20,14 @@ namespace robin {
 		void setImage(const cv::Mat& image);
 		std::shared_ptr<cv::Mat> getImage();
 
-		void addChild(Sensor2* s);
+		void addChild(std::shared_ptr<Sensor2> s);
 
 	protected:
 		std::unique_ptr<cv::Mat> image_;
 		std::mutex mu_image_;
 
-		Sensor2* parent_ = nullptr;
-		std::vector<Sensor2*> children_;
+		std::shared_ptr<Sensor2> parent_ = nullptr;
+		std::vector<std::shared_ptr<Sensor2>> children_;
 
 		void feedChildren();
 		virtual void fromParent(const cv::Mat& cloud);

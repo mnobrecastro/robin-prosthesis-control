@@ -26,7 +26,7 @@ namespace robin {
 
 	////
 
-	void Sensor2::addChild(Sensor2* s)
+	void Sensor2::addChild(std::shared_ptr<Sensor2> s)
 	{
 		children_.push_back(s);
 	}
@@ -34,7 +34,7 @@ namespace robin {
 	void Sensor2::feedChildren()
 	{
 		mu_image_.lock();
-		for (Sensor2* s : children_) {
+		for (auto s : children_) {
 			s->fromParent(*image_);
 		}
 		mu_image_.unlock();

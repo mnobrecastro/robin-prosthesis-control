@@ -17,20 +17,17 @@ namespace robin
 		void setSample(float value);
 		float getSample();
 
-		void addChild(Sensor1* s);
-
-		void feedChildren();
-		virtual void fromParent(const float data);
+		void addChild(std::shared_ptr<Sensor1> s);
 
 	protected:
 		float data_;
 		std::mutex mu_data_;
 
-		Sensor1* parent_ = nullptr;
-		std::vector<Sensor1*> children_;
+		std::shared_ptr<Sensor1> parent_ = nullptr;
+		std::vector<std::shared_ptr<Sensor1>> children_;
 
-		//void feedChildren();
-		//virtual void fromParent(const float data);
+		void feedChildren();
+		virtual void fromParent(const float data);
 
 	private:
 		static int counter_;

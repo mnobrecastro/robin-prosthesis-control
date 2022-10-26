@@ -2,11 +2,12 @@
 
 namespace robin {
 	Sensor1::Sensor1()
+		: data_(0.0)
 	{
-		data_ = 0.0;
 		std::cout << "A new Sensor1 was created" << std::endl;
 	}
-	Sensor1::~Sensor1() {}
+
+	Sensor1::~Sensor1() { }
 
 	void Sensor1::setSample(const float value)
 	{
@@ -24,7 +25,7 @@ namespace robin {
 
 	//
 
-	void Sensor1::addChild(Sensor1* s)
+	void Sensor1::addChild(std::shared_ptr<Sensor1> s)
 	{
 		children_.push_back(s);
 	}
@@ -35,7 +36,7 @@ namespace robin {
 		mu_data_.lock();
 		data = data_;
 		mu_data_.unlock();
-		for (Sensor1* s : children_) {
+		for (auto s : children_) {
 			s->fromParent(data);
 		}
 	}
