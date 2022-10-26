@@ -3,11 +3,11 @@
 namespace robin {
 
 	Sensor2::Sensor2()
+		: image_(new cv::Mat)
 	{
-		std::shared_ptr<cv::Mat> image(new cv::Mat);
-		image_ = image;
 		std::cout << "A new Sensor2 was created\n";
 	}
+
 	Sensor2::~Sensor2() {}
 
 	void Sensor2::setImage(const cv::Mat& image)
@@ -17,13 +17,14 @@ namespace robin {
 
 	std::shared_ptr<cv::Mat> Sensor2::getImage()
 	{
-		mu_image_.lock();
-		std::shared_ptr<cv::Mat> image(new cv::Mat(*image_));
+		std::shared_ptr<cv::Mat> image(new cv::Mat);
+		mu_image_.lock();		
+		(*image_).copyTo(*image);
 		mu_image_.unlock();
 		return image;
 	}
 
-	//
+	////
 
 	void Sensor2::addChild(Sensor2* s)
 	{

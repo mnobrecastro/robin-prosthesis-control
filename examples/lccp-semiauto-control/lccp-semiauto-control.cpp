@@ -8,7 +8,7 @@
 #include <robin/solver/solver3_lccp.h>
 #include <robin/solver/solver3_lasers.h>
 #include <robin/sensor/realsense_d400.h>
-#include <robin/sensor/royale_picoflexx.h>
+//#include <robin/sensor/royale_picoflexx.h>
 #include <robin/sensor/laser_scanner.h>
 #include <robin/sensor/laser_array.h>
 #include <robin/primitive/primitive3_sphere.h>
