@@ -1,12 +1,20 @@
-/* ROBIN SEMI-AUTONOMOUS PROSTHESIS CONTROL LIBRARY
- * The example provided shows how to track an object using the LCCP algorithm
- * followed by a RANSAC fitting of a geometric primitive model.
+/*
+ * Semi-autonomous Prosthesis Control Using Computer Vision - Robin C++ framework
+ *
+ * Author: Miguel Nobre Castro (mnobrecastro@gmail.com)
+ *
+ *
+ * This work was performed at the Department of Health Science and Technology, Aalborg
+ * University, under the supervision of Professor Strahinja Dosen (sdosen@hst.aau.dk),
+ * and was supported by the Independent Research Fund Denmark through the project ROBIN
+ * "RObust Bidirectional human-machine INterface for natural control and feedback in
+ * hand prostheses" (8022-00243A).
  */
 
 #include <robin/solver/solver3.h>
 #include <robin/solver/solver3_lccp.h>
 #include <robin/sensor/realsense_d400.h>
-//#include <robin/sensor/royale_picoflexx.h>
+//#include <robin/sensor/royale_picoflexx.h> /* UNCOMMENT IF USED */
 #include <robin/primitive/primitive3_sphere.h>
 #include <robin/primitive/primitive3_cylinder.h>
 #include <robin/primitive/primitive3_cuboid.h>
@@ -20,11 +28,17 @@
 
 int main(int argc, char** argv)
 {
+	/* "lccp-multiprimitive.cpp"
+	 *
+	 * The provided example shows how to track an object using the LCCP algorithm
+	 * followed by a RANSAC fitting of a geometric primitive model (simultaneously
+	 * inferring the best fit between a spherical, a cylindrical or a cuboid model).
+	 */
+
 	// Declare a solver3
 	robin::Solver3LCCP mysolver;
-	//robin::Solver3Lasers mysolver;
-	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315); //0.105 or 0.160 //(0.115, 0.215)
-	mysolver.setDownsample(0.002f); //dflt=0.005f //Cyl=0.0025f //Cub=0.005f   //0.004f
+	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315);
+	mysolver.setDownsample(0.002f);
 	//mysolver.setResample(2, 0.005);
 	mysolver.setPlaneRemoval(false);
 	mysolver.setFairSelection(false);
@@ -41,7 +55,7 @@ int main(int argc, char** argv)
 	
 	// Create a sensor from a camera
 	robin::RealsenseD400* mycam(new robin::RealsenseD400());
-	//robin::RoyalePicoflexx* mycam(new robin::RoyalePicoflexx());
+	//robin::RoyalePicoflexx* mycam(new robin::RoyalePicoflexx()); /* UNCOMMENT IF USED */
 	mycam->printInfo();
 	mycam->setDisparity(false);
 	mysolver.addSensor(mycam);
@@ -51,14 +65,13 @@ int main(int argc, char** argv)
 	//prim->setVisualizeOnOff(false);
 
 
-
 	// Create a PCL visualizer
 	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
 	int vp(0);
 	viewer->createViewPort(0.0, 0.0, 1.0, 1.0, vp);
 	viewer->setCameraPosition(0.0, 0.0, -0.5, 0.0, -1.0, 0.0, vp);
-	viewer->setSize(800, 600); //800, 600 //1280, 1024
-	viewer->setBackgroundColor(0.91, 0.96, 0.97, vp); //0.91, 0.96, 0.97
+	viewer->setSize(800, 600);
+	viewer->setBackgroundColor(0.91, 0.96, 0.97, vp);
 	viewer->addCoordinateSystem(0.1);
 
 	std::vector<double> freq;
@@ -98,7 +111,7 @@ int main(int argc, char** argv)
 		//---- PROFILING ---
 		auto toc = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double, std::ratio<1>> t = toc - tic;
-		std::cout << "Cycle duration: " << 1.0/t.count() << " Hz (in " << t.count()*1000.0 << " ms).\n" << std::endl;
+		std::cout << "Cycle duration: " << 1.0/t.count() << " Hz (in " << t.count()*1000.0 << " ms).\n" << "\n";
 		freq.push_back(1.0/t.count());
 
 		std::cin.get();

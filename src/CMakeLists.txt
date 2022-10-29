@@ -1,4 +1,6 @@
-#Robin's Source folder
+# Semi-autonomous Prosthesis Control Using Computer Vision - Robin C++ framework
+# Author: Miguel Nobre Castro (mnobrecastro@gmail.com)
+
 cmake_minimum_required(VERSION 3.1.0)
 
 project(robin-lib)
@@ -57,4 +59,3 @@ target_include_directories(robin PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 install(TARGETS robin DESTINATION lib)
 install(FILES ${robin_INCS} DESTINATION include)
-

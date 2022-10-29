@@ -1,6 +1,14 @@
-/* ROBIN SEMI-AUTONOMOUS PROSTHESIS CONTROL LIBRARY
- * The example provided shows how to track an object by approximating it
- * to a geometric primitive of a cylindrical object.
+/*
+ * Semi-autonomous Prosthesis Control Using Computer Vision - Robin C++ framework
+ *
+ * Author: Miguel Nobre Castro (mnobrecastro@gmail.com)
+ *
+ *
+ * This work was performed at the Department of Health Science and Technology, Aalborg
+ * University, under the supervision of Professor Strahinja Dosen (sdosen@hst.aau.dk),
+ * and was supported by the Independent Research Fund Denmark through the project ROBIN
+ * "RObust Bidirectional human-machine INterface for natural control and feedback in
+ * hand prostheses" (8022-00243A).
  */
 
 //#include <robin/solver/solver2.h>
@@ -22,6 +30,13 @@
 
 int main(int argc, char** argv)
 {	
+	/* "lccp-multiprimitive.cpp"
+	 *
+	 * The provided example shows how to track an object using the LCCP algorithm
+	 * followed by a RANSAC fitting of a geometric primitive model (simultaneously
+	 * inferring the best fit between a spherical, a cylindrical or a cuboid model).
+	 */
+
 	// Declare a solver3
 	robin::Solver3 mysolver;
 	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.315);

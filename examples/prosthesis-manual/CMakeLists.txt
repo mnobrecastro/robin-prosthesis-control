@@ -26,25 +26,3 @@ add_executable (prosthesis-manual prosthesis-manual.cpp)
 target_link_libraries (prosthesis-manual robin)
 
 install(TARGETS prosthesis-manual DESTINATION bin)
-
-
-#add_custom_command(
-#        TARGET prosthesis-manual
-#        POST_BUILD
-#        COMMAND ${CMAKE_COMMAND} -E copy "${ROYALE_INSTALL_PATH}/bin/royale.dll"  $<TARGET_FILE_DIR:prosthesis-manual>)
-
-#macro(COPY_FILES copytarget)
-#if (WIN32)
-#    add_custom_command(
-#        TARGET ${copytarget}
-#        POST_BUILD
-#        COMMAND ${CMAKE_COMMAND} -E copy "${royale_INSTALL_PATH}/bin/royale.dll"  $<TARGET_FILE_DIR:${copytarget}>)
-#
-#    add_custom_command(
-#        TARGET ${copytarget}
-#        POST_BUILD
-#        COMMAND ${CMAKE_COMMAND} -E copy "${royale_INSTALL_PATH}/bin/spectre.dll"  $<TARGET_FILE_DIR:${copytarget}>)
-#endif (WIN32)
-#endmacro(COPY_FILES)
-
-#COPY_FILES(prosthesis-manual)

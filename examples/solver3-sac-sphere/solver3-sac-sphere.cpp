@@ -1,3 +1,23 @@
+/*
+ * Semi-autonomous Prosthesis Control Using Computer Vision
+ * (Robin C++ framework)
+ *
+ * "lccp-multiprimitive.cpp"
+ *
+ * The provided example shows how to track an object using the LCCP algorithm
+ * followed by a RANSAC fitting of a geometric primitive model (simultaneously
+ * inferring the best fit between a spherical, a cylindrical or a cuboid model).
+ *
+ * Author: Miguel Nobre Castro (mnobrecastro@gmail.com)
+ *
+ *
+ * This work was performed at the Department of Health Science and Technology,
+ * Aalborg University, under the supervision of Professor Strahinja Dosen
+ * (sdosen@hst.aau.dk). The Independent Research Fund Denmark supported it through
+ * the project ROBIN "RObust Bidirectional human-machine INterface for natural
+ * control and feedback in hand prostheses" (8022-00243A).
+ */
+
 /* ROBIN SEMI-AUTONOMOUS PROSTHESIS CONTROL LIBRARY
  * The example provided shows how to track an object by approximating it
  * to a geometric primitive of a spherical object.
