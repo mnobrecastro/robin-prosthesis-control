@@ -4,7 +4,7 @@ namespace robin {
 	Sensor1::Sensor1()
 	{
 		data_ = 0.0;
-		std::cout << "A new Sensor1 was created" << std::endl;
+		std::cout << "A new Sensor1 was created.\n";
 	}
 	Sensor1::~Sensor1() {}
 

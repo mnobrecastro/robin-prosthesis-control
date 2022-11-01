@@ -54,13 +54,15 @@ namespace robin
 
 		void setResample(size_t order, float radius);
 
+		void setPCA(bool);
+
 		void setFairSelection(bool fairness);
 
 		std::vector<robin::Sensor3*> getSensors() const;
 
-		void solve(robin::Primitive3d3*& prim);
+		void principal_components(robin::Primitive3d3*& prim);
 
-		virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;
+		void solve(robin::Primitive3d3*& prim);
 
 	protected:
 		std::vector<robin::Sensor3*> sensors_;

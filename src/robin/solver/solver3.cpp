@@ -27,6 +27,7 @@ namespace robin
 	void Solver3::addSensor(robin::Sensor3* sensor)
 	{
 		sensors_.push_back(sensor);
+		return;
 	}
 
 	void Solver3::setSegmentation(pcl::SACSegmentation<pcl::PointXYZ>* seg_obj)
@@ -43,11 +44,13 @@ namespace robin
 	void Solver3::setUseNormals(bool seg_normals)
 	{
 		seg_normals_ = seg_normals;
+		return;
 	}
 
 	void Solver3::setPlaneRemoval(bool seg_plane_removal)
 	{
 		seg_plane_removal_ = seg_plane_removal;
+		return;
 	}
 
 	std::vector<robin::Sensor3*> Solver3::getSensors() const
@@ -60,12 +63,14 @@ namespace robin
 	{
 		filterOnOff_ = true;
 		limits_ = { x0, x1, y0, y1, z0, z1 };
+		return;
 	}
 
 	void Solver3::setDownsample(float voxel_size = 0.005)
 	{
 		downsampleOnOff_ = true;
 		voxel_size_ = voxel_size;
+		return;
 	}
 
 	void Solver3::setResample(size_t order, float radius)
@@ -73,11 +78,18 @@ namespace robin
 		resampleOnOff_ = true;
 		resamp_order_ = order;
 		resamp_radius_ = radius;
+		return;
 	}
+
+	void Solver3::setPCA(bool b = false) {
+
+	}
+
 
 	void Solver3::setFairSelection(bool fairness)
 	{
 		fairselectionOnOff_ = fairness;
+		return;
 	}
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr Solver3::trimPointCloud()
@@ -122,8 +134,9 @@ namespace robin
 			}
 
 			tf = std::time(0);
-			std::cout << "PointCloud after filtering: " << cloud_->points.size() << " data points (in " << std::difftime(t0, tf) << " ms)." << std::endl;
+			std::cout << "PointCloud after filtering: " << cloud_->points.size() << " data points (in " << std::difftime(t0, tf) << " ms).\n";
 		}
+		return;
 	}
 
 	void Solver3::downsample()
@@ -148,8 +161,9 @@ namespace robin
 
 			tf = std::time(0);
 			std::cerr << "PointCloud after downsampling: " << cloud_->width * cloud_->height << "=" << cloud_->points.size()
-				<< " data points (in " << std::difftime(t0, tf) << " ms)." << std::endl;
+				<< " data points (in " << std::difftime(t0, tf) << " ms).\n";
 		}
+		return;
 	}
 
 	void Solver3::resample()
@@ -165,14 +179,11 @@ namespace robin
 
 			// Output has the PointNormal type in order to store the normals calculated by MLS
 			pcl::PointCloud<pcl::PointNormal>::Ptr mls_points(new pcl::PointCloud<pcl::PointNormal>);
-			//pcl::PointCloud<pcl::PointXYZ>::Ptr mls_points(new pcl::PointCloud<pcl::PointXYZ>);
 
 			// Init object (second point type is for the normals, even if unused)
 			pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls;
-			//pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ> mls;
 
 			mls.setComputeNormals(true);
-			//mls.setComputeNormals(false);
 
 			// Set MovingLeastSquares parameters
 			mls.setInputCloud(cloud_);
@@ -196,8 +207,44 @@ namespace robin
 
 			tf = std::time(0);
 			std::cerr << "PointCloud after resampling: " << cloud_->width * cloud_->height << "=" << cloud_->points.size()
-				<< " data points (in " << std::difftime(t0, tf) << " ms)." << std::endl;
+				<< " data points (in " << std::difftime(t0, tf) << " ms).\n";
 		}
+		return;
+	}
+
+	void Solver3::principal_components(robin::Primitive3d3*& prim)
+	{
+		primitive_ = prim;
+
+		// Reset the solver's (temp and coloured) PointClouds
+		cloud_->clear();
+		cloud_raw_clr_->clear();
+
+		for (Sensor3* s : sensors_) {
+			*cloud_ += *s->getPointCloud();
+			*cloud_raw_clr_ += *s->getRawColored();
+		}
+
+		this->crop();
+		this->downsample();
+		//this->resample();
+
+		// Store the pre-processed cloud
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_preproc(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
+		cloud_preproc_ = cloud_preproc;
+
+		// Check whether the PointCloud has enough points to proceed
+		if (cloud_->points.size() < MIN_POINTS_PROCEED_) {
+			primitive_->reset();
+			std::cerr << "* Not enough points to compute the Principal Components.\n";
+			return;
+		}
+
+		primitive_->pca(*cloud_);
+
+		// Copy the address in case a Primitive3d3 has been provided and mutated to a derived primitive
+		//prim = primitive_;
+		return;
 	}
 
 	void Solver3::solve(robin::Primitive3d3*& prim)
@@ -225,6 +272,7 @@ namespace robin
 
 		// Copy the address in case a Primitive3d3 has been provided and mutated to a derived primitive
 		prim = primitive_;
+		return;
 	}
 
 	void Solver3::segment()
@@ -232,7 +280,7 @@ namespace robin
 		// Check whether the PointCloud has enough points to proceed
 		if (cloud_->points.size() < MIN_POINTS_PROCEED_) {
 			primitive_->reset();
-			std::cerr << "* Not enough points to perform SAC segmentation." << std::endl;
+			std::cerr << "* Not enough points to perform SAC segmentation.\n";
 			return;
 		}
 		
@@ -285,11 +333,11 @@ namespace robin
 				float fit_percent(0.0);
 
 				float sph_size(p_sph_->getPointCloud()->points.size());
-				std::cout << "Sphere FitPercent: " << sph_size / cloud_size << std::endl;
+				std::cout << "Sphere FitPercent: " << sph_size / cloud_size << '\n';
 				float cub_size(p_cub_->getPointCloud()->points.size());
-				std::cout << "Cuboid FitPercent: " << cub_size / cloud_size << std::endl;
+				std::cout << "Cuboid FitPercent: " << cub_size / cloud_size << '\n';
 				float cyl_size(p_cyl_->getPointCloud()->points.size());
-				std::cout << "Cylinder FitPercent: " << cyl_size / cloud_size << std::endl;
+				std::cout << "Cylinder FitPercent: " << cyl_size / cloud_size << '\n';
 				
 				if (fairselectionOnOff_) {
 					if (sph_size == 0 || cub_size == 0 || cyl_size == 0) {
@@ -318,23 +366,19 @@ namespace robin
 				}
 			}
 		}
+		return;
 	}
 
 	void Solver3::fitPrimitive(robin::Primitive3d3*& prim, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::SACSegmentation<pcl::PointXYZ>*& seg_obj)
 	{
 		// Check whether an instance of Segmentation has been provided.
 		if (seg_obj_ptr_ != nullptr) {
-			std::cout << "Segmentation object has been provided!" << std::endl;
+			std::cout << "Segmentation object has been provided!\n";
 			prim->fit(cloud, seg_obj);
 		}
 		else {
-			std::cout << "NO segmentation object has been provided." << std::endl;
+			std::cout << "NO segmentation object has been provided.\n";
 			prim->fit(cloud, seg_normals_);
 		}
-	}
-
-	void Solver3::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
-	{
-		/* Not implemented yet. */
 	}
 }

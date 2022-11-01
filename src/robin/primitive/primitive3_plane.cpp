@@ -6,7 +6,6 @@ namespace robin
 		: Primitive3Plane(PLANE_TYPE::DEFAULT, Eigen::Vector3f(0.0,0.0,0.0), 0.0)
 	{}
 	
-	/* Primitive3Plane can be initialized by "DEFAULT" or by "PERPENDICULAR" or "PARALLEL" types. */
 	Primitive3Plane::Primitive3Plane(PLANE_TYPE type, Eigen::Vector3f v, float angle)
 	{		
 		type_ = type;
@@ -166,7 +165,7 @@ namespace robin
 				/* pcl::SACMODEL_NORMAL_PERPENDICULAR_PLANE
 				 * NOT IMPLEMENTED IN THE POINT CLOUD LIBRARY!
 				 * pcl\segmentation\impl\sac_segmentation.hpp */
-				std::cerr << "The 'pcl::SACMODEL_NORMAL_PERPENDICULAR_PLANE' is not available. Using 'pcl::SACMODEL_NORMAL_PLANE' by default." << std::endl;
+				std::cerr << "The 'pcl::SACMODEL_NORMAL_PERPENDICULAR_PLANE' is not available. Using 'pcl::SACMODEL_NORMAL_PLANE' by default.\n";
 				fit_sample_consensus_with_normals(cloud, pcl::SAC_RANSAC, pcl::SACMODEL_NORMAL_PLANE);
 				break;
 			case PLANE_TYPE::PARALLEL:
@@ -212,7 +211,7 @@ namespace robin
 				/* pcl::SACMODEL_NORMAL_PERPENDICULAR_PLANE
 				 * NOT IMPLEMENTED IN THE POINT CLOUD LIBRARY!
 				 * pcl\segmentation\impl\sac_segmentation.hpp */
-				std::cerr << "The 'pcl::SACMODEL_NORMAL_PERPENDICULAR_PLANE' is not available. Using 'pcl::SACMODEL_NORMAL_PLANE' by default." << std::endl;
+				std::cerr << "The 'pcl::SACMODEL_NORMAL_PERPENDICULAR_PLANE' is not available. Using 'pcl::SACMODEL_NORMAL_PLANE' by default.\n";
 				seg->setModelType(pcl::SACMODEL_NORMAL_PLANE);
 				fit_sample_consensus_with_normals(cloud, seg);
 				break;
@@ -249,7 +248,6 @@ namespace robin
 		this->update_properties();
 	}
 
-	/* Checks if the fit is valid. */
 	bool Primitive3Plane::is_fit_valid()
 	{
 		if (!cloud_->points.empty()) {
@@ -260,7 +258,6 @@ namespace robin
 		return false;
 	}
 
-	/* Correct the obtained coefficients if necessary. */
 	void Primitive3Plane::correct_coefficients()
 	{
 		// Normal always points towards the camera -Z (assumes objects are convex)
@@ -271,7 +268,6 @@ namespace robin
 		}
 	}
 
-	/* Update the properties of the Primitive3. */
 	void Primitive3Plane::update_properties()
 	{
 		Eigen::Vector3f e2(coefficients_->values[0], coefficients_->values[1], coefficients_->values[2]);
@@ -281,7 +277,6 @@ namespace robin
 		Eigen::Vector4f mean(pca.getMean());
 		Eigen::Matrix3f eigenvecs(pca.getEigenVectors());
 		Eigen::Vector3f eigenvals(pca.getEigenValues());
-		//Eigen::MatrixXf coeffs(pca.getCoefficients());
 
 		Eigen::Vector3f e0 = eigenvecs.col(0);
 		std::array<float, 2> e0_min_max(

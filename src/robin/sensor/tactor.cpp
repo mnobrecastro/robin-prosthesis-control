@@ -4,7 +4,7 @@ namespace robin {
 
 	Tactor::Tactor()
 	{
-		std::cout << "A new Tactor was created" << std::endl;
+		std::cout << "A new Tactor was created.\n";
 	}
 	Tactor::~Tactor() {}
 

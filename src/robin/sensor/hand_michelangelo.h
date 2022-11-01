@@ -88,7 +88,8 @@ namespace robin
 			 * byte07 : int8,  pronation/supination angle [-100, 100]
 			 * byte08 : int8,  flexion/extension [-100, 100]
 			 * byte09 : int8,  force [-100, 100] #TODO: doesn't make sense!
-			 * byte10 - byte35 : Controller state, EMG data and overhead. */
+			 * byte10 - byte35 : Controller state, EMG data and overhead.
+			 */
 			int receive_packet(uint8_t packet[]);
 
 			/* Send velocity commands to the prosthesis.
@@ -109,10 +110,12 @@ namespace robin
 			 * Input Arguments
 			 * ---------
 			 * control_command : array_like
-			 *	8-dimensional array of speeds for the different signals */
+			 *	8-dimensional array of speeds for the different signals
+			 */
 			void send_packet(const uint8_t* packet, size_t packet_byte_length);					
 
-			/* Print a received packet (variables according to the manufacturer). */
+			/* Print a received packet (variables according to the manufacturer).
+			 */
 			void print_recv_packet(const uint8_t* packet, size_t packet_byte_length);
 
 			//void grasp_palmar();

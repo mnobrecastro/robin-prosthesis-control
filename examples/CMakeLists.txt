@@ -12,4 +12,5 @@ add_subdirectory(lasers-single)
 add_subdirectory(lasers-cylinder)
 add_subdirectory(lasers-semiauto-control)
 
-add_subdirectory(rgb-operation)
+add_subdirectory(affordancenet-cloud-masking)
+add_subdirectory(affordancenet-semiauto-control)

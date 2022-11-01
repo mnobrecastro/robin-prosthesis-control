@@ -8,7 +8,7 @@ namespace robin {
 		cloud_ = cloud;
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_clr(new pcl::PointCloud<pcl::PointXYZRGB>);
 		cloud_clr_ = cloud_clr;
-		std::cout << "A new Sensor3 was created" << std::endl;
+		std::cout << "A new Sensor3 was created.\n";
 	}
 	Sensor3::~Sensor3() {}
 

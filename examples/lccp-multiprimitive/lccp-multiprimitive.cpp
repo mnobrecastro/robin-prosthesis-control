@@ -34,7 +34,7 @@ int main(int argc, char** argv)
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_PROSAC);
-	seg->setMaxIterations(1000); //100
+	seg->setMaxIterations(1000);
 	seg->setDistanceThreshold(0.001);
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);

@@ -5,7 +5,7 @@ namespace robin {
 	Sensor2::Sensor2()
 		: image_(new cv::Mat)
 	{
-		std::cout << "A new Sensor2 was created\n";
+		std::cout << "A new Sensor2 was created.\n";
 	}
 
 	Sensor2::~Sensor2() {}

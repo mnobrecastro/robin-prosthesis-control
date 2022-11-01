@@ -13,9 +13,9 @@ namespace robin
 
 	Primitive3::Primitive3(const Primitive3& prim)
 	{
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>(*prim.cloud_));
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>(*prim.getPointCloud()));
 		cloud_ = cloud;
-		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients(*prim.coefficients_));
+		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients(*prim.getCoefficients()));
 		coefficients_ = coefficients;
 				
 		properties_.center_x = prim.properties_.center_x;
@@ -37,10 +37,30 @@ namespace robin
 		properties_.e1_z = prim.properties_.e1_z;
 	}
 
+	void Primitive3::visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const
+	{
+		pcl::PointXYZ center(properties_.center_x, properties_.center_y, properties_.center_z);
+		pcl::PointXYZ center_normal(properties_.center_x + 0.05 * properties_.axis_x,
+			properties_.center_y + 0.05 * properties_.axis_y,
+			properties_.center_z + 0.05 * properties_.axis_z);
+		viewer->addLine(center, center_normal, "pca_ez" + std::to_string(std::rand()));
+		pcl::PointXYZ center_e0(properties_.center_x + properties_.e0_x,
+			properties_.center_y + properties_.e0_y,
+			properties_.center_z + properties_.e0_z);
+		viewer->addLine(center, center_e0, "pca_e0" + std::to_string(std::rand()));
+		pcl::PointXYZ center_e1(properties_.center_x + properties_.e1_x,
+			properties_.center_y + properties_.e1_y,
+			properties_.center_z + properties_.e1_z);
+		viewer->addLine(center, center_e1, "pca_e1" + std::to_string(std::rand()));
+	}
+
+
+
 	void Primitive3::setPointCloud(const pcl::PointCloud<pcl::PointXYZ>& cloud)
 	{
-		pcl::PointCloud<pcl::PointXYZ>::Ptr p(new pcl::PointCloud<pcl::PointXYZ>(cloud));
-		cloud_ = p;
+		pcl::PointCloud<pcl::PointXYZ>::Ptr ptc(new pcl::PointCloud<pcl::PointXYZ>(cloud));
+		cloud_ = ptc;
+		return;
 	}
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr Primitive3::getPointCloud() const
@@ -58,11 +78,61 @@ namespace robin
 		cloud_->clear();
 		coefficients_->values.clear();		
 		this->update_properties();
+		return;
 	}
+
+	void Primitive3::pca(const pcl::PointCloud<pcl::PointXYZ>& cloud)
+	{
+		pcl::PointCloud<pcl::PointXYZ>::Ptr ptc(new pcl::PointCloud<pcl::PointXYZ>(cloud));
+		cloud_ = ptc;
+
+		pcl::PCA<pcl::PointXYZ> pca;
+		pca.setInputCloud(cloud_);
+		Eigen::Vector4f mean(pca.getMean());
+		Eigen::Matrix3f eigenvecs(pca.getEigenVectors());
+		Eigen::Vector3f eigenvals(pca.getEigenValues());
+		//Eigen::MatrixXf coeffs(pca.getCoefficients());
+
+		Eigen::Vector3f ez = eigenvecs.col(0);
+		ez.normalize();
+		std::array<float, 2> ez_min_max(
+			getPointCloudExtremes(*cloud_, pcl::PointXYZ(mean.x(), mean.y(), mean.z()), pcl::PointXYZ(ez.x(), ez.y(), ez.z()))
+		);
+
+		Eigen::Vector3f e0 = eigenvecs.col(1);
+		e0.normalize();
+		std::array<float, 2> e0_min_max(
+			getPointCloudExtremes(*cloud_, pcl::PointXYZ(mean.x(), mean.y(), mean.z()), pcl::PointXYZ(e0.x(), e0.y(), e0.z()))
+		);
+
+		Eigen::Vector3f e1 = eigenvecs.col(2);
+		e1.normalize();
+		std::array<float, 2> e1_min_max(
+			getPointCloudExtremes(*cloud_, pcl::PointXYZ(mean.x(), mean.y(), mean.z()), pcl::PointXYZ(e1.x(), e1.y(), e1.z()))
+		);
+
+		properties_.center_x = mean.x();
+		properties_.center_y = mean.y();
+		properties_.center_z = mean.z();
+		properties_.axis_x = ez.x() * (ez_min_max[1] - ez_min_max[0]) / 2;
+		properties_.axis_y = ez.y() * (ez_min_max[1] - ez_min_max[0]) / 2;
+		properties_.axis_z = ez.z() * (ez_min_max[1] - ez_min_max[0]) / 2;
+		properties_.e0_x = e0.x() * (e0_min_max[1] - e0_min_max[0]) / 2;
+		properties_.e0_y = e0.y() * (e0_min_max[1] - e0_min_max[0]) / 2;
+		properties_.e0_z = e0.z() * (e0_min_max[1] - e0_min_max[0]) / 2;
+		properties_.e1_x = e1.x() * (e1_min_max[1] - e1_min_max[0]) / 2;
+		properties_.e1_y = e1.y() * (e1_min_max[1] - e1_min_max[0]) / 2;
+		properties_.e1_z = e1.z() * (e1_min_max[1] - e1_min_max[0]) / 2;
+		properties_.depth = ez_min_max[1] - ez_min_max[0]; // ez sets convention for DEPTH
+		properties_.height = e0_min_max[1] - e0_min_max[0]; // e0 sets convention for HEIGHT
+		properties_.width = e1_min_max[1] - e1_min_max[0]; // e1 sets convention for WIDTH
+		return;
+	}
+
 
 	void Primitive3::fit_sample_consensus(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, const static int SAC_METHOD, pcl::SacModel SAC_MODEL)
 	{
-		std::cout << "Using default instance of 'sample consensus'." << std::endl;
+		std::cout << "Using default instance of 'sample consensus'.\n";
 		// Create the segmentation object
 		pcl::SACSegmentation<pcl::PointXYZ>* seg;
 		seg->setOptimizeCoefficients(true);
@@ -79,6 +149,7 @@ namespace robin
 		}
 
 		this-> fit_sample_consensus(cloud, seg);
+		return;
 	}
 
 	void Primitive3::fit_sample_consensus(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg_obj)
@@ -118,18 +189,18 @@ namespace robin
 			extract.setNegative(true);
 			extract.filter(*cloud);
 
-			std::cout << " done." << std::endl;
+			std::cout << " done.\n";
 		}
 		else {
 			coefficients_ = coef_temp_copy;
-			std::cout << " no solution found." << std::endl;
+			std::cout << " no solution found.\n";
 		}
-
+		return;
 	}
 
 	void Primitive3::fit_sample_consensus_with_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, const static int SAC_METHOD, pcl::SacModel SAC_MODEL)
 	{
-		std::cout << "Using default instance of 'sample consensus from normals'." << std::endl;
+		std::cout << "Using default instance of 'sample consensus from normals'.\n";
 		// Create the segmentation object
 		pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal>* seg;
 		seg->setOptimizeCoefficients(true);
@@ -147,6 +218,7 @@ namespace robin
 		}
 
 		this->fit_sample_consensus_with_normals(cloud, seg);
+		return;
 	}
 
 	void Primitive3::fit_sample_consensus_with_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg_obj)
@@ -197,27 +269,26 @@ namespace robin
 			// Remove the inliers, extract/subtract the rest
 			extract.setNegative(true);
 			extract.filter(*cloud);
-			//extract_normals.setNegative(true);
-			//extract_normals.setInputCloud(cloud_normals);
-			//extract_normals.setIndices(inliers_plane);
-			//extract_normals.filter(*cloud_normals2);
 
-			std::cout << " done." << std::endl;
+			std::cout << " done.\n";
 		}
 		else {
 			coefficients_ = coef_temp_copy;
-			std::cout << " no solution found." << std::endl;
+			std::cout << " no solution found.\n";
 		}
+		return;
 	}
 
 
 	void Primitive3::setVisualizeOnOff(bool visual)
 	{
 		visualizeOnOff_ = visual;
+		return;
 	}
 
 
-	/// PRIMITIVE3D3
+
+	//// PRIMITIVE3D3 ////
 
 	void Primitive3d3::addSubPrimitive(Primitive3d1* p)
 	{
@@ -225,9 +296,9 @@ namespace robin
 		arr.push_back(p);
 		subprims_.push_back(arr);
 		are_subprims_custom_ = true;
+		return;
 	}
 
-	/* Reshapes a primitive based on an heuristic. */
 	void Primitive3d3::heuristic(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloud_arr, pcl::SACSegmentation<pcl::PointXYZ>* seg, HEURISTIC heu)
 	{
 		if (!cloud_->points.empty()) {
@@ -250,7 +321,7 @@ namespace robin
 		}		
 		
 		if (!this->heuristic_check(heu)) {
-			std::cout << "The number of sub-primitives (" << subprims_.size() << " found) does not match the Heuristic." << std::endl;
+			std::cout << "The number of sub-primitives (" << subprims_.size() << " found) does not match the Heuristic.\n";
 			return;
 		} //(redundant?)
 
@@ -263,6 +334,8 @@ namespace robin
 		}
 		/* 3. Update object properties. */
 		this->update_properties();
+
+		return;
 	}
 
 	bool Primitive3d3::heuristic_check(HEURISTIC heu)
@@ -299,15 +372,12 @@ namespace robin
 			this->heuristic_laser_array_star();
 			break;
 		}
+		return;
 	}
 
 
 
-
-
-
-
-	/* PointCloud utils */
+	//// POINTCLOUD UTILS ////
 
 	float Primitive3::dotPointXYZ(pcl::PointXYZ a, pcl::PointXYZ b)
 	{
@@ -319,7 +389,6 @@ namespace robin
 		return std::sqrt(c.x * c.x + c.y * c.y + c.z * c.z);
 	}
 
-	/* Calculates the extreme projection values of all PointXYZ in the PointCloud along a given axis. */
 	std::array<float, 2> Primitive3::getPointCloudExtremes(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointXYZ center, pcl::PointXYZ axis)
 	{
 		std::array<float, 2> arr = { 1000.0, -1000.0 };
@@ -338,7 +407,6 @@ namespace robin
 		return arr;
 	}
 
-	/* Calculates the projection extremes of a point cloud about a specific axis 'axis' from point 'center'. */
 	std::array<float, 2> Primitive3::getPointCloudExtremes(const pcl::PointCloud<pcl::PointXYZ>& cloud, pcl::PointXYZ center, pcl::PointXYZ axis, pcl::PointXYZ& min, pcl::PointXYZ& max)
 	{
 		std::array<float, 2> arr = { 1000.0, -1000.0 };

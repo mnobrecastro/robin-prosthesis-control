@@ -20,8 +20,12 @@ namespace robin
 		public Primitive3d2
 	{
 	public:
+
 		Primitive3Plane();
+
+		/* Primitive3Plane can be initialized by "DEFAULT" or by "PERPENDICULAR" or "PARALLEL" types. */
 		Primitive3Plane(PLANE_TYPE type, Eigen::Vector3f v, float angle);
+
 		~Primitive3Plane();
 
 		void reset();

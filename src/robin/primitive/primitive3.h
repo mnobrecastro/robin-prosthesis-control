@@ -11,6 +11,7 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/PointIndices.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/common/pca.h>
 
 #include <pcl/visualization/pcl_visualizer.h>
 
@@ -56,7 +57,7 @@ namespace robin
 		pcl::ModelCoefficients::Ptr getCoefficients() const;
 
 		/* Rendering of a Primitive3 on a PCLVisualizer. */
-		virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const {}
+		virtual void visualize(pcl::visualization::PCLVisualizer::Ptr viewer) const;
 
 		/* Variable to enable the control over the visualization of primitives. */
 		void setVisualizeOnOff(bool);
@@ -68,6 +69,9 @@ namespace robin
 		virtual void setFaceHighlight(int i) {}
 
 		virtual void reset();
+
+		/* Receives a PointCloud and calculates its principal components and respective dimensions. */
+		void pca(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 
 		/* Receives a PointCloud object by reference and extracts/segments it by fitting to it. */
 		virtual void fit(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, bool seg_normals) {}
@@ -112,7 +116,7 @@ namespace robin
 		void fit_sample_consensus_with_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg);
 
 		/* Checks if the fit is valid. */
-		virtual bool is_fit_valid() { return false; }
+		virtual bool is_fit_valid() const { return false; }
 
 		/* Correct the obtained coefficients if necessary. */
 		virtual void correct_coefficients() {}
@@ -122,6 +126,7 @@ namespace robin
 
 		/* Variable to enable the control over the visualization of primitives. */
 		bool visualizeOnOff_ = true;
+		bool pcaOnOff_ = false;
 
 		/**** PCL utils ****/
 
@@ -176,10 +181,10 @@ namespace robin
 		bool are_subprims_custom_ = false;
 
 		/* Receives a PointCloud cut by reference and fits a sub-primitive to it. */
-		virtual void cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) { std::cout << "DO NOT SHOW THIS MESSAGE" << std::endl; }
+		virtual void cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) { }
 
 		/* Receives a PointCloud cut and a segmentation object by reference and extracts/segments it by fitting to it. */
-		virtual void cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg) { std::cout << "DO NOT SHOW THIS MESSAGE" << std::endl; }
+		virtual void cut(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::SACSegmentation<pcl::PointXYZ>* seg) { }
 
 		bool heuristic_check(HEURISTIC heu);
 
