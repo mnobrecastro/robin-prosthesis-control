@@ -24,12 +24,15 @@ namespace robin {
 	Webcam::Webcam(const std::string dev_str)
 		: dev_(new cv::VideoCapture)
 	{
+		//dev_->set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+		//dev_->set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
 		// Open and check if the camera was successfully initialized
 		dev_->open(dev_str);
 		if (!dev_->isOpened()) {
 			std::cerr << "ERROR: Could not open the webcam.\n";
 		}
 		std::cout << "Device found:\n";
+		//dev_->set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
 		std::cout << dev_->get(cv::CAP_PROP_FOURCC) << " "
 			<< dev_->get(cv::CAP_PROP_FRAME_WIDTH) << " "
 			<< dev_->get(cv::CAP_PROP_FRAME_HEIGHT) << " "

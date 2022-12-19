@@ -96,7 +96,8 @@ namespace robin
 		//dsfilt.setSample(100);
 		//dsfilt.filter(*cloud_);
 		///
-		this->resample();
+		
+		//this->resample();
 
 		Solver3::segment();
 		

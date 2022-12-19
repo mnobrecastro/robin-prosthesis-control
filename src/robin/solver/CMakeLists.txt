@@ -18,6 +18,8 @@ list(APPEND robin_SOURCES
 	${CMAKE_CURRENT_LIST_DIR}/solver3_lccp.h
 	${CMAKE_CURRENT_LIST_DIR}/solver3_lasers.cpp
 	${CMAKE_CURRENT_LIST_DIR}/solver3_lasers.h
+	${CMAKE_CURRENT_LIST_DIR}/solver3_affnet.cpp
+	${CMAKE_CURRENT_LIST_DIR}/solver3_affnet.h
 )
 
 list(APPEND robin_INCS
@@ -31,6 +33,7 @@ list(APPEND robin_INCS
 	${CMAKE_CURRENT_LIST_DIR}/solver3.h
 	${CMAKE_CURRENT_LIST_DIR}/solver3_lccp.h
 	${CMAKE_CURRENT_LIST_DIR}/solver3_lasers.h
+	${CMAKE_CURRENT_LIST_DIR}/solver3_affnet.h
 )
 
 list(APPEND robin_SRCS
@@ -44,4 +47,6 @@ list(APPEND robin_SRCS
 	${CMAKE_CURRENT_LIST_DIR}/solver3.cpp
 	${CMAKE_CURRENT_LIST_DIR}/solver3_lccp.cpp
 	${CMAKE_CURRENT_LIST_DIR}/solver3_lasers.cpp
+	${CMAKE_CURRENT_LIST_DIR}/solver3_affnet.cpp
+
 )

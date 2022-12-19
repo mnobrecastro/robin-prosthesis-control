@@ -9,11 +9,6 @@
 #include <pcl/point_types.h>
 #include <pcl/common/io.h>
 
-#include <pcl/filters/passthrough.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/filters/approximate_voxel_grid.h>
-#include <pcl/filters/random_sample.h>
-
 namespace robin {
 
 	class Sensor3 :

@@ -10,7 +10,7 @@
 
 namespace robin {
 
-	enum class CAMERA {
+	enum class CAMERA_RGB {
 		REALSENSE_D400
 	};
 
@@ -20,7 +20,7 @@ namespace robin {
 	public:
 		
 		CameraRgb();
-		CameraRgb(robin::CAMERA);
+		CameraRgb(robin::CAMERA_RGB);
 		~CameraRgb();
 
 		virtual void printInfo();

@@ -17,9 +17,10 @@ namespace robin {
 
 	std::shared_ptr<cv::Mat> Sensor2::getImage()
 	{
-		std::shared_ptr<cv::Mat> image(new cv::Mat);
+		//std::shared_ptr<cv::Mat> image(new cv::Mat);
 		mu_image_.lock();		
-		(*image_).copyTo(*image);
+		//(*image_).copyTo(*image);
+		std::shared_ptr<cv::Mat> image(new cv::Mat(*image_));
 		mu_image_.unlock();
 		return image;
 	}

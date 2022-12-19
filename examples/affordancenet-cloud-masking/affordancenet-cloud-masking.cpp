@@ -20,18 +20,21 @@
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <robin/solver/solver3.h>
+#include <robin/solver/solver3_affnet.h>
 #include <robin/solver/solver3_lccp.h>
 
-#include <pcl/filters/statistical_outlier_removal.h>
 
 int main(int argc, char** argv)
 {	
 	// Declare a solver3
-	robin::Solver3 mysolver;
-	//robin::Solver3LCCP mysolver;
+	//robin::Solver3 mysolver;
+	robin::Solver3LCCP mysolver;
 	mysolver.setCrop(-0.1, 0.1, -0.1, 0.1, 0.115, 0.215); //0.215
+	//mysolver.setCrop(-0.25, 0.25, -0.25, 0.25, 0.115, 0.5); //0.215
 	mysolver.setDownsample(0.002f);
-	mysolver.setPlaneRemoval(false);
+	mysolver.setDenoise(50, 0.1); //50, 0.1
+	////mysolver.setResample(2, 0.1f);
+	//mysolver.setPlaneRemoval(false);
 
 	// Create a sensor from a camera
 	//robin::CameraRgb* mycam(new robin::CameraRgb);
@@ -40,15 +43,32 @@ int main(int argc, char** argv)
 	//const std::string url("http://172.26.24.202:5000/video_feed"); // AAU-Office
 	//const std::string url("http://172.25.151.90:5000/video_feed"); // AAU-Lab_A2_109
 	robin::Webcam* webcam(new robin::Webcam(url));
+	mysolver.addSensor(webcam);
 	//mycam->printInfo();
 	//mycam->setDisparity(false);
+	
+	// RS Camera Intrinsics
+	struct CamIntrinsics {
+		int rx, ry; // Resolution
+		float cx, cy; // Center dist
+		float f; // Focal lenght
+		float s; // Scaling factor
+	};
+
+	const CamIntrinsics Cam = { 424, 240, 211.937, 122.685, 211.357, 1000.0 };
+	//Cam.rx = 424;
+	//Cam.ry = 240;
+	//Cam.cx = 211.937;
+	//Cam.cy = 122.685;
+	//Cam.f = 211.357;
+	//Cam.s = 1000.0;
 
 	// Declare and instanciate a segmentation object
 	pcl::SACSegmentation<pcl::PointXYZ>* seg(new pcl::SACSegmentation<pcl::PointXYZ>);
 	seg->setOptimizeCoefficients(true);
 	seg->setMethodType(pcl::SAC_PROSAC);
 	seg->setMaxIterations(1000);
-	seg->setDistanceThreshold(0.001);
+	seg->setDistanceThreshold(0.001); // 0.001
 	seg->setRadiusLimits(0.005, 0.050);
 	mysolver.setSegmentation(seg);
 
@@ -70,15 +90,10 @@ int main(int argc, char** argv)
 	std::string wname("Input");
 	cv::namedWindow(wname, cv::WINDOW_AUTOSIZE);
 
-	std::string win_depth("Depthmap");
-	cv::namedWindow(win_depth, cv::WINDOW_AUTOSIZE);
-	std::string win_mask("Mask");
-	cv::namedWindow(win_mask, cv::WINDOW_AUTOSIZE);
-
 	////
 
-	robin::Sensor3* depthcam(new robin::Sensor3);
-	mysolver.addSensor(depthcam);
+	/*robin::Sensor3* depthcam(new robin::Sensor3);
+	mysolver.addSensor(depthcam);*/
 
 
 	// To avoid a "cv::Exception at memory location" before the camera is initialized in a secondary thread
@@ -91,139 +106,6 @@ int main(int argc, char** argv)
 	while (true) {
 		auto tic = std::chrono::high_resolution_clock::now();
 
-		/*mysolver.solve(prim);
-
-		viewer->removeAllShapes();
-		viewer->removeAllPointClouds();
-
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> preproc_color_h(255, 255, 255);
-		preproc_color_h.setInputCloud(mysolver.getPreprocessed());
-		viewer->addPointCloud(mysolver.getPreprocessed(), preproc_color_h, "preproc");
-
-		///
-
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> solver_color_h(0, 255, 0);
-		solver_color_h.setInputCloud(mysolver.getPointCloud());
-		viewer->addPointCloud(mysolver.getPointCloud(), solver_color_h, "solver");
-
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
-		primitive_color_h.setInputCloud(prim->getPointCloud());
-		viewer->addPointCloud(prim->getPointCloud(), primitive_color_h, "primitive");
-		prim->visualize(viewer);
-
-		viewer->spinOnce(1, true);
-		*/
-
-		cv::imshow(wname, *(webcam->getImage()));
-
-		// Rescale the ouput image
-		//cv::resize(img_out, img_out, cv::Size(INPUT_WIDTH, INPUT_HEIGHT), 0, 0, cv::INTER_AREA);
-
-		cv::Mat im(*(webcam->getImage())); // CV_8UC3
-		int H(im.size().height), W(im.size().width);
-		// Cropping the 'depthmap' image
-		cv::Mat im_depth = im(cv::Range(H/4, 3*H/4), cv::Range(0, W/2));
-		// Cropping the 'mask' image
-		cv::Mat im_mask = im(cv::Range(H/4, 3*H/4), cv::Range(W/2, W));
-
-		// Render both images
-		cv::imshow(win_depth, im_depth);
-		cv::imshow(win_mask, im_mask);
-
-		cv::waitKey(1);
-
-		// 
-
-		// RS Camera Intrinsics
-		float rx(424), ry(240); // Resolution
-		float cx(211.937), cy(122.685); // Center dist
-		float f(211.357); // Focal lenght
-		float scaling(1000.0); // Scaling factor
-
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_raw(new pcl::PointCloud<pcl::PointXYZ>());
-		//pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask(new pcl::PointCloud<pcl::PointXYZ>());
-		for (size_t y(0); y < im_depth.size().height; ++y) {
-			for (size_t x(0); x < im_depth.size().width; ++x) {
-				// Recall BGR ordering				
-				float pZ = (im_depth.at<cv::Vec3b>(y, x).val[0] + im_depth.at<cv::Vec3b>(y, x).val[1] + im_depth.at<cv::Vec3b>(y, x).val[2]) / scaling;
-				float pX = (x - cx) * pZ / f;
-				float pY = (y - cy) * pZ / f;
-				if (pZ > 0.100) {
-					cloud_raw->push_back(pcl::PointXYZ(pX, pY, pZ));
-				}
-			}
-		}
-		std::cout << "cloud: " << cloud_raw->size() << "\n";
-
-		// Create the filtering object
-		pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor_raw;
-		sor_raw.setInputCloud(cloud_raw);
-		sor_raw.setMeanK(50);
-		sor_raw.setStddevMulThresh(1.0);
-		sor_raw.filter(*cloud_raw);
-
-
-
-		cv::Mat affordance_ch;
-		cv::extractChannel(im_mask, affordance_ch, 0); // Graspable-only
-		cv::Mat affordance_mask;
-		cv::threshold(affordance_ch, affordance_mask, 1, 255, cv::THRESH_BINARY);
-
-		cv::Mat im_blobs, stats, centroids; // Graspable-only
-		int n_blobs = cv::connectedComponentsWithStats(affordance_mask, im_blobs, stats, centroids, 8);
-		double min_dist(std::numeric_limits<float>::max());
-		int blob_idx(0); // index of the center-most blob
-		int min_area(0.01 * rx * ry); // 10% of the image area in px
-		for (int k(1); k < n_blobs; ++k) {
-			double dist = std::sqrt((centroids.at<double>(k,0) - cx) * (centroids.at<double>(k, 0) - cx) + (centroids.at<double>(k,1) - cy) * (centroids.at<double>(k, 1) - cy));
-			if (dist < min_dist && stats.at<int>(k, cv::CC_STAT_AREA) > min_area) {
-				blob_idx = k;
-				min_dist = dist;
-			}
-		}
-
-		// Choose the center-most blob among those found by the connectedComponents
-		cv::Mat affordance_blob = cv::Mat::zeros(im_blobs.size().height, im_blobs.size().width, CV_8UC1);
-		if (blob_idx > 0) {
-			for (size_t y(0); y < im_blobs.size().height; ++y) {
-				for (size_t x(0); x < im_blobs.size().width; ++x) {
-					if (im_blobs.at<int>(y,x) == blob_idx) {
-						affordance_blob.at<uchar>(y, x) = 255;
-					}
-				}
-			}
-		}
-
-		// Reconstruct the point cloud by masking the depthdata with the affordance blob
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask(new pcl::PointCloud<pcl::PointXYZ>());
-		cv::Mat affordance_depth;
-		im_depth.copyTo(affordance_depth, affordance_blob);
-		for (size_t x(0); x < affordance_depth.size().width; ++x) {
-			for (size_t y(0); y < affordance_depth.size().height; ++y) {
-				// Recall BGR ordering				
-				float pZ = (affordance_depth.at<cv::Vec3b>(y, x).val[0] + affordance_depth.at<cv::Vec3b>(y, x).val[1] + affordance_depth.at<cv::Vec3b>(y, x).val[2]) / scaling;
-				float pX = (x - cx) * pZ / f;
-				float pY = (y - cy) * pZ / f;
-				if (pZ > 0.100) {
-					cloud_mask->push_back(pcl::PointXYZ(pX, pY, pZ));
-				}
-			}
-		}
-		std::cout << "mask: " << cloud_mask->size() << "\n";
-
-		// Create the filtering object
-		pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor_mask;
-		sor_mask.setInputCloud(cloud_mask);
-		sor_mask.setMeanK(20);
-		sor_mask.setStddevMulThresh(1.0); //1.0
-		sor_mask.filter(*cloud_mask);
-
-
-		// ----------------------------------------------------
-		// Process the affordance point cloud
-
-		depthcam->setPointCloud(*cloud_mask);
-
 		// Reset the dummy Primitive3d3 for multiple primitive inference
 		prim = new robin::Primitive3d3;
 
@@ -231,21 +113,25 @@ int main(int argc, char** argv)
 		//mysolver.principal_components(prim);
 
 		if (prim->isEmpty()) {
-			//std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+			std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n";
 		}
 
 		//---- RENDERING ----
 		if (RENDER) {
+
+			cv::imshow(wname, *(webcam->getImage()));
+			cv::waitKey(1);
+
 			viewer->removeAllShapes();
 			viewer->removeAllPointClouds();
 
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color_h(0, 0, 255);
-			cloud_color_h.setInputCloud(cloud_raw);
-			viewer->addPointCloud(cloud_raw, cloud_color_h, "cloud");
+			cloud_color_h.setInputCloud(mysolver.getPreprocessed());
+			viewer->addPointCloud(mysolver.getPreprocessed(), cloud_color_h, "cloud");
 
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> mask_color_h(0, 255, 0);
-			mask_color_h.setInputCloud(cloud_mask);
-			viewer->addPointCloud(cloud_mask, mask_color_h, "mask");
+			mask_color_h.setInputCloud(mysolver.getPointCloud());
+			viewer->addPointCloud(mysolver.getPointCloud(), mask_color_h, "mask");
 
 			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> primitive_color_h(255, 0, 0);
 			primitive_color_h.setInputCloud(prim->getPointCloud());
@@ -264,8 +150,6 @@ int main(int argc, char** argv)
 
 	// Destroy all OpenCV windows
 	cv::destroyWindow(wname);
-	cv::destroyWindow(win_depth);
-	cv::destroyWindow(win_mask);
 
 	return 0;
 }
